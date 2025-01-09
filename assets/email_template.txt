@@ -4,15 +4,15 @@
   |\\ | |__  __ /  ` /  \\ |__) |__         }  {
   | \\| |       \\__, \\__/ |  \\ |___     \\`-._,-`-,
                                         `._,._,'
-  nf-core/spatialmibi ${version}
+  WEHI-SODA-Hub/spatialmibi ${version}
 ----------------------------------------------------
 Run Name: $runName
 
 <% if (success){
-    out << "## nf-core/spatialmibi execution completed successfully! ##"
+    out << "## WEHI-SODA-Hub/spatialmibi execution completed successfully! ##"
 } else {
     out << """####################################################
-## nf-core/spatialmibi execution completed unsuccessfully! ##
+## WEHI-SODA-Hub/spatialmibi execution completed unsuccessfully! ##
 ####################################################
 The exit status of the task that caused the workflow execution to fail was: $exitStatus.
 The full error message was:
@@ -35,5 +35,5 @@ Pipeline Configuration:
 <% out << summary.collect{ k,v -> " - $k: $v" }.join("\n") %>
 
 --
-nf-core/spatialmibi
-https://github.com/nf-core/spatialmibi
+WEHI-SODA-Hub/spatialmibi
+https://github.com/WEHI-SODA-Hub/spatialmibi

@@ -1,9 +1,9 @@
 #!/usr/bin/env nextflow
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    nf-core/spatialmibi
+    WEHI-SODA-Hub/spatialmibi
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    Github : https://github.com/nf-core/spatialmibi
+    Github : https://github.com/WEHI-SODA-Hub/spatialmibi
     Website: https://nf-co.re/spatialmibi
     Slack  : https://nfcore.slack.com/channels/spatialmibi
 ----------------------------------------------------------------------------------------
@@ -27,7 +27,7 @@ include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_nfcore_spat
 //
 // WORKFLOW: Run main analysis pipeline depending on type of input
 //
-workflow NFCORE_SPATIALMIBI {
+workflow WEHISODAHUB_SPATIALMIBI {
 
     take:
     samplesheet // channel: samplesheet read in from --input
@@ -65,7 +65,7 @@ workflow {
     //
     // WORKFLOW: Run main workflow
     //
-    NFCORE_SPATIALMIBI (
+    WEHISODAHUB_SPATIALMIBI (
         PIPELINE_INITIALISATION.out.samplesheet
     )
     //
@@ -78,7 +78,7 @@ workflow {
         params.outdir,
         params.monochrome_logs,
         params.hook_url,
-        
+
     )
 }
 

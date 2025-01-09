@@ -1,11 +1,10 @@
 {
-    "name": "nf-core/spatialmibi",
-    "homePage": "https://github.com/nf-core/spatialmibi",
+    "name": "WEHI-SODA-Hub/spatialmibi",
+    "homePage": "https://github.com/WEHI-SODA-Hub/spatialmibi",
     "repos": {
         "https://github.com/nf-core/modules.git": {
             "modules": {
-                "nf-core": {
-                }
+                "nf-core": {}
             },
             "subworkflows": {
                 "nf-core": {
