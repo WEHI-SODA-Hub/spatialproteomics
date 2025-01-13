@@ -7,6 +7,7 @@
 
 include { paramsSummaryMap       } from 'plugin/nf-schema'
 
+include { CREATEREPORT           } from '../modules/local/createreport/main'
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_spatialmibi_pipeline'
 
@@ -23,7 +24,12 @@ workflow SPATIALMIBI {
     main:
 
     ch_versions = Channel.empty()
-    
+
+    report_template_ch = Channel.fromPath("${moduleDir}/../templates/report_template.qmd")
+    CREATEREPORT(
+        ch_samplesheet,
+        report_template_ch
+    )
 
     //
     // Collate and save software versions

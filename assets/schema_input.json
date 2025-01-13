@@ -13,21 +13,41 @@
                 "errorMessage": "Sample name must be provided and cannot contain spaces",
                 "meta": ["id"]
             },
-            "fastq_1": {
+            "expression_file": {
                 "type": "string",
                 "format": "file-path",
                 "exists": true,
-                "pattern": "^\\S+\\.f(ast)?q\\.gz$",
-                "errorMessage": "FastQ file for reads 1 must be provided, cannot contain spaces and must have extension '.fq.gz' or '.fastq.gz'"
+                "pattern": "^\\S+\\.csv(\\.gz)?$",
+                "errorMessage": "Expression file cannot contain spaces and must have extension '.csv' or '.csv.gz'"
             },
-            "fastq_2": {
+            "hierarchy_file": {
                 "type": "string",
                 "format": "file-path",
                 "exists": true,
-                "pattern": "^\\S+\\.f(ast)?q\\.gz$",
-                "errorMessage": "FastQ file for reads 2 cannot contain spaces and must have extension '.fq.gz' or '.fastq.gz'"
+                "pattern": "^\\S+\\.y(a)?ml$",
+                "errorMessage": "Hierarchy file cannot contain spaces and must have extension '.yml' or '.yaml'"
+            },
+            "markers": {
+                "type": "string",
+                "pattern": "^[\\w-]+(;[\\w-]+)*$",
+                "errorMessage": "Markers must be provided as a semicolon-separated list without spaces"
+            },
+            "cell_types": {
+                "type": "string",
+                "pattern": "^[\\w-]+(;[\\w-]+)*$",
+                "errorMessage": "Cell types must be provided as a semicolon-separated list without spaces"
+            },
+            "parent_types": {
+                "type": "string",
+                "pattern": "^[\\w-]+(;[\\w-]+)*$",
+                "errorMessage": "Parent types must be provided as a semicolon-separated list without spaces"
+            },
+            "downstream_analyses": {
+                "type": "string",
+                "pattern": "^[\\w-]+(;[\\w-]+)*$",
+                "errorMessage": "Downstream analyses must be provided as a semicolon-separated list without spaces"
             }
         },
-        "required": ["sample", "fastq_1"]
+        "required": ["sample"]
     }
 }

@@ -1,0 +1,38 @@
+---
+title: "Spatial MIBI Report"
+format: html
+params:
+    hierarchies_file: "hierarchy.yaml"
+    expression_file: "simulated.csv"
+---
+
+```{r setup, include=FALSE}
+library(devtools)
+if (!requireNamespace("spatialVis", quietly = TRUE)) {
+    devtools::install_github("WEHI-SODA-HUB/spatialVis")
+}
+library(spatialVis)
+```
+
+```{r, params}
+hierarchies_file <- params$hierarchies_file
+expression_file <- params$expression_file
+
+stopifnot(file.exists(hierarchies_file))
+stopifnot(file.exists(expression_file))
+```
+
+## Spatial MIBI Report
+
+```{r, load-data}
+hierarchy_df <- load_hierarchies(hierarchies_file)
+spe <- make_spe_from_expr_data(expression_file, hierarchy_df)
+```
+
+```{r, plots}
+plot_celltypes(spe)
+plot_marker_heatmap(spe)
+plot_marker_heatmap(spe, value = "proportion")
+plot_umap(spe)
+```
+
