@@ -1,0 +1,2 @@
+sample,expression_file,hierarchy_file,downstream_analyses
+sample1,data/simulated.csv,data/hierarchy.yaml,all

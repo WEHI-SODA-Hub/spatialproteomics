@@ -12,6 +12,7 @@ process CREATEREPORT {
 
     output:
     tuple val(meta), path("*.html"), path("*_files/*"), emit: report
+    path("*.rds"), emit: rds
     path "versions.yml"           , emit: versions
 
     when:
@@ -24,7 +25,8 @@ process CREATEREPORT {
         --to html \\
         --output ${prefix}.html \\
         -P hierarchies_file:${hierarchy_file} \\
-        -P expression_file:${expression_file}
+        -P expression_file:${expression_file} \\
+        -P sample_name:${meta.id}
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
