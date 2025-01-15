@@ -23,6 +23,7 @@ process CREATEREPORT {
     """
     quarto render ${template_file} \\
         --to html \\
+        --no-cache \\
         --output ${prefix}.html \\
         -P hierarchies_file:${hierarchy_file} \\
         -P expression_file:${expression_file} \\
