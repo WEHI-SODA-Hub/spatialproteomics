@@ -8,7 +8,7 @@ process CREATEREPORT {
                 'ghcr.io/wehi-soda-hub/spatialvis:latest' }"
     input:
     tuple val(meta), path(expression_file), path(hierarchy_file), val(markers), val(cell_types), val(parent_types), val(downstream_analyses)
-    path(template_file)
+    val(template_file)
 
     output:
     tuple val(meta), path("*/*.html"), path("*/*_files/*"), emit: report
@@ -21,7 +21,8 @@ process CREATEREPORT {
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
-    quarto render ${template_file} \\
+    ln -s ${template_file} report_template.qmd
+    quarto render report_template.qmd \\
         --to html \\
         --no-cache \\
         --output ${prefix}.html \\

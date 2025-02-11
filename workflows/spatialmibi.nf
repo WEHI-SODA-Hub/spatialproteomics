@@ -51,8 +51,7 @@ workflow SPATIALMIBI {
         seg_remove_border_cells,
         seg_include_measurements,
         seg_pixel_expansion,
-        seg_padding ->
-        tuple(
+        seg_padding -> [
             sample,
             an_expression_file,
             an_hierarchy_file,
@@ -60,7 +59,7 @@ workflow SPATIALMIBI {
             an_cell_types,
             an_parent_types,
             an_analyses
-        )
+        ]
     }.set { ch_analyse_samplesheet }
 
     ch_analyse_samplesheet.view()

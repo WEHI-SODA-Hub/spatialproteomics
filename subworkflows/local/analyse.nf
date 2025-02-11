@@ -15,7 +15,7 @@ workflow ANALYSE {
 
     ch_versions = Channel.empty()
 
-    report_template_ch = Channel.fromPath("${moduleDir}/../../templates/report_template.qmd")
+    report_template_ch = "${moduleDir}/../../templates/report_template.qmd"
     CREATEREPORT(
         ch_samplesheet,
         report_template_ch
