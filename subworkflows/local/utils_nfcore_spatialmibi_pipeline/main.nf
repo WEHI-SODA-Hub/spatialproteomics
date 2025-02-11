@@ -66,7 +66,6 @@ workflow PIPELINE_INITIALISATION {
     //
     // Create channel from input file provided through params.input
     //
-
     Channel
         .fromList(samplesheetToList(params.input, "${projectDir}/assets/schema_input.json"))
         .groupTuple()
@@ -137,8 +136,6 @@ workflow PIPELINE_COMPLETION {
 // Validate channels from input samplesheet
 //
 def validateInputSamplesheet(input) {
-    def (meta, expression_file, hierarchy_file, markers, cell_types,
-        parent_types, downstream_analyses) = input
 
     return input
 }

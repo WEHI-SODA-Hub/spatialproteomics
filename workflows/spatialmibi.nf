@@ -6,8 +6,7 @@
 
 
 include { paramsSummaryMap       } from 'plugin/nf-schema'
-
-include { CREATEREPORT           } from '../modules/local/createreport/main'
+include { ANALYSE                } from '../subworkflows/local/analyse'
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_spatialmibi_pipeline'
 
@@ -25,10 +24,51 @@ workflow SPATIALMIBI {
 
     ch_versions = Channel.empty()
 
-    report_template_ch = Channel.fromPath("${moduleDir}/../templates/report_template.qmd")
-    CREATEREPORT(
-        ch_samplesheet,
-        report_template_ch
+    //
+    // Construct channel for only ANALYSE subworkflow
+    //
+    // TODO: can we somehow preserve key-value pairs in the samplesheet channel?
+    //       Then we could manage these args in a less cumbersome way
+    ch_samplesheet.filter {
+        it[1] == ['analyse']
+    }.map {
+        sample,
+        function,
+        an_expression_file,
+        an_hierarchy_file,
+        an_markers,
+        an_cell_types,
+        an_parent_types,
+        an_analyses,
+        seg_mibi_tiff,
+        seg_nuclear_channel,
+        seg_membrane_channels,
+        seg_combine_method,
+        seg_level,
+        seg_interior_threshold,
+        seg_maxima_smooth,
+        seg_min_nuclei_area,
+        seg_remove_border_cells,
+        seg_include_measurements,
+        seg_pixel_expansion,
+        seg_padding ->
+        tuple(
+            sample,
+            an_expression_file,
+            an_hierarchy_file,
+            an_markers,
+            an_cell_types,
+            an_parent_types,
+            an_analyses
+        )
+    }.set { ch_analyse_samplesheet }
+
+    ch_analyse_samplesheet.view()
+    //
+    // Run the main ANALYSE subworkflow
+    //
+    ANALYSE(
+        ch_analyse_samplesheet
     )
 
     //

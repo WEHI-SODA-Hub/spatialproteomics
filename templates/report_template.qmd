@@ -2,7 +2,7 @@
 title: "Spatial MIBI Report"
 format: html
 params:
-    hierarchies_file: "hierarchy.yaml"
+    hierarchy_file: "hierarchy.yaml"
     expression_file: "simulated.csv"
     sample_name: "sample"
 ---
@@ -16,19 +16,18 @@ library(spatialVis)
 ```
 
 ```{r, params}
-hierarchies_file <- params$hierarchies_file
+hierarchy_file <- params$hierarchy_file
 expression_file <- params$expression_file
 sample_name <- params$sample_name
 
-stopifnot(file.exists(hierarchies_file))
+stopifnot(file.exists(hierarchy_file))
 stopifnot(file.exists(expression_file))
 ```
 
 ## Spatial MIBI Report
 
 ```{r, load-data}
-hierarchy_df <- load_hierarchies(hierarchies_file)
-spe <- make_spe_from_expr_data(expression_file, hierarchy_df)
+spe <- make_spe_from_expr_data(expression_file, hierarchy_file)
 ```
 
 ```{r, plots}

@@ -13,41 +13,108 @@
                 "errorMessage": "Sample name must be provided and cannot contain spaces",
                 "meta": ["id"]
             },
-            "expression_file": {
+            "function": {
+                "type": "string",
+                "pattern": "^(segment|analyse)$",
+                "errorMessage": "Function must be either 'segment' or 'analyse'"
+            },
+            "an_expression_file": {
                 "type": "string",
                 "format": "file-path",
                 "exists": true,
                 "pattern": "^\\S+\\.csv(\\.gz)?$",
                 "errorMessage": "Expression file cannot contain spaces and must have extension '.csv' or '.csv.gz'"
             },
-            "hierarchy_file": {
+            "an_hierarchy_file": {
                 "type": "string",
                 "format": "file-path",
                 "exists": true,
                 "pattern": "^\\S+\\.y(a)?ml$",
                 "errorMessage": "Hierarchy file cannot contain spaces and must have extension '.yml' or '.yaml'"
             },
-            "markers": {
+            "an_markers": {
                 "type": "string",
                 "pattern": "^[\\w-]+(;[\\w-]+)*$",
                 "errorMessage": "Markers must be provided as a semicolon-separated list without spaces"
             },
-            "cell_types": {
+            "an_cell_types": {
                 "type": "string",
                 "pattern": "^[\\w-]+(;[\\w-]+)*$",
                 "errorMessage": "Cell types must be provided as a semicolon-separated list without spaces"
             },
-            "parent_types": {
+            "an_parent_types": {
                 "type": "string",
                 "pattern": "^[\\w-]+(;[\\w-]+)*$",
                 "errorMessage": "Parent types must be provided as a semicolon-separated list without spaces"
             },
-            "downstream_analyses": {
+            "an_analyses": {
                 "type": "string",
                 "pattern": "^[\\w-]+(;[\\w-]+)*$",
                 "errorMessage": "Downstream analyses must be provided as a semicolon-separated list without spaces"
+            },
+            "seg_mibi_tiff": {
+                "type": "string",
+                "format": "file-path",
+                "exists": true,
+                "pattern": "^\\S+\\.tiff$",
+                "errorMessage": "MIBI TIFF file cannot contain spaces and must have extension '.tiff'"
+            },
+            "seg_nuclear_channel": {
+                "type": "string",
+                "pattern": "^[\\w-]+$",
+                "errorMessage": "Nuclear channel must be provided as a single word without spaces"
+            },
+            "seg_membrane_channels": {
+                "type": "string",
+                "pattern": "^[\\w-]+(;[\\w-]+)*$",
+                "errorMessage": "Membrane channels must be provided as a semicolon-separated list without spaces"
+            },
+            "seg_combine_method": {
+                "type": "string",
+                "pattern": "^(prod|max)$",
+                "errorMessage": "Combine method must be either 'prod' or 'max'"
+            },
+            "seg_level": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10,
+                "errorMessage": "Segmentation level must be an integer between 0 and 10"
+            },
+            "seg_interior_threshold": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "errorMessage": "Interior threshold must be a number between 0 and 1"
+            },
+            "seg_maxima_smooth": {
+                "type": "number",
+                "minimum": 0,
+                "errorMessage": "Maxima smoothing must be a number greater than or equal to 0"
+            },
+            "seg_min_nuclei_area": {
+                "type": "number",
+                "minimum": 0,
+                "errorMessage": "Minimum nuclei area must be a number greater than or equal to 0"
+            },
+            "seg_remove_border_cells": {
+                "type": "boolean",
+                "errorMessage": "Remove border cells must be a boolean"
+            },
+            "seg_include_measurements": {
+                "type": "boolean",
+                "errorMessage": "Include measurements must be a boolean"
+            },
+            "seg_pixel_expansion": {
+                "type": "integer",
+                "minimum": 0,
+                "errorMessage": "Pixel expansion must be an integer greater than or equal to 0"
+            },
+            "seg_padding": {
+                "type": "integer",
+                "minimum": 0,
+                "errorMessage": "Padding must be an integer greater than or equal to 0"
             }
         },
-        "required": ["sample"]
+        "required": ["sample", "function"]
     }
 }
