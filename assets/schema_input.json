@@ -23,14 +23,14 @@
                 "format": "file-path",
                 "exists": true,
                 "pattern": "^\\S+\\.csv(\\.gz)?$",
-                "errorMessage": "Expression file cannot contain spaces and must have extension '.csv' or '.csv.gz'"
+                "errorMessage": "Expression file must exist and contain spaces and must have extension '.csv' or '.csv.gz'"
             },
             "an_hierarchy_file": {
                 "type": "string",
                 "format": "file-path",
                 "exists": true,
                 "pattern": "^\\S+\\.y(a)?ml$",
-                "errorMessage": "Hierarchy file cannot contain spaces and must have extension '.yml' or '.yaml'"
+                "errorMessage": "Hierarchy file must exist and must contain spaces and must have extension '.yml' or '.yaml'"
             },
             "an_markers": {
                 "type": "string",
@@ -57,7 +57,7 @@
                 "format": "file-path",
                 "exists": true,
                 "pattern": "^\\S+\\.tiff$",
-                "errorMessage": "MIBI TIFF file cannot contain spaces and must have extension '.tiff'"
+                "errorMessage": "MIBI TIFF file must exist, cannot contain spaces and must have extension '.tiff'"
             },
             "seg_nuclear_channel": {
                 "type": "string",
