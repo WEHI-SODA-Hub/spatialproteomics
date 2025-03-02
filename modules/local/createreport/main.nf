@@ -20,14 +20,22 @@ process CREATEREPORT {
 
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"
+    def args = task.ext.args ?: ''
     """
-    ln -s ${template_file} report_template.qmd
+    if [[ ! -f report_template.qmd ]]; then
+        ln -s ${template_file} report_template.qmd
+    fi
     quarto render report_template.qmd \\
         --to html \\
         --no-cache \\
         --output ${prefix}.html \\
+        ${args} \\
         -P hierarchy_file:${hierarchy_file} \\
         -P expression_file:${expression_file} \\
+        -P markers:${markers} \\
+        -P cell_types:${cell_types} \\
+        -P parent_types:${parent_types} \\
+        -P downstream_analyses:${downstream_analyses} \\
         -P sample_name:${meta.id}
 
     mkdir -p ${prefix}

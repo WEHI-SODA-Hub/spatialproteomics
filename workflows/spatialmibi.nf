@@ -62,7 +62,6 @@ workflow SPATIALMIBI {
         ]
     }.set { ch_analyse_samplesheet }
 
-    ch_analyse_samplesheet.view()
     //
     // Run the main ANALYSE subworkflow
     //

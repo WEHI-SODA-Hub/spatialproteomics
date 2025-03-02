@@ -5,20 +5,35 @@ params:
     hierarchy_file: "hierarchy.yaml"
     expression_file: "simulated.csv"
     sample_name: "sample"
+    markers: ""
+    cell_types: ""
+    parent_types: ""
+    downstream_analyses: "all"
 ---
 
 ```{r setup, include=FALSE}
 library(devtools)
 if (!requireNamespace("spatialVis", quietly = TRUE)) {
-    devtools::install_github("WEHI-SODA-HUB/spatialVis")
+    devtools::install_github("WEHI-SODA-Hub/spatialVis")
 }
 library(spatialVis)
 ```
 
 ```{r, params}
+parse_list_arg <- function(arg) {
+    is_empty_nested_list <- class(arg) == "list" & length(arg[[1]]) == 0
+    if (length(arg) == 0 | is_empty_nested_list | arg == "") {
+        return(NULL)
+    }
+    return(strsplit(arg, ":")[[1]])
+}
+
 hierarchy_file <- params$hierarchy_file
 expression_file <- params$expression_file
 sample_name <- params$sample_name
+markers <- parse_list_arg(params$markers)
+cell_types <- parse_list_arg(params$cell_types)
+parent_types <- parse_list_arg(params$parent_types)
 
 stopifnot(file.exists(hierarchy_file))
 stopifnot(file.exists(expression_file))
@@ -28,13 +43,17 @@ stopifnot(file.exists(expression_file))
 
 ```{r, load-data}
 spe <- make_spe_from_expr_data(expression_file, hierarchy_file)
+spe <- create_spatial_clusters(spe)
 ```
 
 ```{r, plots}
-plot_celltypes(spe)
-plot_marker_heatmap(spe)
-plot_marker_heatmap(spe, value = "proportion")
-plot_umap(spe)
+plot_cell_types(spe)
+plot_cell_props(spe, stack = FALSE, parent_types = parent_types, cell_types = cell_types)
+plot_marker_heatmap(spe, markers = markers, cell_types = cell_types, parent_types = parent_types)
+plot_marker_heatmap(spe, markers = markers, cell_types = cell_types, parent_types = parent_types, value = "proportion")
+plot_umap(spe, markers = markers, cell_types = cell_types)
+plot_cluster_cell_props(spe, cell_types = cell_types)
+plot_cluster_cell_props(spe, cell_types = cell_types, plot_type = "heatmap")
 ```
 
 ```{r, save-data}

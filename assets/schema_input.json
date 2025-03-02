@@ -34,22 +34,22 @@
             },
             "an_markers": {
                 "type": "string",
-                "pattern": "^[\\w-]+(;[\\w-]+)*$",
+                "pattern": "^[\\w-]+(:[\\w-]+)*$",
                 "errorMessage": "Markers must be provided as a semicolon-separated list without spaces"
             },
             "an_cell_types": {
                 "type": "string",
-                "pattern": "^[\\w-]+(;[\\w-]+)*$",
+                "pattern": "^[\\w-]+(:[\\w-]+)*$",
                 "errorMessage": "Cell types must be provided as a semicolon-separated list without spaces"
             },
             "an_parent_types": {
                 "type": "string",
-                "pattern": "^[\\w-]+(;[\\w-]+)*$",
+                "pattern": "^[\\w-]+(:[\\w-]+)*$",
                 "errorMessage": "Parent types must be provided as a semicolon-separated list without spaces"
             },
             "an_analyses": {
                 "type": "string",
-                "pattern": "^[\\w-]+(;[\\w-]+)*$",
+                "pattern": "^[\\w-]+(:[\\w-]+)*$",
                 "errorMessage": "Downstream analyses must be provided as a semicolon-separated list without spaces"
             },
             "seg_mibi_tiff": {
@@ -66,7 +66,7 @@
             },
             "seg_membrane_channels": {
                 "type": "string",
-                "pattern": "^[\\w-]+(;[\\w-]+)*$",
+                "pattern": "^[\\w-]+(:[\\w-]+)*$",
                 "errorMessage": "Membrane channels must be provided as a semicolon-separated list without spaces"
             },
             "seg_combine_method": {

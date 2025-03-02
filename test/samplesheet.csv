@@ -1,3 +1,3 @@
-sample,function,an_expression_file,an_hierarchy_file,an_analyses
-sample1,analyse,data/simulated.csv,data/hierarchy.yaml,all
-sample2,analyse,data/simulated.csv,data/hierarchy.yaml,all
+sample,function,an_expression_file,an_hierarchy_file,an_markers,an_analyses
+sample1,analyse,data/simulated.csv,data/hierarchy.yaml,CD3:CD8:CD4:CD20:CD68,all
+sample2,analyse,data/simulated.csv,data/hierarchy.yaml,,all
