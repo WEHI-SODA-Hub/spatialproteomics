@@ -1,6 +1,7 @@
 process CREATEREPORT {
     tag "$meta.id"
     label 'process_single'
+    label 'process_medium_memory'
 
     conda "${moduleDir}/environment.yml"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
