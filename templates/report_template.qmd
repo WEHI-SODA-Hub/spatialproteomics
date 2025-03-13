@@ -1,6 +1,9 @@
 ---
-title: "Spatial MIBI Report"
-format: html
+title: "Spatial Analysis Report"
+format:
+    html:
+        code-fold: true
+        code-tools: true
 params:
     hierarchy_file: "hierarchy.yaml"
     expression_file: "simulated.csv"
@@ -17,9 +20,8 @@ if (!requireNamespace("spatialVis", quietly = TRUE)) {
     devtools::install_github("WEHI-SODA-Hub/spatialVis")
 }
 library(spatialVis)
-```
 
-```{r, params}
+# deal with params
 parse_list_arg <- function(arg) {
     is_empty_nested_list <- class(arg) == "list" & length(arg[[1]]) == 0
     if (length(arg) == 0 | is_empty_nested_list | arg == "") {
@@ -37,26 +39,128 @@ parent_types <- parse_list_arg(params$parent_types)
 
 stopifnot(file.exists(hierarchy_file))
 stopifnot(file.exists(expression_file))
-```
 
-## Spatial MIBI Report
-
-```{r, load-data}
+# load data
 spe <- make_spe_from_expr_data(expression_file, hierarchy_file)
+```
+# `r sample_name`
+
+## Marker heatmaps
+
+Heatmap showing the mean intensity of the specified markers across the specified
+cell. All markers and cell types are shown if none are specified.
+
+```{r heatmap_marker_expression}
+plot_marker_heatmap(
+    spe,
+    markers = markers,
+    cell_types = cell_types
+)
+```
+
+Heatmap showing the proportion of markers that are positive for the specified
+cell types. Note that these markers are obtained from the marker metadata, and
+may not be the same markers plotted in the heatmap above.
+
+```{r heatmap_marker_proportion}
+plot_marker_heatmap(
+    spe,
+    markers = NULL,
+    cell_types = cell_types,
+    parent_types = parent_types,
+    value = "proportion"
+)
+```
+
+## Cell type proportions
+
+Proportions plot showing the high-level (Hierarchy 1) cell types in the sample.
+
+```{r cell_props_top_level}
+plot_cell_props(
+    spe,
+    stack = FALSE,
+    cell_type_colname = "HierarchyLevel1"
+)
+```
+
+Proportions plot showing Hierarchy Level 4 cell types, optionally filtered by a
+parent cell type (Hierarchy 1).
+
+```{r cell_props_cell_type}
+plot_cell_props(
+    spe,
+    stack = FALSE,
+    parent_types = parent_types
+)
+```
+
+## UMAP
+
+UMAP showing high-level (Hierarchy 1) cell types.
+
+```{r umap_high_level}
+plot_umap(
+    spe,
+    cell_type_colname = "HierachyLevel1"
+)
+```
+
+UMAP filtered by specified cell and parent types.
+
+```{r umap_cell_types}
+plot_umap(
+    spe,
+    parent_types = parent_types,
+    cell_types = cell_types
+)
+```
+
+## Cluster memberships
+
+High-level (Hierarchy 1) cell type membership for each cluster as a bar plot and
+as a heatmap.
+
+```{r cluster_memberships_high_level}
 spe <- create_spatial_clusters(spe)
+plot_cluster_cell_props(
+    spe,
+    cell_types = cell_types,
+    cell_type_colname = "HierarchyLevel1",
+    exclude_parent_types = "Other"
+)
 ```
 
-```{r, plots}
-plot_cell_types(spe)
-plot_cell_props(spe, stack = FALSE, parent_types = parent_types, cell_types = cell_types)
-plot_marker_heatmap(spe, markers = markers, cell_types = cell_types, parent_types = parent_types)
-plot_marker_heatmap(spe, markers = NULL, cell_types = cell_types, parent_types = parent_types, value = "proportion")
-plot_umap(spe, markers = markers, cell_types = cell_types)
-plot_cluster_cell_props(spe, cell_types = cell_types)
-plot_cluster_cell_props(spe, cell_types = cell_types, plot_type = "heatmap")
+Cell type memberships of each cluster for only the specified cell type (or all
+cell types if was specified). Shown as a bar plot and heatmap.
+
+```{r cluster_memberships_cell_types}
+plot_cluster_cell_props(
+    spe,
+    cell_types = cell_types,
+    exclude_parent_types = "Other"
+)
+plot_cluster_cell_props(
+    spe,
+    cell_types = cell_types,
+    exclude_parent_types = "Other",
+    plot_type = "heatmap"
+)
 ```
 
-```{r, save-data}
+## Spatial cell types
+
+Spatial plots showing cell locations, optionally filtered by a high-level cell
+type.
+
+```{r spatial_cell_types}
+plot_cell_types(
+    spe,
+    parent_types = parent_types
+)
+```
+
+```{r save-data}
 outfile <- paste0(sample_name, ".rds")
 saveRDS(spe, outfile, compress = "xz")
 ```

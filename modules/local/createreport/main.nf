@@ -42,7 +42,7 @@ process CREATEREPORT {
     mkdir -p ${prefix}
     mv ${prefix}.html ${prefix}
     mv ${prefix}.rds ${prefix}
-    mv *_files ${prefix}
+    cp -r report_template_files ${prefix}
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
