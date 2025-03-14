@@ -102,7 +102,7 @@ UMAP showing high-level (Hierarchy 1) cell types.
 ```{r umap_high_level}
 plot_umap(
     spe,
-    cell_type_colname = "HierachyLevel1"
+    cell_type_colname = "HierarchyLevel1"
 )
 ```
 
