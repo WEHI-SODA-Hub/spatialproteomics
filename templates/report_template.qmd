@@ -154,9 +154,29 @@ Spatial plots showing cell locations, optionally filtered by a high-level cell
 type.
 
 ```{r spatial_cell_types}
-plot_cell_types(
+plot_cells_spatially(
     spe,
     parent_types = parent_types
+)
+```
+
+Spatial plot as above, coloured by clusters.
+
+```{r spatial_clusters}
+plot_cells_spatially(
+    spe,
+    parent_types = parent_types,
+    colour_by = "cluster"
+)
+```
+
+Spatial plot coloured by tumour.
+
+```{r spatial_tumour}
+plot_cells_spatially(
+    spe,
+    parent_types = parent_types,
+    colour_by = "tumour"
 )
 ```
 
