@@ -11,7 +11,12 @@ params:
     markers: ""
     cell_types: ""
     parent_types: ""
-    downstream_analyses: "all"
+    plot_heatmaps: true
+    plot_props: true
+    plot_umap: true
+    plot_clusters: true
+    plot_spatial: true
+    save_rdata: true
 ---
 
 ```{r setup, include=FALSE}
@@ -20,63 +25,123 @@ if (!requireNamespace("spatialVis", quietly = TRUE)) {
     devtools::install_github("WEHI-SODA-Hub/spatialVis")
 }
 library(spatialVis)
+```
 
-# deal with params
+```{r parse_args}
+is_empty_nested_list <- function(x) {
+    class(x) == "list" & length(x[[1]]) == 0
+}
+
 parse_list_arg <- function(arg) {
-    is_empty_nested_list <- class(arg) == "list" & length(arg[[1]]) == 0
-    if (length(arg) == 0 | is_empty_nested_list | arg == "") {
+    if (length(arg) == 0 | is_empty_nested_list(arg) | arg == "") {
         return(NULL)
     }
     return(strsplit(arg, ":")[[1]])
 }
 
+# see https://github.com/quarto-dev/quarto-r/issues/211#issuecomment-2340880323
+write_meta <- function(meta) {
+    handlers <- list(logical = function(x) {
+        value <- ifelse(x, "true", "false")
+        structure(value, class = "verbatim")
+    })
+    res <- yaml::as.yaml(meta, handlers = handlers)
+    knitr::asis_output(paste0("---\n", res, "---\n"))
+}
+
 hierarchy_file <- params$hierarchy_file
 expression_file <- params$expression_file
+
+stopifnot(file.exists(hierarchy_file))
+stopifnot(file.exists(expression_file))
+
 sample_name <- params$sample_name
 markers <- parse_list_arg(params$markers)
 cell_types <- parse_list_arg(params$cell_types)
 parent_types <- parse_list_arg(params$parent_types)
 
-stopifnot(file.exists(hierarchy_file))
-stopifnot(file.exists(expression_file))
+# deal with booleans -- more cumbersome
+plot_heatmaps <- ifelse(is_empty_nested_list(params$plot_heatmaps),
+                        TRUE, params$plot_heatmaps)
+plot_props <- ifelse(is_empty_nested_list(params$plot_props),
+                        TRUE, params$plot_props)
+plot_umap <- ifelse(is_empty_nested_list(params$plot_umap),
+                        TRUE, params$plot_umap)
+plot_clusters <- ifelse(is_empty_nested_list(params$plot_clusters),
+                        TRUE, params$plot_clusters)
+plot_spatial <- ifelse(is_empty_nested_list(params$plot_spatial),
+                        TRUE, params$plot_spatial)
+save_rdata <- ifelse(is_empty_nested_list(params$save_rdata),
+                        TRUE, params$save_rdata)
 
-# load data
+# update boolean meta args so that quarto recognises them if they were
+# overwritten by the parameter input flags
+write_meta(list(params = list(plot_heatmaps = plot_heatmaps,
+                            plot_props = plot_props,
+                            plot_umap = plot_umap,
+                            plot_clusters = plot_clusters,
+                            plot_spatial = plot_spatial)))
+```
+
+# `r sample_name`
+
+```{r, show_params}
+params_table <- data.frame(
+    Parameter = c("Hierarchy File", "Expression File", "Sample Name", "Markers", "Cell Types", "Parent Types"),
+    Value = c(
+        hierarchy_file,
+        expression_file,
+        sample_name,
+        paste(markers, collapse = ", "),
+        paste(cell_types, collapse = ", "),
+        paste(parent_types, collapse = ", ")
+    )
+)
+
+knitr::kable(params_table, format = "markdown", col.names = c("Parameter", "Value"))
+```
+
+```{r load_data, include=FALSE}
 spe <- make_spe_from_expr_data(expression_file, hierarchy_file)
 ```
-# `r sample_name`
+
+::: {.content-hidden unless-meta="params.plot_heatmaps"}
 
 ## Marker heatmaps
 
 Heatmap showing the mean intensity of the specified markers across the specified
 cell. All markers and cell types are shown if none are specified.
 
-```{r heatmap_marker_expression}
+```{r heatmap_marker_expression, eval=plot_heatmaps}
 plot_marker_heatmap(
     spe,
     markers = markers,
     cell_types = cell_types
-)
+) |> capture.output() |> invisible()
 ```
 
 Heatmap showing the proportion of markers that are positive for the specified
 cell types. Note that these markers are obtained from the marker metadata, and
 may not be the same markers plotted in the heatmap above.
 
-```{r heatmap_marker_proportion}
+```{r heatmap_marker_proportion, eval=plot_heatmaps}
 plot_marker_heatmap(
     spe,
     markers = NULL,
     cell_types = cell_types,
     parent_types = parent_types,
     value = "proportion"
-)
+) |> capture.output() |> invisible()
 ```
+:::
+
+::: {.content-hidden unless-meta="params.plot_props"}
 
 ## Cell type proportions
 
 Proportions plot showing the high-level (Hierarchy 1) cell types in the sample.
 
-```{r cell_props_top_level}
+```{r cell_props_top_level, eval=plot_props}
 plot_cell_props(
     spe,
     stack = FALSE,
@@ -87,19 +152,22 @@ plot_cell_props(
 Proportions plot showing Hierarchy Level 4 cell types, optionally filtered by a
 parent cell type (Hierarchy 1).
 
-```{r cell_props_cell_type}
+```{r cell_props_cell_type, eval=plot_props}
 plot_cell_props(
     spe,
     stack = FALSE,
     parent_types = parent_types
 )
 ```
+:::
+
+::: {.content-hidden unless-meta="params.plot_umap"}
 
 ## UMAP
 
 UMAP showing high-level (Hierarchy 1) cell types.
 
-```{r umap_high_level}
+```{r umap_high_level, eval=plot_umap}
 plot_umap(
     spe,
     cell_type_colname = "HierarchyLevel1"
@@ -108,20 +176,23 @@ plot_umap(
 
 UMAP filtered by specified cell and parent types.
 
-```{r umap_cell_types}
+```{r umap_cell_types, eval=plot_umap}
 plot_umap(
     spe,
     parent_types = parent_types,
     cell_types = cell_types
 )
 ```
+:::
+
+::: {.content-hidden unless-meta="params.plot_clusters"}
 
 ## Cluster memberships
 
 High-level (Hierarchy 1) cell type membership for each cluster as a bar plot and
 as a heatmap.
 
-```{r cluster_memberships_high_level}
+```{r cluster_memberships_high_level, eval=plot_clusters}
 spe <- create_spatial_clusters(spe)
 plot_cluster_cell_props(
     spe,
@@ -134,7 +205,7 @@ plot_cluster_cell_props(
 Cell type memberships of each cluster for only the specified cell type (or all
 cell types if was specified). Shown as a bar plot and heatmap.
 
-```{r cluster_memberships_cell_types}
+```{r cluster_memberships_cell_types, eval=plot_clusters}
 plot_cluster_cell_props(
     spe,
     cell_types = cell_types,
@@ -147,13 +218,16 @@ plot_cluster_cell_props(
     plot_type = "heatmap"
 )
 ```
+:::
+
+::: {.content-hidden unless-meta="params.plot_spatial"}
 
 ## Spatial cell types
 
 Spatial plots showing cell locations, optionally filtered by a high-level cell
 type.
 
-```{r spatial_cell_types}
+```{r spatial_cell_types, eval=plot_spatial}
 plot_cells_spatially(
     spe,
     parent_types = parent_types
@@ -162,7 +236,7 @@ plot_cells_spatially(
 
 Spatial plot as above, coloured by clusters.
 
-```{r spatial_clusters}
+```{r spatial_clusters, eval=plot_spatial}
 plot_cells_spatially(
     spe,
     parent_types = parent_types,
@@ -172,15 +246,16 @@ plot_cells_spatially(
 
 Spatial plot coloured by tumour.
 
-```{r spatial_tumour}
+```{r spatial_tumour, eval=plot_spatial}
 plot_cells_spatially(
     spe,
     parent_types = parent_types,
     colour_by = "tumour"
 )
 ```
+:::
 
-```{r save-data}
+```{r save-data, eval=save_rdata}
 outfile <- paste0(sample_name, ".rds")
 saveRDS(spe, outfile, compress = "xz")
 ```

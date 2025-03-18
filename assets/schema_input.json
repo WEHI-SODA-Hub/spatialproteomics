@@ -47,10 +47,29 @@
                 "pattern": "^[\\w-]+(:[\\w-]+)*$",
                 "errorMessage": "Parent types must be provided as a semicolon-separated list without spaces"
             },
-            "an_analyses": {
-                "type": "string",
-                "pattern": "^[\\w-]+(:[\\w-]+)*$",
-                "errorMessage": "Downstream analyses must be provided as a semicolon-separated list without spaces"
+            "an_plot_heatmaps": {
+                "type": "boolean",
+                "errorMessage": "Plot heatmaps must be a boolean"
+            },
+            "an_plot_props": {
+                "type": "boolean",
+                "errorMessage": "Plot properties must be a boolean"
+            },
+            "an_plot_umap": {
+                "type": "boolean",
+                "errorMessage": "Plot UMAP must be a boolean"
+            },
+            "an_plot_clusters": {
+                "type": "boolean",
+                "errorMessage": "Plot clusters must be a boolean"
+            },
+            "an_plot_spatial": {
+                "type": "boolean",
+                "errorMessage": "Plot spatial must be a boolean"
+            },
+            "an_save_rdata": {
+                "type": "boolean",
+                "errorMessage": "Save RData must be a boolean"
             },
             "seg_mibi_tiff": {
                 "type": "string",

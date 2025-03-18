@@ -8,12 +8,23 @@ process CREATEREPORT {
                 'docker://ghcr.io/wehi-soda-hub/spatialvis:latest' :
                 'ghcr.io/wehi-soda-hub/spatialvis:latest' }"
     input:
-    tuple val(meta), path(expression_file), path(hierarchy_file), val(markers), val(cell_types), val(parent_types), val(downstream_analyses)
+    tuple val(meta),
+        path(expression_file),
+        path(hierarchy_file),
+        val(markers),
+        val(cell_types),
+        val(parent_types),
+        val(plot_heatmaps),
+        val(plot_props),
+        val(plot_umap),
+        val(plot_clusters),
+        val(plot_spatial),
+        val(save_rdata)
     val(template_file)
 
     output:
     tuple val(meta), path("*/*.html"), path("*/*_files/*"), emit: report
-    tuple val(meta), path("*/*.rds"), emit: rds
+    tuple val(meta), path("*/*.rds"), emit: rds, optional: true
     path "versions.yml"           , emit: versions
 
     when:
@@ -36,12 +47,19 @@ process CREATEREPORT {
         -P markers:${markers} \\
         -P cell_types:${cell_types} \\
         -P parent_types:${parent_types} \\
-        -P downstream_analyses:${downstream_analyses} \\
+        -P plot_heatmaps:${plot_heatmaps} \\
+        -P plot_props:${plot_props} \\
+        -P plot_umap:${plot_umap} \\
+        -P plot_clusters:${plot_clusters} \\
+        -P plot_spatial:${plot_spatial} \\
+        -P save_rdata:${save_rdata} \\
         -P sample_name:${meta.id}
 
     mkdir -p ${prefix}
     mv ${prefix}.html ${prefix}
-    mv ${prefix}.rds ${prefix}
+    if [[ -f ${prefix}.rds ]]; then
+        mv ${prefix}.rds ${prefix}
+    fi
     cp -r report_template_files ${prefix}
 
     cat <<-END_VERSIONS > versions.yml
@@ -55,10 +73,10 @@ process CREATEREPORT {
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
-    mkdir -p ${prefix}/report_files
+    mkdir -p ${prefix}/report_template_files
     touch ${prefix}/${prefix}.html
     touch ${prefix}/${prefix}.rds
-    touch ${prefix}/report_files/foo.txt
+    touch ${prefix}/report_template_files/foo.txt
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

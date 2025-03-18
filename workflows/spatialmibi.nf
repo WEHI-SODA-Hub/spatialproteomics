@@ -39,7 +39,12 @@ workflow SPATIALMIBI {
         an_markers,
         an_cell_types,
         an_parent_types,
-        an_analyses,
+        an_plot_heatmaps,
+        an_plot_props,
+        an_plot_umap,
+        an_plot_clusters,
+        an_plot_spatial,
+        an_save_rdata,
         seg_mibi_tiff,
         seg_nuclear_channel,
         seg_membrane_channels,
@@ -58,7 +63,12 @@ workflow SPATIALMIBI {
             an_markers,
             an_cell_types,
             an_parent_types,
-            an_analyses
+            an_plot_heatmaps,
+            an_plot_props,
+            an_plot_umap,
+            an_plot_clusters,
+            an_plot_spatial,
+            an_save_rdata
         ]
     }.set { ch_analyse_samplesheet }
 
