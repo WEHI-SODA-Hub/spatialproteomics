@@ -11,9 +11,12 @@ process CREATEREPORT {
     tuple val(meta),
         path(expression_file),
         path(hierarchy_file),
+        val(marker_col),
         val(markers),
+        val(are_markers_split),
         val(cell_types),
         val(parent_types),
+        val(metadata_cols),
         val(plot_heatmaps),
         val(plot_props),
         val(plot_umap),
@@ -44,9 +47,12 @@ process CREATEREPORT {
         ${args} \\
         -P hierarchy_file:${hierarchy_file} \\
         -P expression_file:${expression_file} \\
+        -P marker_col:${marker_col} \\
         -P markers:${markers} \\
+        -P are_markers_split:${are_markers_split} \\
         -P cell_types:${cell_types} \\
         -P parent_types:${parent_types} \\
+        -P metadata_cols:${metadata_cols} \\
         -P plot_heatmaps:${plot_heatmaps} \\
         -P plot_props:${plot_props} \\
         -P plot_umap:${plot_umap} \\

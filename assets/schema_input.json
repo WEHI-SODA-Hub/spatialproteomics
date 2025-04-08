@@ -32,10 +32,19 @@
                 "pattern": "^\\S+\\.y(a)?ml$",
                 "errorMessage": "Hierarchy file must exist and must contain spaces and must have extension '.yml' or '.yaml'"
             },
+            "an_marker_column": {
+                "type": "string",
+                "pattern": "^[\\w-]+$",
+                "errorMessage": "Marker column must be provided as a single word without spaces"
+            },
             "an_markers": {
                 "type": "string",
                 "pattern": "^[\\w-]+(:[\\w-]+)*$",
                 "errorMessage": "Markers must be provided as a semicolon-separated list without spaces"
+            },
+            "an_are_markers_split": {
+                "type": "boolean",
+                "errorMessage": "Are markers split must be a boolean"
             },
             "an_cell_types": {
                 "type": "string",
@@ -46,6 +55,11 @@
                 "type": "string",
                 "pattern": "^[\\w-]+(:[\\w-]+)*$",
                 "errorMessage": "Parent types must be provided as a semicolon-separated list without spaces"
+            },
+            "an_metadata_cols": {
+                "type": "string",
+                "pattern": "^[\\w-]+(:[\\w-]+)*$",
+                "errorMessage": "Metadata columns must be provided as a semicolon-separated list without spaces"
             },
             "an_plot_heatmaps": {
                 "type": "boolean",

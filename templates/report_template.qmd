@@ -9,8 +9,11 @@ params:
     expression_file: "simulated.csv"
     sample_name: "sample"
     markers: ""
+    marker_col: ""
+    are_markers_split: false
     cell_types: ""
     parent_types: ""
+    metadata_cols: ""
     plot_heatmaps: true
     plot_props: true
     plot_umap: true
@@ -56,11 +59,15 @@ stopifnot(file.exists(hierarchy_file))
 stopifnot(file.exists(expression_file))
 
 sample_name <- params$sample_name
+marker_col <- params$marker_col
 markers <- parse_list_arg(params$markers)
 cell_types <- parse_list_arg(params$cell_types)
 parent_types <- parse_list_arg(params$parent_types)
+metadata_cols <- parse_list_arg(params$metadata_cols)
 
 # deal with booleans -- more cumbersome
+are_markers_split <- ifelse(is_empty_nested_list(params$are_markers_split),
+                        FALSE, params$are_markers_split)
 plot_heatmaps <- ifelse(is_empty_nested_list(params$plot_heatmaps),
                         TRUE, params$plot_heatmaps)
 plot_props <- ifelse(is_empty_nested_list(params$plot_props),
@@ -76,7 +83,8 @@ save_rdata <- ifelse(is_empty_nested_list(params$save_rdata),
 
 # update boolean meta args so that quarto recognises them if they were
 # overwritten by the parameter input flags
-write_meta(list(params = list(plot_heatmaps = plot_heatmaps,
+write_meta(list(params = list(
+                            plot_heatmaps = plot_heatmaps,
                             plot_props = plot_props,
                             plot_umap = plot_umap,
                             plot_clusters = plot_clusters,
@@ -102,7 +110,11 @@ knitr::kable(params_table, format = "markdown", col.names = c("Parameter", "Valu
 ```
 
 ```{r load_data, include=FALSE}
-spe <- make_spe_from_expr_data(expression_file, hierarchy_file)
+spe <- make_spe_from_expr_data(expression_file,
+                                hierarchy_file,
+                                marker_col = marker_col,
+                                metadata_cols = metadata_cols,
+                                are_markers_split = are_markers_split)
 ```
 
 ::: {.content-hidden unless-meta="params.plot_heatmaps"}
@@ -244,14 +256,21 @@ plot_cells_spatially(
 )
 ```
 
-Spatial plot coloured by tumour.
+Spatial plot coloured by metadata col if present.
 
 ```{r spatial_tumour, eval=plot_spatial}
-plot_cells_spatially(
-    spe,
-    parent_types = parent_types,
-    colour_by = "tumour"
-)
+# TODO: allow metadata col to be specified directly
+# currently picks the first column that is not "image"
+meta_col <- metadata_cols[!tolower(metadata_cols) %in% "image"][1]
+if (length(meta_col) > 0) {
+    plot_cells_spatially(
+        spe,
+        parent_types = parent_types,
+        colour_by = meta_col
+    )
+} else {
+    print("No metadata cols found!")
+}
 ```
 :::
 
