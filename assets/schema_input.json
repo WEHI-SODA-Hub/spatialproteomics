@@ -32,6 +32,11 @@
                 "pattern": "^\\S+\\.y(a)?ml$",
                 "errorMessage": "Hierarchy file must exist and must contain spaces and must have extension '.yml' or '.yaml'"
             },
+            "an_sample_id": {
+                "type": "string",
+                "pattern": "^\\S+$",
+                "errorMessage": "Sample ID cannot contain spaces"
+            },
             "an_marker_column": {
                 "type": "string",
                 "pattern": "^[\\w-]+$",

@@ -11,6 +11,7 @@ process CREATEREPORT {
     tuple val(meta),
         path(expression_file),
         path(hierarchy_file),
+        val(sample_id),
         val(marker_col),
         val(markers),
         val(are_markers_split),
@@ -47,6 +48,7 @@ process CREATEREPORT {
         ${args} \\
         -P hierarchy_file:${hierarchy_file} \\
         -P expression_file:${expression_file} \\
+        -P sample_id:${sample_id} \\
         -P marker_col:${marker_col} \\
         -P markers:${markers} \\
         -P are_markers_split:${are_markers_split} \\

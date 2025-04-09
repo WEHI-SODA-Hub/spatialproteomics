@@ -8,6 +8,7 @@ params:
     hierarchy_file: "hierarchy.yaml"
     expression_file: "simulated.csv"
     sample_name: "sample"
+    sample_id: ""
     markers: ""
     marker_col: ""
     are_markers_split: false
@@ -59,6 +60,7 @@ stopifnot(file.exists(hierarchy_file))
 stopifnot(file.exists(expression_file))
 
 sample_name <- params$sample_name
+sample_id <- params$sample_id
 marker_col <- params$marker_col
 markers <- parse_list_arg(params$markers)
 cell_types <- parse_list_arg(params$cell_types)
@@ -115,7 +117,8 @@ spe <- make_spe_from_expr_data(
     hierarchy_file,
     marker_col = marker_col,
     metadata_cols = metadata_cols,
-    are_markers_split = are_markers_split
+    are_markers_split = are_markers_split,
+    sample_id = sample_id
 )
 ```
 
@@ -158,7 +161,6 @@ Proportions plot showing the high-level (Hierarchy 1) cell types in the sample.
 ```{r cell_props_top_level, eval=plot_props}
 plot_cell_props(
     spe,
-    stack = FALSE,
     cell_type_colname = "HierarchyLevel1"
 )
 ```
@@ -169,7 +171,6 @@ parent cell type (Hierarchy 1).
 ```{r cell_props_cell_type, eval=plot_props}
 plot_cell_props(
     spe,
-    stack = FALSE,
     parent_types = parent_types
 )
 ```
