@@ -110,11 +110,13 @@ knitr::kable(params_table, format = "markdown", col.names = c("Parameter", "Valu
 ```
 
 ```{r load_data, include=FALSE}
-spe <- make_spe_from_expr_data(expression_file,
-                                hierarchy_file,
-                                marker_col = marker_col,
-                                metadata_cols = metadata_cols,
-                                are_markers_split = are_markers_split)
+spe <- make_spe_from_expr_data(
+    expression_file,
+    hierarchy_file,
+    marker_col = marker_col,
+    metadata_cols = metadata_cols,
+    are_markers_split = are_markers_split
+)
 ```
 
 ::: {.content-hidden unless-meta="params.plot_heatmaps"}
@@ -208,7 +210,6 @@ as a heatmap.
 spe <- create_spatial_clusters(spe)
 plot_cluster_cell_props(
     spe,
-    cell_types = cell_types,
     cell_type_colname = "HierarchyLevel1",
     exclude_parent_types = "Other"
 )
@@ -221,12 +222,12 @@ cell types if was specified). Shown as a bar plot and heatmap.
 plot_cluster_cell_props(
     spe,
     cell_types = cell_types,
-    exclude_parent_types = "Other"
+    parent_types = parent_types
 )
 plot_cluster_cell_props(
     spe,
     cell_types = cell_types,
-    exclude_parent_types = "Other",
+    parent_types = parent_types,
     plot_type = "heatmap"
 )
 ```

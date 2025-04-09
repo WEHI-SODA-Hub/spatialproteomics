@@ -39,7 +39,7 @@
             },
             "an_markers": {
                 "type": "string",
-                "pattern": "^[\\w-]+(:[\\w-]+)*$",
+                "pattern": "^[\\w-\\+_]+(:[\\w-\\+_]+)*$",
                 "errorMessage": "Markers must be provided as a semicolon-separated list without spaces"
             },
             "an_are_markers_split": {
@@ -48,17 +48,17 @@
             },
             "an_cell_types": {
                 "type": "string",
-                "pattern": "^[\\w-]+(:[\\w-]+)*$",
+                "pattern": "^[\\w-\\+_]+(:[\\w-\\+_]+)*$",
                 "errorMessage": "Cell types must be provided as a semicolon-separated list without spaces"
             },
             "an_parent_types": {
                 "type": "string",
-                "pattern": "^[\\w-]+(:[\\w-]+)*$",
+                "pattern": "^[\\w-\\+_]+(:[\\w-\\+_]+)*$",
                 "errorMessage": "Parent types must be provided as a semicolon-separated list without spaces"
             },
             "an_metadata_cols": {
                 "type": "string",
-                "pattern": "^[\\w-]+(:[\\w-]+)*$",
+                "pattern": "^[\\w-\\+_]+(:[\\w-\\+_]+)*$",
                 "errorMessage": "Metadata columns must be provided as a semicolon-separated list without spaces"
             },
             "an_plot_heatmaps": {
