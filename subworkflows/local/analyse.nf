@@ -17,8 +17,7 @@ workflow ANALYSE {
 
     report_template_ch = "${moduleDir}/../../templates/report_template.qmd"
     CREATEREPORT(
-        ch_samplesheet,
-        report_template_ch
+        ch_samplesheet
     )
 
     emit:

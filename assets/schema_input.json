@@ -66,6 +66,11 @@
                 "pattern": "^[\\w-\\+_]+(:[\\w-\\+_]+)*$",
                 "errorMessage": "Metadata columns must be provided as a semicolon-separated list without spaces"
             },
+            "an_plot_metas": {
+                "type": "string",
+                "pattern": "^[\\w-\\+_]+(:[\\w-\\+_]+)*$",
+                "errorMessage": "Metadata columns to plot must be provided as a semicolon-separated list without spaces"
+            },
             "an_plot_heatmaps": {
                 "type": "boolean",
                 "errorMessage": "Plot heatmaps must be a boolean"

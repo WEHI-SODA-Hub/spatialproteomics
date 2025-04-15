@@ -18,13 +18,14 @@ process CREATEREPORT {
         val(cell_types),
         val(parent_types),
         val(metadata_cols),
+        val(plot_metas),
         val(plot_heatmaps),
         val(plot_props),
         val(plot_umap),
         val(plot_clusters),
         val(plot_spatial),
         val(save_rdata)
-    val(template_file)
+    //val(template_file)
 
     output:
     tuple val(meta), path("*/*.html"), path("*/*_files/*"), emit: report
@@ -38,9 +39,10 @@ process CREATEREPORT {
     def prefix = task.ext.prefix ?: "${meta.id}"
     def args = task.ext.args ?: ''
     """
-    if [[ ! -f report_template.qmd ]]; then
-        ln -s ${template_file} report_template.qmd
-    fi
+    Rscript -e "spatialVis::copy_report_template(
+        template_name = 'report_template.qmd',
+        output_dir = '.'
+    )"
     quarto render report_template.qmd \\
         --to html \\
         --no-cache \\
@@ -55,6 +57,7 @@ process CREATEREPORT {
         -P cell_types:${cell_types} \\
         -P parent_types:${parent_types} \\
         -P metadata_cols:${metadata_cols} \\
+        -P plot_metas:${plot_metas} \\
         -P plot_heatmaps:${plot_heatmaps} \\
         -P plot_props:${plot_props} \\
         -P plot_umap:${plot_umap} \\
