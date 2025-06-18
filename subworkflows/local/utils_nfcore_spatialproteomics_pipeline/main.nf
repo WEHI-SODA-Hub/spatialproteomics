@@ -1,5 +1,5 @@
 //
-// Subworkflow with functionality specific to the WEHI-SODA-Hub/spatialmibi pipeline
+// Subworkflow with functionality specific to the WEHI-SODA-Hub/spatialproteomics pipeline
 //
 
 /*

@@ -1,7 +1,7 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://raw.githubusercontent.com/WEHI-SODA-Hub/spatialmibi/master/assets/schema_input.json",
-    "title": "WEHI-SODA-Hub/spatialmibi pipeline - params.input schema",
+    "$id": "https://raw.githubusercontent.com/WEHI-SODA-Hub/spatialproteomics/master/assets/schema_input.json",
+    "title": "WEHI-SODA-Hub/spatialproteomics pipeline - params.input schema",
     "description": "Schema for the file provided with params.input",
     "type": "array",
     "items": {
@@ -95,12 +95,12 @@
                 "type": "boolean",
                 "errorMessage": "Save RData must be a boolean"
             },
-            "seg_mibi_tiff": {
+            "seg_tiff": {
                 "type": "string",
                 "format": "file-path",
                 "exists": true,
-                "pattern": "^\\S+\\.tiff$",
-                "errorMessage": "MIBI TIFF file must exist, cannot contain spaces and must have extension '.tiff'"
+                "pattern": "^\\S+\\.tiff?$",
+                "errorMessage": "TIFF file must exist, cannot contain spaces and must have extension '.tiff/.tif'"
             },
             "seg_nuclear_channel": {
                 "type": "string",

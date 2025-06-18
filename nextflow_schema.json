@@ -1,8 +1,8 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://raw.githubusercontent.com/WEHI-SODA-Hub/spatialmibi/master/nextflow_schema.json",
-    "title": "WEHI-SODA-Hub/spatialmibi pipeline parameters",
-    "description": "Cell segmentation and downstream analysis pipeline for the multiplexed ion bream imaging (MIBI) spatial platform",
+    "$id": "https://raw.githubusercontent.com/WEHI-SODA-Hub/spatialproteomics/master/nextflow_schema.json",
+    "title": "WEHI-SODA-Hub/spatialproteomics pipeline parameters",
+    "description": "Cell segmentation and downstream analysis pipeline for COMET and MIBI spatial platforms",
     "type": "object",
     "$defs": {
         "input_output_options": {
@@ -20,7 +20,7 @@
                     "mimetype": "text/csv",
                     "pattern": "^\\S+\\.(csv|y(a)?ml)$",
                     "description": "Path to comma-separated file containing information about the samples in the experiment.",
-                    "help_text": "You will need to create a design file with information about the samples in your experiment before running the pipeline. Use this parameter to specify its location. It has to be a comma-separated file with 3 columns, and a header row. See [usage docs](https://nf-co.re/spatialmibi/usage#samplesheet-input).",
+                    "help_text": "You will need to create a design file with information about the samples in your experiment before running the pipeline. Use this parameter to specify its location. It has to be a comma-separated file with 3 columns, and a header row. See [usage docs](https://nf-co.re/spatialproteomics/usage#samplesheet-input).",
                     "fa_icon": "fas fa-file-csv"
                 },
                 "outdir": {

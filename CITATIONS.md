@@ -1,4 +1,4 @@
-# WEHI-SODA-Hub/spatialmibi: Citations
+# WEHI-SODA-Hub/spatialproteomics: Citations
 
 ## [nf-core](https://pubmed.ncbi.nlm.nih.gov/32055031/)
 

@@ -17,7 +17,7 @@
                         "size": "Large",
                         "weight": "Bolder",
                         "color": "<% if (success) { %>Good<% } else { %>Attention<%} %>",
-                        "text": "WEHI-SODA-Hub/spatialmibi v${version} - ${runName}",
+                        "text": "WEHI-SODA-Hub/spatialproteomics v${version} - ${runName}",
                         "wrap": true
                     },
                     {

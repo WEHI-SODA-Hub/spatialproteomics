@@ -8,7 +8,7 @@
 include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { ANALYSE                } from '../subworkflows/local/analyse'
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
-include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_spatialmibi_pipeline'
+include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_spatialproteomics_pipeline'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -16,7 +16,7 @@ include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_spat
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-workflow SPATIALMIBI {
+workflow SPATIALPROTEOMICS {
 
     take:
     ch_samplesheet // channel: samplesheet read in from --input
@@ -50,7 +50,7 @@ workflow SPATIALMIBI {
         an_plot_clusters,
         an_plot_spatial,
         an_save_rdata,
-        seg_mibi_tiff,
+        seg_tiff,
         seg_nuclear_channel,
         seg_membrane_channels,
         seg_combine_method,

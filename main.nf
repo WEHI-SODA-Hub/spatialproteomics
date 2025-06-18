@@ -1,11 +1,11 @@
 #!/usr/bin/env nextflow
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    WEHI-SODA-Hub/spatialmibi
+    WEHI-SODA-Hub/spatialproteomics
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    Github : https://github.com/WEHI-SODA-Hub/spatialmibi
-    Website: https://nf-co.re/spatialmibi
-    Slack  : https://nfcore.slack.com/channels/spatialmibi
+    Github : https://github.com/WEHI-SODA-Hub/spatialproteomics
+    Website: https://nf-co.re/spatialproteomics
+    Slack  : https://nfcore.slack.com/channels/spatialproteomics
 ----------------------------------------------------------------------------------------
 */
 
@@ -15,9 +15,9 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-include { SPATIALMIBI  } from './workflows/spatialmibi'
-include { PIPELINE_INITIALISATION } from './subworkflows/local/utils_nfcore_spatialmibi_pipeline'
-include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_nfcore_spatialmibi_pipeline'
+include { SPATIALPROTEOMICS  } from './workflows/spatialproteomics'
+include { PIPELINE_INITIALISATION } from './subworkflows/local/utils_nfcore_spatialproteomics_pipeline'
+include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_nfcore_spatialproteomics_pipeline'
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     NAMED WORKFLOWS FOR PIPELINE
@@ -27,7 +27,7 @@ include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_nfcore_spat
 //
 // WORKFLOW: Run main analysis pipeline depending on type of input
 //
-workflow WEHISODAHUB_SPATIALMIBI {
+workflow WEHISODAHUB_spatialproteomics {
 
     take:
     samplesheet // channel: samplesheet read in from --input
@@ -37,7 +37,7 @@ workflow WEHISODAHUB_SPATIALMIBI {
     //
     // WORKFLOW: Run pipeline
     //
-    SPATIALMIBI (
+    SPATIALPROTEOMICS (
         samplesheet
     )
 }
@@ -65,7 +65,7 @@ workflow {
     //
     // WORKFLOW: Run main workflow
     //
-    WEHISODAHUB_SPATIALMIBI (
+    WEHISODAHUB_spatialproteomics (
         PIPELINE_INITIALISATION.out.samplesheet
     )
     //

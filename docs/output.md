@@ -1,4 +1,4 @@
-# WEHI-SODA-Hub/spatialmibi: Output
+# WEHI-SODA-Hub/spatialproteomics: Output
 
 ## Introduction
 
