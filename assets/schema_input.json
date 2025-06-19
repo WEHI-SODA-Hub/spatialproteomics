@@ -15,8 +15,8 @@
             },
             "function": {
                 "type": "string",
-                "pattern": "^(segment|analyse)$",
-                "errorMessage": "Function must be either 'segment' or 'analyse'"
+                "pattern": "^(backsub|segment|analyse)$",
+                "errorMessage": "Function must be either 'backsub', 'segment' or 'analyse'"
             },
             "an_expression_file": {
                 "type": "string",
