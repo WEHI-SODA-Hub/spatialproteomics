@@ -1,0 +1,76 @@
+{
+    "extractmarkers - tiff - stub": {
+        "content": [
+            {
+                "0": [
+                    [
+                        {
+                            "id": [
+                                "analyse_samplesheet.csv:md5,bf995bff1feac8b4fc2b4f46e7ae5b08"
+                            ]
+                        },
+                        "test_markers.csv:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "1": [
+                    "versions.yml:md5,e1cb9bf9ff95b194727697ba4789b26e"
+                ],
+                "markers": [
+                    [
+                        {
+                            "id": [
+                                "analyse_samplesheet.csv:md5,bf995bff1feac8b4fc2b4f46e7ae5b08"
+                            ]
+                        },
+                        "test_markers.csv:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "versions": [
+                    "versions.yml:md5,e1cb9bf9ff95b194727697ba4789b26e"
+                ]
+            }
+        ],
+        "meta": {
+            "nf-test": "0.9.2",
+            "nextflow": "25.04.4"
+        },
+        "timestamp": "2025-06-19T12:12:23.296865602"
+    },
+    "extractmarkers - tiff": {
+        "content": [
+            {
+                "0": [
+                    [
+                        {
+                            "id": [
+                                "analyse_samplesheet.csv:md5,bf995bff1feac8b4fc2b4f46e7ae5b08"
+                            ]
+                        },
+                        "test_markers.csv:md5,4b612101a8ba4a1c4c2f3f95b78bc366"
+                    ]
+                ],
+                "1": [
+                    "versions.yml:md5,e1cb9bf9ff95b194727697ba4789b26e"
+                ],
+                "markers": [
+                    [
+                        {
+                            "id": [
+                                "analyse_samplesheet.csv:md5,bf995bff1feac8b4fc2b4f46e7ae5b08"
+                            ]
+                        },
+                        "test_markers.csv:md5,4b612101a8ba4a1c4c2f3f95b78bc366"
+                    ]
+                ],
+                "versions": [
+                    "versions.yml:md5,e1cb9bf9ff95b194727697ba4789b26e"
+                ]
+            }
+        ],
+        "meta": {
+            "nf-test": "0.9.2",
+            "nextflow": "25.04.4"
+        },
+        "timestamp": "2025-06-19T12:11:54.556332537"
+    }
+}

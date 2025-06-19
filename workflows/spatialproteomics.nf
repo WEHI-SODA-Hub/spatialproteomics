@@ -82,9 +82,14 @@ workflow SPATIALPROTEOMICS {
         ]
     }.set { ch_analyse_samplesheet }
 
+    // TODO: add background correction params and workflow
+    // TODO: setup test data
+    // TODO: Update segmentation parameters
+
     //
     // Run the main ANALYSE subworkflow
     //
+    // TODO: fix sample_id column issue with blank values
     ANALYSE(
         ch_analyse_samplesheet
     )

@@ -1,0 +1,59 @@
+nextflow_process {
+
+    name "Test Process EXTRACTMARKERS"
+    script "../main.nf"
+    process "EXTRACTMARKERS"
+
+    tag "modules"
+    tag "modules_local"
+    tag "extractmarkers"
+
+    test("extractmarkers - tiff") {
+
+        when {
+            process {
+                // NOTE: This test file doesn't actually work, but I don't have a test comet image at the moment
+                """
+                input[0] = [
+                    [ id:'test' ], // meta map
+                    file('https://github.com/nf-core/test-datasets/raw/modules/data/imaging/segmentation/nuclear_image.tif', checkIfExists: true)
+
+                ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out).match() }
+            )
+        }
+
+    }
+
+    test("extractmarkers - tiff - stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'test' ], // meta map
+                    file('https://github.com/nf-core/test-datasets/raw/modules/data/imaging/segmentation/nuclear_image.tif', checkIfExists: true)
+                ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out).match() }
+            )
+        }
+
+    }
+
+}

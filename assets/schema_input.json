@@ -45,7 +45,7 @@
             "an_markers": {
                 "type": "string",
                 "pattern": "^[\\w-\\+_]+(:[\\w-\\+_]+)*$",
-                "errorMessage": "Markers must be provided as a semicolon-separated list without spaces"
+                "errorMessage": "Markers must be provided as a colon-separated list without spaces"
             },
             "an_are_markers_split": {
                 "type": "boolean",
@@ -54,22 +54,22 @@
             "an_cell_types": {
                 "type": "string",
                 "pattern": "^[\\w-\\+_]+(:[\\w-\\+_]+)*$",
-                "errorMessage": "Cell types must be provided as a semicolon-separated list without spaces"
+                "errorMessage": "Cell types must be provided as a colon-separated list without spaces"
             },
             "an_parent_types": {
                 "type": "string",
                 "pattern": "^[\\w-\\+_]+(:[\\w-\\+_]+)*$",
-                "errorMessage": "Parent types must be provided as a semicolon-separated list without spaces"
+                "errorMessage": "Parent types must be provided as a colon-separated list without spaces"
             },
             "an_metadata_cols": {
                 "type": "string",
                 "pattern": "^[\\w-\\+_]+(:[\\w-\\+_]+)*$",
-                "errorMessage": "Metadata columns must be provided as a semicolon-separated list without spaces"
+                "errorMessage": "Metadata columns must be provided as a colon-separated list without spaces"
             },
             "an_plot_metas": {
                 "type": "string",
                 "pattern": "^[\\w-\\+_]+(:[\\w-\\+_]+)*$",
-                "errorMessage": "Metadata columns to plot must be provided as a semicolon-separated list without spaces"
+                "errorMessage": "Metadata columns to plot must be provided as a colon-separated list without spaces"
             },
             "an_plot_heatmaps": {
                 "type": "boolean",
@@ -110,7 +110,7 @@
             "seg_membrane_channels": {
                 "type": "string",
                 "pattern": "^[\\w-]+(:[\\w-]+)*$",
-                "errorMessage": "Membrane channels must be provided as a semicolon-separated list without spaces"
+                "errorMessage": "Membrane channels must be provided as a colon-separated list without spaces"
             },
             "seg_combine_method": {
                 "type": "string",
