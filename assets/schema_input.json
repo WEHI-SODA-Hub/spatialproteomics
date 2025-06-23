@@ -15,8 +15,8 @@
             },
             "function": {
                 "type": "string",
-                "pattern": "^(backsub|segment|analyse)$",
-                "errorMessage": "Function must be either 'backsub', 'segment' or 'analyse'"
+                "pattern": "^(backsub|mesmer|analyse)$",
+                "errorMessage": "Function must be either 'backsub', 'mesmer' or 'analyse'"
             },
             "an_expression_file": {
                 "type": "string",
@@ -122,6 +122,11 @@
                 "minimum": 0,
                 "maximum": 10,
                 "errorMessage": "Segmentation level must be an integer between 0 and 10"
+            },
+            "seg_maxima_threshold": {
+                "type": "number",
+                "minimum": 0,
+                "errorMessage": "Maxima threshold must be a number greater than or equal to 0"
             },
             "seg_interior_threshold": {
                 "type": "number",
