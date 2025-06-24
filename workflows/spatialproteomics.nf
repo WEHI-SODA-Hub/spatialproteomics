@@ -35,7 +35,8 @@ workflow SPATIALPROTEOMICS {
         it[1].contains('backsub')
     }.map {
         sample,
-        function,
+        first_task,
+        last_task,
         an_expression_file,
         an_hierarchy_file,
         an_sample_id,
@@ -68,20 +69,17 @@ workflow SPATIALPROTEOMICS {
             sample,
             seg_tiff
         ]
-    }
-    .transpose()
-    .filter {
-        sample, tiff -> tiff != []
     }.set { ch_backsub }
 
     //
     // Construct channel for MESMER subworkflow
     //
     ch_samplesheet.filter {
-        it[1].contains('mesmer')
+        it[1].contains('mesmer') || it[2].contains('mesmer')
     }.map {
         sample,
-        function,
+        first_task,
+        last_task,
         an_expression_file,
         an_hierarchy_file,
         an_sample_id,
@@ -130,10 +128,11 @@ workflow SPATIALPROTEOMICS {
     // Construct channel for only ANALYSE subworkflow
     //
     ch_samplesheet.filter {
-        it[1] == ['analyse']
+        it[1] == ['analyse'] || it[2] == ['analyse']
     }.map {
         sample,
-        function,
+        first_task,
+        last_task,
         an_expression_file,
         an_hierarchy_file,
         an_sample_id,
@@ -190,12 +189,46 @@ workflow SPATIALPROTEOMICS {
         ch_backsub
     )
 
-    // TODO: handle segmentation with and without background subtraction
+    // Create channel for mesmer, using background subtracted tiff files if available
+    // TODO: FIX: this makes the channel empty if there is no background subtraction output
+    ch_mesmer
+        .join(BACKGROUNDSUBTRACT.out.backsub_tif)
+        .map {
+            sample,
+            seg_tiff,
+            seg_nuclear_channel,
+            seg_membrane_channels,
+            seg_combine_method,
+            seg_level,
+            seg_maxima_threshold,
+            seg_interior_threshold,
+            seg_maxima_smooth,
+            seg_min_nuclei_area,
+            seg_remove_border_cells,
+            seg_pixel_expansion,
+            seg_padding,
+            backsub_tif -> [
+                sample,
+                backsub_tif ?: seg_tiff,
+                seg_nuclear_channel,
+                seg_membrane_channels,
+                seg_combine_method,
+                seg_level,
+                seg_maxima_threshold,
+                seg_interior_threshold,
+                seg_maxima_smooth,
+                seg_min_nuclei_area,
+                seg_remove_border_cells,
+                seg_pixel_expansion,
+                seg_padding
+            ]
+        }.set { ch_mesmer }
 
     //
     // Run the main ANALYSE subworkflow
     //
-    // TODO: fix sample_id column issue with blank values
+    // TODO: fix sample_id column issue with blank values (will pass a blank
+    // list as sample_id if it is null to quarto notebook, which will crash)
     ANALYSE(
         ch_analyse_samplesheet
     )
