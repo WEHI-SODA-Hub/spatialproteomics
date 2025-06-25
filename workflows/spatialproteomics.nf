@@ -8,6 +8,7 @@
 include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { ANALYSE                } from '../subworkflows/local/analyse'
 include { BACKGROUNDSUBTRACT     } from '../subworkflows/local/backgroundsubtract'
+include { BACKSUBMESMER          } from '../subworkflows/local/backsubmesmer'
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_spatialproteomics_pipeline'
 
@@ -87,8 +88,7 @@ workflow SPATIALPROTEOMICS {
         mesmer_only: !it[1].contains(true) && it[2].contains(true)
     }.set { ch_segmentation_samplesheet }
 
-    //
-    // Run the main BACKGROUNDSUBTRACT subworkflow for samples that ONLY require
+    // Run the BACKGROUNDSUBTRACT subworkflow for samples that ONLY require
     // background subtraction (no segmentation)
     //
     BACKGROUNDSUBTRACT(
@@ -112,6 +112,14 @@ workflow SPATIALPROTEOMICS {
                 seg_tiff,
             ]
         }
+    )
+
+    //
+    // Run the BACKSUBMESMER subworkflow for samples that require
+    // background subtraction and mesmer segmentation
+    //
+    BACKSUBMESMER(
+        ch_segmentation_samplesheet.backsub_mesmer
     )
 
     //
