@@ -27,16 +27,15 @@ workflow SPATIALPROTEOMICS {
     // TODO: setup test data
 
     //
-    // Construct channel for only BACKSUB subworkflow
+    // Construct channel for background subtraction/segmentation workflow
     //
     // TODO: can we somehow preserve key-value pairs in the samplesheet channel?
     //       Then we could manage these args in a less cumbersome way
-    ch_samplesheet.filter {
-        it[1].contains('backsub')
-    }.map {
+    ch_samplesheet.map {
         sample,
-        first_task,
-        last_task,
+        run_backsub,
+        run_mesmer,
+        run_analyse,
         an_expression_file,
         an_hierarchy_file,
         an_sample_id,
@@ -67,49 +66,8 @@ workflow SPATIALPROTEOMICS {
         seg_pixel_expansion,
         seg_padding -> [
             sample,
-            seg_tiff
-        ]
-    }.set { ch_backsub }
-
-    //
-    // Construct channel for MESMER subworkflow
-    //
-    ch_samplesheet.filter {
-        it[1].contains('mesmer') || it[2].contains('mesmer')
-    }.map {
-        sample,
-        first_task,
-        last_task,
-        an_expression_file,
-        an_hierarchy_file,
-        an_sample_id,
-        an_marker_column,
-        an_markers,
-        an_are_markers_split,
-        an_cell_types,
-        an_parent_types,
-        an_metadata_cols,
-        an_plot_metas,
-        an_plot_heatmaps,
-        an_plot_props,
-        an_plot_umap,
-        an_plot_clusters,
-        an_plot_spatial,
-        an_save_rdata,
-        seg_tiff,
-        seg_nuclear_channel,
-        seg_membrane_channels,
-        seg_combine_method,
-        seg_level,
-        seg_maxima_threshold,
-        seg_interior_threshold,
-        seg_maxima_smooth,
-        seg_min_nuclei_area,
-        seg_remove_border_cells,
-        seg_include_measurements,
-        seg_pixel_expansion,
-        seg_padding -> [
-            sample,
+            run_backsub,
+            run_mesmer,
             seg_tiff,
             seg_nuclear_channel,
             seg_membrane_channels,
@@ -123,16 +81,49 @@ workflow SPATIALPROTEOMICS {
             seg_pixel_expansion,
             seg_padding
         ]
-    }.set { ch_mesmer }
+    }.branch { it ->
+        backsub_only: it[1].contains(true) && !it[2].contains(true)
+        backsub_mesmer: it[1].contains(true) && it[2].contains(true)
+        mesmer_only: !it[1].contains(true) && it[2].contains(true)
+    }.set { ch_segmentation_samplesheet }
 
+    //
+    // Run the main BACKGROUNDSUBTRACT subworkflow for samples that ONLY require
+    // background subtraction (no segmentation)
+    //
+    BACKGROUNDSUBTRACT(
+        ch_segmentation_samplesheet.backsub_only.map {
+            sample,
+            run_backsub,
+            run_mesmer,
+            seg_tiff,
+            seg_nuclear_channel,
+            seg_membrane_channels,
+            seg_combine_method,
+            seg_level,
+            seg_maxima_threshold,
+            seg_interior_threshold,
+            seg_maxima_smooth,
+            seg_min_nuclei_area,
+            seg_remove_border_cells,
+            seg_pixel_expansion,
+            seg_padding -> [
+                sample,
+                seg_tiff,
+            ]
+        }
+    )
+
+    //
     // Construct channel for only ANALYSE subworkflow
     //
     ch_samplesheet.filter {
-        it[1] == ['analyse'] || it[2] == ['analyse']
+        it[3].contains(true) // run_analyse true for sample
     }.map {
         sample,
-        first_task,
-        last_task,
+        run_backsub,
+        run_mesmer,
+        run_analyse,
         an_expression_file,
         an_hierarchy_file,
         an_sample_id,
@@ -181,48 +172,6 @@ workflow SPATIALPROTEOMICS {
             an_save_rdata
         ]
     }.set { ch_analyse_samplesheet }
-
-    //
-    // Run the main BACKGROUNDSUBTRACT subworkflow
-    //
-    BACKGROUNDSUBTRACT(
-        ch_backsub
-    )
-
-    // Create channel for mesmer, using background subtracted tiff files if available
-    // TODO: FIX: this makes the channel empty if there is no background subtraction output
-    ch_mesmer
-        .join(BACKGROUNDSUBTRACT.out.backsub_tif)
-        .map {
-            sample,
-            seg_tiff,
-            seg_nuclear_channel,
-            seg_membrane_channels,
-            seg_combine_method,
-            seg_level,
-            seg_maxima_threshold,
-            seg_interior_threshold,
-            seg_maxima_smooth,
-            seg_min_nuclei_area,
-            seg_remove_border_cells,
-            seg_pixel_expansion,
-            seg_padding,
-            backsub_tif -> [
-                sample,
-                backsub_tif ?: seg_tiff,
-                seg_nuclear_channel,
-                seg_membrane_channels,
-                seg_combine_method,
-                seg_level,
-                seg_maxima_threshold,
-                seg_interior_threshold,
-                seg_maxima_smooth,
-                seg_min_nuclei_area,
-                seg_remove_border_cells,
-                seg_pixel_expansion,
-                seg_padding
-            ]
-        }.set { ch_mesmer }
 
     //
     // Run the main ANALYSE subworkflow

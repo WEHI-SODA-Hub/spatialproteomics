@@ -13,15 +13,20 @@
                 "errorMessage": "Sample name must be provided and cannot contain spaces",
                 "meta": ["id"]
             },
-            "first_task": {
-                "type": "string",
-                "pattern": "^(backsub|mesmer|analyse)$",
-                "errorMessage": "First task must be either 'backsub', 'mesmer' or 'analyse'"
+            "run_backsub": {
+                "type": "boolean",
+                "default": false,
+                "errorMessage": "Run backsub must be a boolean"
             },
-            "last_task": {
-                "type": "string",
-                "pattern": "^(backsub|mesmer|analyse)$",
-                "errorMessage": "Last task must be either 'backsub', 'mesmer' or 'analyse'"
+            "run_mesmer": {
+                "type": "boolean",
+                "default": false,
+                "errorMessage": "Run mesmer must be a boolean"
+            },
+            "run_analyse": {
+                "type": "boolean",
+                "default": false,
+                "errorMessage": "Run analyse must be a boolean"
             },
             "an_expression_file": {
                 "type": "string",
@@ -168,6 +173,6 @@
                 "errorMessage": "Padding must be an integer greater than or equal to 0"
             }
         },
-        "required": ["sample", "first_task"]
+        "required": ["sample"]
     }
 }
