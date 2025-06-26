@@ -25,7 +25,6 @@ workflow SPATIALPROTEOMICS {
     main:
 
     ch_versions = Channel.empty()
-    // TODO: setup test data
 
     //
     // Construct channel for background subtraction/segmentation workflow
@@ -88,6 +87,8 @@ workflow SPATIALPROTEOMICS {
         mesmer_only: !it[1].contains(true) && it[2].contains(true)
     }.set { ch_segmentation_samplesheet }
 
+    // TODO: setup test data compatible with background subtraction
+    //
     // Run the BACKGROUNDSUBTRACT subworkflow for samples that ONLY require
     // background subtraction (no segmentation)
     //
