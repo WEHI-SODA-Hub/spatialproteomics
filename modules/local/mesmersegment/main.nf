@@ -35,15 +35,15 @@ process MESMERSEGMENT {
         .collect { "--membrane-channel ${it}" }.join(' ')
 
     // TODO: These params are a mess now, consider refactoring
-    def combine_method_arg = combine_method.first() ?: '' ? "--combine-method ${combine_method.first()}" : ''
-    def level_arg = level.first() ?: '' ? "--segmentation-level ${level.first()}" : ''
-    def maxima_threshold_arg = maxima_threshold.first() ?: '' ? "--maxima-threshold ${maxima_threshold}" : ''
-    def interior_threshold_arg = interior_threshold.first() ?: '' ? "--interior-threshold ${interior_threshold}" : ''
-    def maxima_smooth_arg = maxima_smooth.first() ?: '' ? "--maxima-smooth ${maxima_smooth}" : ''
-    def min_nuclei_area_arg = min_nuclei_area.first() ?: '' ? "--min-nuclei-area ${min_nuclei_area}" : ''
+    def combine_method_arg = combine_method.first() != [] ? "--combine-method ${combine_method.first()}" : ''
+    def level_arg = level.first() != [] ? "--segmentation-level ${level.first()}" : ''
+    def maxima_threshold_arg = maxima_threshold.first() != [] ? "--maxima-threshold ${maxima_threshold.first()}" : ''
+    def interior_threshold_arg = interior_threshold.first() != [] ? "--interior-threshold ${interior_threshold.first()}" : ''
+    def maxima_smooth_arg = maxima_smooth.first() != [] ? "--maxima-smooth ${maxima_smooth.first()}" : ''
+    def min_nuclei_area_arg = min_nuclei_area.first() != [] ? "--min-nuclei-area ${min_nuclei_area.first()}" : ''
     def remove_border_cells_arg = remove_border_cells ? '--remove-cells-touching-border' : '--no-remove-cells-touching-border'
-    def pixel_expansion_arg = pixel_expansion.first() ?: '' ? "--pixel-expansion ${pixel_expansion}" : ''
-    def padding_arg = padding.first() ?: '' ? "--padding ${padding}" : ''
+    def pixel_expansion_arg = pixel_expansion.first() != [] ? "--pixel-expansion ${pixel_expansion.first()}" : ''
+    def padding_arg = padding.first() != [] ? "--padding ${padding.first()}" : ''
     """
     mesmer-segment \\
         ${tiff} \\

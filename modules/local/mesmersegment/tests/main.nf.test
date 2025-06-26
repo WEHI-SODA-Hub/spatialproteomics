@@ -86,15 +86,15 @@ nextflow_process {
                     file('${projectDir}/tests/data/mesmer/test_data.tiff', checkIfExists: [true]), // tiff
                     ["nuclear"], // nuclear_channel
                     ["membrane"], // membrane_channels
-                    [null], // combine_method
-                    [null], // level
-                    [null], // maxima_threshold
-                    [null], // interior_threshold
-                    [null], // maxima_smooth
-                    [null], // min_nuclei_area
+                    [[]], // combine_method
+                    [[]], // level
+                    [[]], // maxima_threshold
+                    [[]], // interior_threshold
+                    [[]], // maxima_smooth
+                    [[]], // min_nuclei_area
                     [false], // remove_border_cells
-                    [null], // pixel_expansion
-                    [null] // padding
+                    [[]], // pixel_expansion
+                    [[]] // padding
                 ]
                 input[1] = "nuclear" // compartment
                 """
