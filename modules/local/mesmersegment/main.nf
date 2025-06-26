@@ -1,0 +1,80 @@
+process MESMERSEGMENT {
+    tag "$meta.id"
+    label 'process_medium_memory'
+
+    conda "${moduleDir}/environment.yml"
+    container 'ghcr.io/wehi-soda-hub/mibisegmentation:latest'
+
+    input:
+    tuple val(meta),
+        path(tiff),
+        val(nuclear_channel),
+        val(membrane_channels),
+        val(combine_method),
+        val(level),
+        val(maxima_threshold),
+        val(interior_threshold),
+        val(maxima_smooth),
+        val(min_nuclei_area),
+        val(remove_border_cells),
+        val(pixel_expansion),
+        val(padding)
+    val(compartment)
+
+    output:
+    tuple val(meta), path("*.tiff"), emit: segmentation_mask
+    path "versions.yml"            , emit: versions
+
+    when:
+    task.ext.when == null || task.ext.when
+
+    script:
+    def args = task.ext.args ?: ''
+    def prefix = task.ext.prefix ?: "${meta.id}"
+    def membrane_channel_args = membrane_channels.split(":")
+        .collect { "--membrane-channel ${it}" }.join(' ')
+    def combine_method_arg = combine_method ? "--combine-method ${combine_method}" : ''
+    def level_arg = level ? "--segmentation-level ${level}" : ''
+    def maxima_threshold_arg = maxima_threshold ? "--maxima-threshold ${maxima_threshold}" : ''
+    def interior_threshold_arg = interior_threshold ? "--interior-threshold ${interior_threshold}" : ''
+    def maxima_smooth_arg = maxima_smooth ? "--maxima-smooth ${maxima_smooth}" : ''
+    def min_nuclei_area_arg = min_nuclei_area ? "--min-nuclei-area ${min_nuclei_area}" : ''
+    def remove_border_cells_arg = remove_border_cells ? '--remove-cells-touching-border' : '--no-remove-cells-touching-border'
+    def pixel_expansion_arg = pixel_expansion ? "--pixel-expansion ${pixel_expansion}" : ''
+    def padding_arg = padding ? "--padding ${padding}" : ''
+    """
+    mesmer-segment \\
+        ${tiff} \\
+        --compartment ${compartment} \\
+        --nuclear-channel ${nuclear_channel} \\
+        ${membrane_channel_args} \\
+        ${combine_method_arg} \\
+        ${level_arg} \\
+        ${maxima_threshold_arg} \\
+        ${interior_threshold_arg} \\
+        ${maxima_smooth_arg} \\
+        ${min_nuclei_area_arg} \\
+        ${remove_border_cells_arg} \\
+        ${pixel_expansion_arg} \\
+        ${padding_arg} \\
+        $args \\
+        > "${prefix}.tiff"
+
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        mesmersegmentation: v0.1.0
+    END_VERSIONS
+    """
+
+    stub:
+    def args = task.ext.args ?: ''
+    def prefix = task.ext.prefix ?: "${meta.id}"
+    """
+    touch "${prefix}.tiff"
+
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        mesmersegmentation: v0.1.0
+    END_VERSIONS
+    """
+}

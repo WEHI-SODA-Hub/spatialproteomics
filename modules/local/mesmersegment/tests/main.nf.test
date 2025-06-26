@@ -1,0 +1,149 @@
+nextflow_process {
+
+    name "Test Process MESMERSEGMENT"
+    script "../main.nf"
+    process "MESMERSEGMENT"
+
+    tag "modules"
+    tag "modules_nfcore"
+    tag "mesmersegment"
+
+    test("mesmersegment - nuclear segmentation") {
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'test_nuclear' ], // meta map
+                    file('${projectDir}/tests/data/mesmer/test_data.tiff', checkIfExists: true), // tiff
+                    "nuclear", // nuclear_channel
+                    "membrane", // membrane_channels
+                    "prod", // combine_method
+                    5, // level
+                    0.2, // maxima_threshold
+                    0.2, // interior_threshold
+                    1.0, // maxima_smooth
+                    100, // min_nuclei_area
+                    true, // remove_border_cells
+                    0, // pixel_expansion
+                    64 // padding
+                ]
+                input[1] = "nuclear" // compartment
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out).match() }
+            )
+        }
+
+    }
+
+    test("mesmersegment - cell segmentation") {
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'test_whole_cell' ], // meta map
+                    file('${projectDir}/tests/data/mesmer/test_data.tiff', checkIfExists: true), // tiff
+                    "nuclear", // nuclear_channel
+                    "membrane", // membrane_channels
+                    "max", // combine_method
+                    5, // level
+                    0.05, // maxima_threshold
+                    0.15, // interior_threshold
+                    2.0, // maxima_smooth
+                    50, // min_nuclei_area
+                    false, // remove_border_cells
+                    5, // pixel_expansion
+                    32 // padding
+                ]
+                input[1] = "whole-cell" // compartment
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out).match() }
+            )
+        }
+
+    }
+
+    test("mesmersegment - minimal parameters") {
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'test_minimal' ], // meta map
+                    file('${projectDir}/tests/data/mesmer/test_data.tiff', checkIfExists: true), // tiff
+                    "nuclear", // nuclear_channel
+                    "membrane", // membrane_channels
+                    null, // combine_method
+                    null, // level
+                    null, // maxima_threshold
+                    null, // interior_threshold
+                    null, // maxima_smooth
+                    null, // min_nuclei_area
+                    false, // remove_border_cells
+                    null, // pixel_expansion
+                    null // padding
+                ]
+                input[1] = "nuclear" // compartment
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out).match() }
+            )
+        }
+
+    }
+
+    test("mesmersegment - stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'test_stub' ], // meta map
+                    file('${projectDir}/tests/data/mesmer/test_data.tiff', checkIfExists: true), // tiff
+                    "nuclear", // nuclear_channel
+                    "membrane", // membrane_channels
+                    "prod", // combine_method
+                    5, // level
+                    0.1, // maxima_threshold
+                    0.2, // interior_threshold
+                    1.0, // maxima_smooth
+                    100, // min_nuclei_area
+                    true, // remove_border_cells
+                    0, // pixel_expansion
+                    64 // padding
+                ]
+                input[1] = "nuclear" // compartment
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out).match() }
+            )
+        }
+
+    }
+
+}

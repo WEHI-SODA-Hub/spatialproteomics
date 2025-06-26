@@ -156,6 +156,7 @@
             },
             "seg_remove_border_cells": {
                 "type": "boolean",
+                "default": true,
                 "errorMessage": "Remove border cells must be a boolean"
             },
             "seg_include_measurements": {
