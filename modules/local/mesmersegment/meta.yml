@@ -1,66 +1,85 @@
 ---
 # yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/meta-schema.json
-name: "mesmersegment"
-## TODO nf-core: Add a description of the module and list keywords
-description: write your description here
+name: MESMERSEGMENT
+description: |
+  Performs cell segmentation on imaging data using Mesmer.
+  Handles MIBI and OME-TIFF images.
 keywords:
-  - sort
-  - example
-  - genomics
+  - cell segmentation
+  - spatial biology
+  - mesmer
+  - deepcell
 tools:
-  - "mesmersegmentation":
-      ## TODO nf-core: Add a description and other details for the software below
-      description: ""
-      homepage: ""
-      documentation: ""
-      tool_dev_url: ""
-      doi: ""
-      licence:
-      identifier:
+  - mesmersegmentation:
+      description: A CLI for Mesmer segmentation of MIBI and OME-XML TIFFs
+      homepage: https://github.com/WEHI-SODA-Hub/MesmerSegmentation
+      documentation: https://deepcell.readthedocs.io/
+      tool_dev_url: https://github.com/WEHI-SODA-Hub/MesmerSegmentation
+      licence: ["MIT"]
 
-## TODO nf-core: Add a description of all of the variables used as input
 input:
-  # Only when we have meta
-  - - meta:
-        type: map
-        description: |
-          Groovy Map containing sample information
-          e.g. `[ id:'sample1' ]`
+  - meta:
+      type: map
+      description: |
+        Groovy Map containing sample information
+        e.g. [ id:'test' ]
+  - tiff:
+      type: file
+      description: Input TIFF image file for segmentation
+      pattern: "*.{tiff,tif}"
+  - nuclear_channel:
+      type: integer
+      description: Channel number for nuclear staining (0-indexed)
+  - membrane_channels:
+      type: string
+      description: Colon-separated list of membrane channel numbers
+  - combine_method:
+      type: string
+      description: Method for combining membrane channels
+      pattern: "{prod,max}"
+  - level:
+      type: string
+      description: Segmentation level parameter
+  - maxima_threshold:
+      type: float
+      description: Threshold for local maxima detection
+  - interior_threshold:
+      type: float
+      description: Threshold for interior detection
+  - maxima_smooth:
+      type: float
+      description: Smoothing parameter for maxima detection
+  - min_nuclei_area:
+      type: integer
+      description: Minimum area for nuclei in pixels
+  - remove_border_cells:
+      type: boolean
+      description: Whether to remove cells touching image borders
+  - pixel_expansion:
+      type: integer
+      description: Number of pixels to expand cell boundaries
+  - padding:
+      type: integer
+      description: Padding to add around image borders
+  - compartment:
+      type: string
+      description: Cellular compartment to segment
+      pattern: "{nuclear,whole-cell}"
 
-    ## TODO nf-core: Delete / customise this example input
-    - bam:
-        type: file
-        description: Sorted BAM/CRAM/SAM file
-        pattern: "*.{bam,cram,sam}"
-        ontologies:
-          - edam: "http://edamontology.org/format_2572" # BAM
-          - edam: "http://edamontology.org/format_2573" # CRAM
-          - edam: "http://edamontology.org/format_3462" # SAM
-
-## TODO nf-core: Add a description of all of the variables used as output
 output:
-  - bam:
-      #Only when we have meta
-      - meta:
-          type: map
-          description: |
-            Groovy Map containing sample information
-            e.g. `[ id:'sample1' ]`
-      ## TODO nf-core: Delete / customise this example output
-      - "*.bam":
-          type: file
-          description: Sorted BAM/CRAM/SAM file
-          pattern: "*.{bam,cram,sam}"
-          ontologies:
-            - edam: "http://edamontology.org/format_2572" # BAM
-            - edam: "http://edamontology.org/format_2573" # CRAM
-            - edam: "http://edamontology.org/format_3462" # SAM
-
+  - meta:
+      type: map
+      description: |
+        Groovy Map containing sample information
+        e.g. [ id:'test' ]
+  - segmentation_mask:
+      type: file
+      description: Output segmentation mask as TIFF file
+      pattern: "*.tiff"
   - versions:
-      - "versions.yml":
-          type: file
-          description: File containing software versions
-          pattern: "versions.yml"
+      type: file
+      description: File containing software versions
+      pattern: "versions.yml"
 
 authors:
   - "@mcmero"

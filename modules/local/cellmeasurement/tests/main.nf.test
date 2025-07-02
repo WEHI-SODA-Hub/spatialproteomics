@@ -1,0 +1,94 @@
+nextflow_process {
+
+    name "Test Process CELLMEASUREMENT"
+    script "../main.nf"
+    process "CELLMEASUREMENT"
+
+    tag "modules"
+    tag "modules_nfcore"
+    tag "cellmeasurement"
+
+    test("cellmeasurement - basic functionality") {
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'test' ], // meta map
+                    file('${projectDir}/tests/data/mesmer/test_data.tiff'),
+                    file('${projectDir}/tests/data/mesmer/test_data_nuclear.tiff'),
+                    file('${projectDir}/tests/data/mesmer/test_data_whole-cell.tiff'),
+                    [[]], // cell_expansion - empty list
+                    [false] // skip_measurements
+                ]
+                input[1] = 0.5 // pixel_size_microns
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out).match() }
+            )
+        }
+
+    }
+
+    test("cellmeasurement - with cell expansion and skip measurements") {
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'test_expansion' ], // meta map
+                    file('${projectDir}/tests/data/mesmer/test_data.tiff'),
+                    file('${projectDir}/tests/data/mesmer/test_data_nuclear.tiff'),
+                    file('${projectDir}/tests/data/mesmer/test_data_whole-cell.tiff'),
+                    [2.0], // cell_expansion - with value
+                    [true] // skip_measurements
+                ]
+                input[1] = 0.5 // pixel_size_microns
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out).match() }
+            )
+        }
+
+    }
+
+    test("cellmeasurement - stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'test_stub' ], // meta map
+                    file('${projectDir}/tests/data/mesmer/test_data.tiff'),
+                    file('${projectDir}/tests/data/mesmer/test_data_nuclear.tiff'),
+                    file('${projectDir}/tests/data/mesmer/test_data_whole-cell.tiff'),
+                    [], // cell_expansion - empty list
+                    false // skip_measurements
+                ]
+                input[1] = 0.5 // pixel_size_microns
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out).match() }
+            )
+        }
+
+    }
+
+}
