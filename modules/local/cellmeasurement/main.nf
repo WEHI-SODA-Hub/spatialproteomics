@@ -30,10 +30,10 @@ process CELLMEASUREMENT {
     """
     /entrypoint.sh \\
         --args="${args} \\
-            --nuclear-mask=${nuclear_mask} \\
-            --whole-cell-mask=${whole_cell_mask} \\
-            --tiff-file=${tiff} \\
-            --output-file=${prefix}.geojson \\
+            --nuclear-mask=\$(readlink ${nuclear_mask}) \\
+            --whole-cell-mask=\$(readlink ${whole_cell_mask}) \\
+            --tiff-file=\$(readlink ${tiff}) \\
+            --output-file=\$PWD/${prefix}.geojson \\
             ${cell_expansion_arg} \\
             ${skip_measurements_arg}"
 
