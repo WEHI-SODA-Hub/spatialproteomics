@@ -60,7 +60,7 @@ process MESMERSEGMENT {
         ${pixel_expansion_arg} \\
         ${padding_arg} \\
         $args \\
-        > "${prefix}.tiff"
+        > "${prefix}_${compartment}.tiff"
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

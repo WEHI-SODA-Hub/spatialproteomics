@@ -18,7 +18,6 @@ nextflow_process {
                     file('${projectDir}/tests/data/mesmer/test_data.tiff'),
                     file('${projectDir}/tests/data/mesmer/test_data_nuclear.tiff'),
                     file('${projectDir}/tests/data/mesmer/test_data_whole-cell.tiff'),
-                    [[]], // cell_expansion - empty list
                     [false] // skip_measurements
                 ]
                 input[1] = 0.5 // pixel_size_microns
@@ -35,7 +34,7 @@ nextflow_process {
 
     }
 
-    test("cellmeasurement - with cell expansion and skip measurements") {
+    test("cellmeasurement - skip measurements") {
 
         when {
             process {
@@ -45,7 +44,6 @@ nextflow_process {
                     file('${projectDir}/tests/data/mesmer/test_data.tiff'),
                     file('${projectDir}/tests/data/mesmer/test_data_nuclear.tiff'),
                     file('${projectDir}/tests/data/mesmer/test_data_whole-cell.tiff'),
-                    [2.0], // cell_expansion - with value
                     [true] // skip_measurements
                 ]
                 input[1] = 0.5 // pixel_size_microns
@@ -74,8 +72,7 @@ nextflow_process {
                     file('${projectDir}/tests/data/mesmer/test_data.tiff'),
                     file('${projectDir}/tests/data/mesmer/test_data_nuclear.tiff'),
                     file('${projectDir}/tests/data/mesmer/test_data_whole-cell.tiff'),
-                    [], // cell_expansion - empty list
-                    false // skip_measurements
+                    [false] // skip_measurements
                 ]
                 input[1] = 0.5 // pixel_size_microns
                 """

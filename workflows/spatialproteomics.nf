@@ -64,7 +64,8 @@ workflow SPATIALPROTEOMICS {
         seg_remove_border_cells,
         seg_include_measurements,
         seg_pixel_expansion,
-        seg_padding -> [
+        seg_padding,
+        seg_skip_measurements -> [
             sample,
             run_backsub,
             run_mesmer,
@@ -79,7 +80,8 @@ workflow SPATIALPROTEOMICS {
             seg_min_nuclei_area,
             seg_remove_border_cells,
             seg_pixel_expansion,
-            seg_padding
+            seg_padding,
+            seg_skip_measurements
         ]
     }.branch { it ->
         backsub_only: it[1].contains(true) && !it[2].contains(true)
@@ -108,7 +110,8 @@ workflow SPATIALPROTEOMICS {
             seg_min_nuclei_area,
             seg_remove_border_cells,
             seg_pixel_expansion,
-            seg_padding -> [
+            seg_padding,
+            seg_skip_measurements -> [
                 sample,
                 seg_tiff,
             ]
@@ -161,7 +164,8 @@ workflow SPATIALPROTEOMICS {
         seg_remove_border_cells,
         seg_include_measurements,
         seg_pixel_expansion,
-        seg_padding -> [
+        seg_padding,
+        seg_skip_measurements -> [
             sample,
             an_expression_file,
             an_hierarchy_file,

@@ -172,6 +172,11 @@
                 "type": "integer",
                 "minimum": 0,
                 "errorMessage": "Padding must be an integer greater than or equal to 0"
+            },
+            "seg_skip_measurements": {
+                "type": "boolean",
+                "default": false,
+                "errorMessage": "Skip measurements must be a boolean"
             }
         },
         "required": ["sample"]

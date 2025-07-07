@@ -10,7 +10,6 @@ process CELLMEASUREMENT {
         path(tiff),
         path(nuclear_mask),
         path(whole_cell_mask),
-        val(cell_expansion),
         val(skip_measurements)
     val(pixel_size_microns)
 
@@ -25,7 +24,6 @@ process CELLMEASUREMENT {
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
 
-    def cell_expansion_arg = cell_expansion.first() != [] ? "--cell-expansion ${cell_expansion.first()}" : ''
     def skip_measurements_arg = skip_measurements ? '--skip-measurements=true' : '--skip-measurements=false'
     """
     /entrypoint.sh \\
@@ -34,7 +32,6 @@ process CELLMEASUREMENT {
             --whole-cell-mask=\$(readlink ${whole_cell_mask}) \\
             --tiff-file=\$(readlink ${tiff}) \\
             --output-file=\$PWD/${prefix}.geojson \\
-            ${cell_expansion_arg} \\
             ${skip_measurements_arg}"
 
     cat <<-END_VERSIONS > versions.yml

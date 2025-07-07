@@ -38,6 +38,22 @@
                 }
             }
         },
+        "segmentation_options": {
+            "title": "Segmentation options",
+            "type": "object",
+            "fa_icon": "fas fa-image",
+            "description": "Parameters used to control the segmentation of images.",
+            "help_text": "These parameters control how the pipeline segments the images. You can set these parameters to customise the segmentation process.",
+            "properties": {
+                "pixel_size_microns": {
+                    "type": "number",
+                    "description": "Pixel size in microns.",
+                    "minimum": 0.1,
+                    "maximum": 10.0,
+                    "fa_icon": "fas fa-ruler-combined"
+                }
+            }
+        },
         "institutional_config_options": {
             "title": "Institutional config options",
             "type": "object",
