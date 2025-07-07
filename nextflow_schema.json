@@ -172,7 +172,9 @@
         {
             "$ref": "#/$defs/input_output_options"
         },
-
+        {
+            "$ref": "#/$defs/segmentation_options"
+        },
         {
             "$ref": "#/$defs/institutional_config_options"
         },
