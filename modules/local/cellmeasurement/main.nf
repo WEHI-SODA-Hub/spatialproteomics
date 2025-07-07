@@ -24,7 +24,7 @@ process CELLMEASUREMENT {
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
 
-    def skip_measurements_arg = skip_measurements ? '--skip-measurements=true' : '--skip-measurements=false'
+    def skip_measurements_arg = skip_measurements.first() ? '--skip-measurements=true' : '--skip-measurements=false'
     """
     /entrypoint.sh \\
         --args="${args} \\

@@ -41,7 +41,7 @@ process MESMERSEGMENT {
     def interior_threshold_arg = interior_threshold.first() != [] ? "--interior-threshold ${interior_threshold.first()}" : ''
     def maxima_smooth_arg = maxima_smooth.first() != [] ? "--maxima-smooth ${maxima_smooth.first()}" : ''
     def min_nuclei_area_arg = min_nuclei_area.first() != [] ? "--min-nuclei-area ${min_nuclei_area.first()}" : ''
-    def remove_border_cells_arg = remove_border_cells ? '--remove-cells-touching-border' : '--no-remove-cells-touching-border'
+    def remove_border_cells_arg = remove_border_cells.first() ? '--remove-cells-touching-border' : '--no-remove-cells-touching-border'
     def pixel_expansion_arg = pixel_expansion.first() != [] ? "--pixel-expansion ${pixel_expansion.first()}" : ''
     def padding_arg = padding.first() != [] ? "--padding ${padding.first()}" : ''
     """
