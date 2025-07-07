@@ -1,5 +1,6 @@
 process MESMERSEGMENT {
     tag "$meta.id"
+    label 'process_single'
     label 'process_medium_memory'
 
     conda "${moduleDir}/environment.yml"
