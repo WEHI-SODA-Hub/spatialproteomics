@@ -9,7 +9,7 @@
                                 "analyse_samplesheet.csv:md5,bf995bff1feac8b4fc2b4f46e7ae5b08"
                             ]
                         },
-                        "test.geojson:md5,4ad26bb7f9038d244fd79d3644f36dc7"
+                        "test.geojson:md5,775b8fe1e8bd8252b390691fd0fefff4"
                     ]
                 ],
                 "1": [
@@ -22,7 +22,7 @@
                                 "analyse_samplesheet.csv:md5,bf995bff1feac8b4fc2b4f46e7ae5b08"
                             ]
                         },
-                        "test.geojson:md5,4ad26bb7f9038d244fd79d3644f36dc7"
+                        "test.geojson:md5,775b8fe1e8bd8252b390691fd0fefff4"
                     ]
                 ],
                 "versions": [
@@ -34,7 +34,7 @@
             "nf-test": "0.9.2",
             "nextflow": "25.04.4"
         },
-        "timestamp": "2025-07-07T14:01:28.04744968"
+        "timestamp": "2025-07-09T11:20:58.086962155"
     },
     "cellmeasurement - with cell expansion and skip measurements": {
         "content": [
@@ -110,7 +110,7 @@
                         {
                             "id": "test_expansion"
                         },
-                        "test_expansion.geojson:md5,79f69b64f279e1253023a66002baaa32"
+                        "test_expansion.geojson:md5,5517147da4081e48cc2c5d6761c5d48a"
                     ]
                 ],
                 "1": [
@@ -121,7 +121,7 @@
                         {
                             "id": "test_expansion"
                         },
-                        "test_expansion.geojson:md5,79f69b64f279e1253023a66002baaa32"
+                        "test_expansion.geojson:md5,5517147da4081e48cc2c5d6761c5d48a"
                     ]
                 ],
                 "versions": [
@@ -133,6 +133,6 @@
             "nf-test": "0.9.2",
             "nextflow": "25.04.4"
         },
-        "timestamp": "2025-07-07T14:02:15.797877285"
+        "timestamp": "2025-07-09T11:21:45.769311282"
     }
 }

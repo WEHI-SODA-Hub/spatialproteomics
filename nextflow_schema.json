@@ -164,6 +164,13 @@
                     "description": "Base URL or local path to location of pipeline test dataset files",
                     "default": "https://raw.githubusercontent.com/nf-core/test-datasets/",
                     "hidden": true
+                },
+                "gradle_cache_dir": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "Directory to use for Gradle cache.",
+                    "fa_icon": "fas fa-cogs",
+                    "hidden": true
                 }
             }
         }
