@@ -66,6 +66,16 @@
                     "description": "Technology used for the imaging. Currently, only COMET is supported via the 'ome_tif' parameter.",
                     "fa_icon": "fas fa-microscope",
                     "enum": ["ome_tif"]
+                },
+                "patch_width_pixel": {
+                    "type": "integer",
+                    "description": "Width of patches in pixels.",
+                    "fa_icon": "fas fa-crop"
+                },
+                "patch_overlap_pixel": {
+                    "type": "integer",
+                    "description": "Pixel overlap of patches.",
+                    "fa_icon": "fas fa-crop"
                 }
             }
         },
