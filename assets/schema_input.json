@@ -23,6 +23,11 @@
                 "default": false,
                 "errorMessage": "Run mesmer must be a boolean"
             },
+            "run_cellpose": {
+                "type": "boolean",
+                "default": false,
+                "errorMessage": "Run cellpose must be a boolean"
+            },
             "run_analyse": {
                 "type": "boolean",
                 "default": false,

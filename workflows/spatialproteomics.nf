@@ -10,6 +10,7 @@ include { ANALYSE                } from '../subworkflows/local/analyse'
 include { BACKGROUNDSUBTRACT     } from '../subworkflows/local/backgroundsubtract'
 include { BACKSUBMESMER          } from '../subworkflows/local/backsubmesmer'
 include { MESMERONLY             } from '../subworkflows/local/mesmeronly'
+include { SOPASEGMENT            } from '../subworkflows/local/sopasegment'
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_spatialproteomics_pipeline'
 
@@ -36,6 +37,7 @@ workflow SPATIALPROTEOMICS {
         sample,
         run_backsub,
         run_mesmer,
+        run_cellpose,
         run_analyse,
         an_expression_file,
         an_hierarchy_file,
@@ -70,6 +72,7 @@ workflow SPATIALPROTEOMICS {
             sample,
             run_backsub,
             run_mesmer,
+            run_cellpose,
             seg_tiff,
             seg_nuclear_channel,
             seg_membrane_channels,
@@ -85,9 +88,10 @@ workflow SPATIALPROTEOMICS {
             seg_skip_measurements
         ]
     }.branch { it ->
-        backsub_only: it[1].contains(true) && !it[2].contains(true)
-        backsub_mesmer: it[1].contains(true) && it[2].contains(true)
-        mesmer_only: !it[1].contains(true) && it[2].contains(true)
+        backsub_only: it[1].contains(true) && !it[2].contains(true) &&
+                        !it[3].contains(true) // run_backsub true, run_mesmer false, run_cellpose false
+        backsub_mesmer: it[1].contains(true) && it[2].contains(true) // run_backsub true, run_mesmer true
+        mesmer_only: !it[1].contains(true) && it[2].contains(true) // run_backsub false, run_mesmer true
     }.set { ch_segmentation_samplesheet }
 
     // TODO: setup test data compatible with background subtraction
@@ -100,6 +104,7 @@ workflow SPATIALPROTEOMICS {
             sample,
             run_backsub,
             run_mesmer,
+            run_cellpose,
             seg_tiff,
             seg_nuclear_channel,
             seg_membrane_channels,
@@ -135,10 +140,66 @@ workflow SPATIALPROTEOMICS {
     )
 
     //
+    // Construct channel for only CELLPOSE subworkflow
+    //
+    ch_samplesheet.filter {
+        it[3].contains(true) // run_cellpose true for sample
+    }.map {
+        sample,
+        run_backsub,
+        run_mesmer,
+        run_cellpose,
+        run_analyse,
+        an_expression_file,
+        an_hierarchy_file,
+        an_sample_id,
+        an_marker_column,
+        an_markers,
+        an_are_markers_split,
+        an_cell_types,
+        an_parent_types,
+        an_metadata_cols,
+        an_plot_metas,
+        an_plot_heatmaps,
+        an_plot_props,
+        an_plot_umap,
+        an_plot_clusters,
+        an_plot_spatial,
+        an_save_rdata,
+        seg_tiff,
+        seg_nuclear_channel,
+        seg_membrane_channels,
+        seg_combine_method,
+        seg_level,
+        seg_maxima_threshold,
+        seg_interior_threshold,
+        seg_maxima_smooth,
+        seg_min_nuclei_area,
+        seg_remove_border_cells,
+        seg_include_measurements,
+        seg_pixel_expansion,
+        seg_padding,
+        seg_skip_measurements -> [
+            sample,
+            seg_tiff,
+            seg_nuclear_channel,
+            seg_membrane_channels,
+            seg_skip_measurements
+        ]
+    }.set { ch_cellpose_samplesheet }
+
+    //
+    // Run CELLPOSE subworkflow for samples that ONLY require cellpose segmentation
+    //
+    SOPASEGMENT(
+        ch_cellpose_samplesheet
+    )
+
+    //
     // Construct channel for only ANALYSE subworkflow
     //
     ch_samplesheet.filter {
-        it[3].contains(true) // run_analyse true for sample
+        it[4].contains(true) // run_analyse true for sample
     }.map {
         sample,
         run_backsub,

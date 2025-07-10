@@ -54,6 +54,21 @@
                 }
             }
         },
+        "sopa_options": {
+            "title": "SOPA options",
+            "type": "object",
+            "fa_icon": "fas fa-microscope",
+            "description": "Parameters used by SOPA for the cellpose segmentation workflow.",
+            "help_text": "These parameters control how the SOPA cellpose segmentation workflow runs. You can set these parameters to customise how SOPA handles conversion and patching.",
+            "properties": {
+                "technology": {
+                    "type": "string",
+                    "description": "Technology used for the imaging. Currently, only COMET is supported via the 'ome_tif' parameter.",
+                    "fa_icon": "fas fa-microscope",
+                    "enum": ["ome_tif"]
+                }
+            }
+        },
         "institutional_config_options": {
             "title": "Institutional config options",
             "type": "object",
@@ -181,6 +196,9 @@
         },
         {
             "$ref": "#/$defs/segmentation_options"
+        },
+        {
+            "$ref": "#/$defs/sopa_options"
         },
         {
             "$ref": "#/$defs/institutional_config_options"
