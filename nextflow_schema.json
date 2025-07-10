@@ -76,6 +76,16 @@
                     "type": "integer",
                     "description": "Pixel overlap of patches.",
                     "fa_icon": "fas fa-crop"
+                },
+                "cellpose_diameter": {
+                    "type": "integer",
+                    "description": "Diameter of cells in pixels for cellpose.",
+                    "fa_icon": "fas fa-circle"
+                },
+                "cellpose_min_area": {
+                    "type": "number",
+                    "description": "Minimum area of cells in square pixels for cellpose.",
+                    "fa_icon": "fas fa-arrows-alt"
                 }
             }
         },

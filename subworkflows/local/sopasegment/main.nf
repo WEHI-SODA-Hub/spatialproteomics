@@ -41,7 +41,7 @@ process SOPAPATCHIFYIMAGE {
     tuple val(meta), path(zarr)
 
     output:
-    tuple val(meta), path("*.zarr/.sopa_cache/patches_file_image"), (path "*.zarr/shapes/image_patches"), emit: patches
+    tuple val(meta), path(zarr), path("*.zarr/.sopa_cache/patches_file_image"), path("*.zarr/shapes/image_patches"), emit: patches
 
     script:
     def args = task.ext.args ?: ''
@@ -54,6 +54,32 @@ process SOPAPATCHIFYIMAGE {
     """
 }
 
+process SOPASEGMANTATIONCELLPOSENUCLEAR {
+    label "process_single"
+
+    conda "${moduleDir}/environment.yml"
+    container "${workflow.containerEngine == 'apptainer' && !task.ext.singularity_pull_docker_container
+        ? 'docker://quentinblampey/sopa:2.0.7-cellpose'
+        : 'docker.io/quentinblampey/sopa:2.0.7-cellpose'}"
+
+    input:
+    tuple val(meta), path(zarr), val(index), val(n_patches), val(nuclear_channel)
+
+    output:
+    tuple val(meta), path(zarr), path("*.zarr/.sopa_cache/cellpose_boundaries/${index}.parquet")
+
+    script:
+    def args = task.ext.args ?: ''
+    """
+    sopa segmentation cellpose \\
+        ${args} \\
+        --patch-index ${index} \\
+        --channels ${nuclear_channel} \\
+        --diameter ${params.cellpose_diameter} \\
+        --min-area ${params.cellpose_min_area} \\
+        ${zarr}
+    """
+}
 
 workflow SOPASEGMENT {
 
@@ -81,6 +107,25 @@ workflow SOPASEGMENT {
     //
     SOPAPATCHIFYIMAGE(
         SOPACONVERT.out.spatial_data
+    )
+
+    SOPAPATCHIFYIMAGE.out.patches
+        .map { meta, zarr, patches_file_image, image_patches ->
+            [ meta, zarr, patches_file_image.text.trim().toInteger() ] }
+        .flatMap { meta, zarr, n_patches ->
+            (0..<n_patches).collect { index -> [ meta, zarr, index, n_patches ] } }
+        .combine(ch_sopa, by: 0)
+        .map { meta, zarr, index, n_patches, tiff, nuclear_channel, membrane_channels, skip_measurements ->
+            [ meta, zarr, index, n_patches, nuclear_channel.first() ]
+        }.set { ch_cellpose }
+
+
+    //
+    // Run SOPA segmentation with Cellpose for nuclear segmentation
+    //
+    // TODO: Fix issue with copying output files back to the original zarr directory
+    SOPASEGMANTATIONCELLPOSENUCLEAR(
+        ch_cellpose
     )
 
     emit:
