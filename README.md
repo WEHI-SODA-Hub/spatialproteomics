@@ -1,7 +1,7 @@
 <h1>
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/nf-core-spatialproteomics_logo_dark.png">
-    <img alt="WEHI-SODA-Hub/spatialproteomics" src="docs/images/nf-core-spatialproteomics_logo_light.png">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/wehi-soda-hub-spatialproteomics_logo_dark.png">
+    <img alt="WEHI-SODA-Hub/spatialproteomics" src="docs/images/wehi-soda-hub-spatialproteomics_logo_light.png">
   </picture>
 </h1>
 
