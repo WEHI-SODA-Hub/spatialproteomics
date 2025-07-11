@@ -41,7 +41,7 @@ process SOPAPATCHIFYIMAGE {
     tuple val(meta), path(zarr)
 
     output:
-    tuple val(meta), path(zarr), path("*.zarr/.sopa_cache/patches_file_image"), path("*.zarr/shapes/image_patches"), emit: patches
+    tuple val(meta), path("*.zarr/.sopa_cache/patches_file_image"), path("*.zarr/shapes/image_patches"), emit: patches
 
     script:
     def args = task.ext.args ?: ''
@@ -66,7 +66,7 @@ process SOPASEGMANTATIONCELLPOSENUCLEAR {
     tuple val(meta), path(zarr), val(index), val(n_patches), val(nuclear_channel)
 
     output:
-    tuple val(meta), path(zarr), path("*.zarr/.sopa_cache/cellpose_boundaries/${index}.parquet")
+    tuple val(meta), path("*.zarr/.sopa_cache/cellpose_boundaries/${index}.parquet")
 
     script:
     def args = task.ext.args ?: ''
@@ -110,7 +110,8 @@ workflow SOPASEGMENT {
     )
 
     SOPAPATCHIFYIMAGE.out.patches
-        .map { meta, zarr, patches_file_image, image_patches ->
+        .join( SOPACONVERT.out.spatial_data, by: 0 )
+        .map { meta, patches_file_image, image_patches, zarr ->
             [ meta, zarr, patches_file_image.text.trim().toInteger() ] }
         .flatMap { meta, zarr, n_patches ->
             (0..<n_patches).collect { index -> [ meta, zarr, index, n_patches ] } }
@@ -119,11 +120,9 @@ workflow SOPASEGMENT {
             [ meta, zarr, index, n_patches, nuclear_channel.first() ]
         }.set { ch_cellpose }
 
-
     //
     // Run SOPA segmentation with Cellpose for nuclear segmentation
     //
-    // TODO: Fix issue with copying output files back to the original zarr directory
     SOPASEGMANTATIONCELLPOSENUCLEAR(
         ch_cellpose
     )
