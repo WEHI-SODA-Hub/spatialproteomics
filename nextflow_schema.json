@@ -183,6 +183,78 @@
                 }
             }
         },
+        "cellsam_options": {
+            "title": "CellSAM options",
+            "type": "object",
+            "fa_icon": "fas fa-brain",
+            "description": "Parameters used by CellSAM for foundation model cell segmentation.",
+            "properties": {
+                "cellsam_bbox_threshold": {
+                    "type": "number",
+                    "default": 0.4,
+                    "description": "Confidence threshold for cell detection. Lower values (0.3-0.4) increase recall for out-of-distribution images.",
+                    "fa_icon": "fas fa-tachometer-alt",
+                    "minimum": 0.0,
+                    "maximum": 1.0
+                },
+                "cellsam_block_size": {
+                    "type": "integer",
+                    "default": 400,
+                    "description": "Tile size for large image processing. Recommended: 256-512 for dense images, 400-600 for sparse.",
+                    "fa_icon": "fas fa-th",
+                    "minimum": 128,
+                    "maximum": 2048
+                },
+                "cellsam_overlap": {
+                    "type": "integer",
+                    "default": 56,
+                    "description": "Tile overlap region in pixels. Should encompass typical cell size for proper merging.",
+                    "fa_icon": "fas fa-compress-arrows-alt",
+                    "minimum": 0,
+                    "maximum": 256
+                },
+                "cellsam_iou_depth": {
+                    "type": "integer",
+                    "default": 56,
+                    "description": "Depth for IOU-based label merging across tiles.",
+                    "fa_icon": "fas fa-layer-group",
+                    "minimum": 0,
+                    "maximum": 256
+                },
+                "cellsam_iou_threshold": {
+                    "type": "number",
+                    "default": 0.5,
+                    "description": "IOU threshold for merging overlapping labels across tiles.",
+                    "fa_icon": "fas fa-project-diagram",
+                    "minimum": 0.0,
+                    "maximum": 1.0
+                },
+                "cellsam_use_wsi": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Enable tiling for large images. Recommended for images with >3000 cells.",
+                    "fa_icon": "fas fa-th-large"
+                },
+                "cellsam_gauge_cell_size": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Perform preliminary segmentation to estimate cell sizes.",
+                    "fa_icon": "fas fa-ruler-combined"
+                },
+                "cellsam_low_contrast_enhancement": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Apply contrast enhancement preprocessing for low-contrast images.",
+                    "fa_icon": "fas fa-adjust"
+                },
+                "cellsam_model_path": {
+                    "type": "string",
+                    "description": "Path to custom CellSAM model weights. If not specified, uses latest generalist model (v1.2 with DEEPCELL_ACCESS_TOKEN).",
+                    "fa_icon": "fas fa-file-medical",
+                    "format": "file-path"
+                }
+            }
+        },
         "measurement_options": {
             "title": "Cell measurement options",
             "type": "object",
@@ -382,6 +454,9 @@
         },
         {
             "$ref": "#/$defs/mesmer_options"
+        },
+        {
+            "$ref": "#/$defs/cellsam_options"
         },
         {
             "$ref": "#/$defs/measurement_options"
