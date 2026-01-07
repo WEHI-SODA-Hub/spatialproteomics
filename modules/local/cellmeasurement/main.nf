@@ -24,9 +24,9 @@ process CELLMEASUREMENT {
     """
     /cellmeasurement.sh \\
         --args="${args} \\
-            --nuclear-mask=\$(readlink ${nuclear_mask}) \\
-            --whole-cell-mask=\$(readlink ${whole_cell_mask}) \\
-            --tiff-file=\$(readlink ${tiff}) \\
+            --nuclear-mask=\$PWD/${nuclear_mask} \\
+            --whole-cell-mask=\$PWD/${whole_cell_mask} \\
+            --tiff-file=\$PWD/${tiff} \\
             --output-file=\$PWD/${prefix}.geojson \\
             --threads=${task.cpus}"
 
