@@ -3,7 +3,6 @@ process CELLSAMSEGMENT {
     label 'process_high'
 
     conda "${moduleDir}/environment.yml"
-    container 'ghcr.io/wehi-soda-hub/cellsamsegmentation:0.1.0'
 
     input:
     tuple val(meta), path(tiff), val(nuclear_channel), val(membrane_channels)

@@ -82,6 +82,7 @@ These are automatically installed via the conda environment specified in `module
 - GPU acceleration is automatically used if available
 - For very large images or many samples, consider using a computing cluster with GPU resources
 - The DEEPCELL_ACCESS_TOKEN secret is inherited from the base configuration but not required for CellSAM
+- If DEEPCELL_ACCESS_TOKEN secret is present the pipeline will install the latest model weights(1.2), otherwise will default to base model weights
 - CellSAM works well across different imaging modalities without fine-tuning due to its foundation model architecture
 
 ## Troubleshooting
