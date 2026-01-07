@@ -101,16 +101,17 @@ workflow CELLSAM_SEGMENT {
                 run_cellpose,
                 run_cellsam,
                 _tiff,
-                _nuclear_channel,
-                _membrane_channels,
+                nuclear_channel,
+                membrane_channels,
                 annotations,
                 combined_tiff -> [
                     sample,
-                    combined_tiff,
                     annotations,
                     run_mesmer,
                     run_cellpose,
-                    run_cellsam
+                    nuclear_channel,
+                    membrane_channels,
+                    combined_tiff
                 ]
             }.set { ch_segmentation_report }
 
