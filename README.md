@@ -216,10 +216,10 @@ values separated by `:` characters. If your channels have spaces in them, make
 sure that you surround your channel name with quotes.
 
 CellSAM uses a tiling approach for large images and supports the following
-parameters (see [CELLSAM_INTEGRATION.md](CELLSAM_INTEGRATION.md) for details):
+parameters:
 
 - `--cellsam_bbox_threshold` (default: 0.4): Confidence threshold for cell detection
-- `--cellsam_block_size` (default: 400): Size of tiles for processing
+- `--cellsam_block_size` (default: 1024): Size of tiles for processing
 - `--cellsam_overlap` (default: 56): Tile overlap for merging
 - `--cellsam_iou_threshold` (default: 0.5): IOU threshold for label merging
 - `--cellsam_use_wsi` (default: true): Enable tiling for large images
