@@ -31,7 +31,6 @@ process MESMERSEGMENT {
         --nuclear-channel ${nuclear_channel} \\
         ${membrane_channel_args} \\
         ${args} \\
-        --transpose \\
         > "${prefix}_${compartment}.tiff"
 
     cat <<-END_VERSIONS > versions.yml
