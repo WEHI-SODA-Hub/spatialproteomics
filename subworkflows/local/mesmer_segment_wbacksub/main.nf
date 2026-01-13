@@ -19,6 +19,7 @@ workflow MESMER_SEGMENT_WBACKSUB {
             _run_backsub,
             _run_mesmer,
             _run_cellpose,
+            _run_cellsam,
             tiff,
             _nuclear_channel,
             _membrane_channels -> [
@@ -38,6 +39,7 @@ workflow MESMER_SEGMENT_WBACKSUB {
             run_backsub,
             run_mesmer,
             run_cellpose,
+            run_cellsam,
             _tiff,
             nuclear_channel,
             membrane_channels,
@@ -46,6 +48,7 @@ workflow MESMER_SEGMENT_WBACKSUB {
                 run_backsub,
                 run_mesmer,
                 run_cellpose,
+                run_cellsam,
                 backsub_tiff,
                 nuclear_channel,
                 membrane_channels

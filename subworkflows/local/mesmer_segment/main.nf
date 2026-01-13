@@ -7,7 +7,7 @@ include { SEGMENTATIONREPORT         } from '../../../modules/local/segmentation
 workflow MESMER_SEGMENT {
 
     take:
-    ch_mesmer_segment // channel: [ (sample, run_backsub, run_mesmer, run_cellpose, tiff, nuclear_channel, membrane_channels) ]
+    ch_mesmer_segment // channel: [ (sample, run_backsub, run_mesmer, run_cellpose, run_cellsam, tiff, nuclear_channel, membrane_channels) ]
 
     main:
 
@@ -18,6 +18,7 @@ workflow MESMER_SEGMENT {
         _run_backsub,
         _run_mesmer,
         _run_cellpose,
+        _run_cellsam,
         tiff,
         nuclear_channel,
         membrane_channels -> [
