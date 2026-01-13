@@ -20,8 +20,8 @@ process CELLSAMSEGMENT {
     script:
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
-    def mem_channels = membrane_channels.first() != [] ? membrane_channels.first().split(":") : []
-    def nuc_channel = nuclear_channel.first()
+    def mem_channels = membrane_channels != '' && membrane_channels != [] ? membrane_channels.split(":") : []
+    def nuc_channel = nuclear_channel
     
     """
     #!/usr/bin/env python3
@@ -144,6 +144,21 @@ process CELLSAMSEGMENT {
         
         # Get channel names from metadata
         with tifffile.TiffFile(tiff_path) as tif:
+            # Check if single-page interleaved TIFF (Y, X, C) format
+            if img.ndim == 3 and tif.is_ome and len(tif.pages) == 1:
+                # Try to get channel count from OME metadata
+                try:
+                    from xml.etree import ElementTree as ET
+                    root = ET.fromstring(tif.ome_metadata)
+                    ns = {'ome': root.tag.split('}')[0].strip('{')}
+                    pixels = root.find('.//ome:Pixels', ns)
+                    n_channels = int(pixels.get('SizeC', img.shape[0]))
+                    # If last dimension matches channel count, it's interleaved (Y, X, C)
+                    if img.shape[2] == n_channels:
+                        img = np.transpose(img, (2, 0, 1))  # Convert to (C, Y, X)
+                except:
+                    pass
+            
             n_channels = img.shape[0] if img.ndim > 2 else 1
             channel_names = get_channel_names(tif, n_channels)
         

@@ -98,6 +98,11 @@ def tiff_to_xarray(tiffPath: Path) -> DataArray:
             data = np.stack(arrays, axis=0)
         else:
             data = tiff.asarray()
+            # Single-page TIFFs with interleaved channels have shape (Y, X, C)
+            # Check if we need to transpose from (Y, X, C) to (C, Y, X)
+            if data.ndim == 3 and data.shape[2] == len(channel_names):
+                # Data is in (Y, X, C) format, transpose to (C, Y, X)
+                data = np.transpose(data, (2, 0, 1))
 
         return DataArray(data=data, dims=["C", "Y", "X"],
                          coords={"C": channel_names}, attrs=attrs)
