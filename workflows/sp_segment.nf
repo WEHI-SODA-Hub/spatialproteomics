@@ -34,12 +34,12 @@ workflow SP_SEGMENT {
     // Construct channel for background subtraction/segmentation workflow for MESMER
     //
     ch_samplesheet.branch { it ->
-        backsub_only: it[1].contains(true) &&  // run_backsub true
-                        !it[2].contains(true) && // run_mesmer false
-                        !it[3].contains(true) && // run_cellpose false
-                        !it[4].contains(true)    // run_cellsam false
-        backsub_mesmer: it[1].contains(true) && it[2].contains(true) // run_backsub true, run_mesmer true
-        mesmer_only: !it[1].contains(true) && it[2].contains(true) // run_backsub false, run_mesmer true
+        backsub_only: it[1] == true &&  // run_backsub true
+                        it[2] == false && // run_mesmer false
+                        it[3] == false && // run_cellpose false
+                        it[4] == false    // run_cellsam false
+        backsub_mesmer: it[1] == true && it[2] == true // run_backsub true, run_mesmer true
+        mesmer_only: it[1] == false && it[2] == true // run_backsub false, run_mesmer true
     }.set { ch_mesmer }
 
     //
@@ -81,7 +81,7 @@ workflow SP_SEGMENT {
     // Construct channel for only CELLPOSE subworkflow
     //
     ch_samplesheet.filter {
-        it[3].contains(true) // run_cellpose true for sample
+        it[3] == true // run_cellpose true for sample
     }.map {
         sample,
         run_backsub,
@@ -98,8 +98,8 @@ workflow SP_SEGMENT {
             membrane_channels
         ]
     }.branch { it ->
-        with_backsub: it[1].contains(true)// run_backsub true
-        no_backsub: !it[1].contains(true) // run_backsub false
+        with_backsub: it[1] == true// run_backsub true
+        no_backsub: it[1] == false // run_backsub false
     }.set { ch_cellpose_samplesheet }
 
     //
@@ -132,8 +132,8 @@ workflow SP_SEGMENT {
     // Construct channel for CellSAM segmentation workflow
     //
     ch_samplesheet.branch { it ->
-        backsub_cellsam: it[1].contains(true) && it[4].contains(true) // run_backsub true, run_cellsam true
-        cellsam_only: !it[1].contains(true) && it[4].contains(true)   // run_backsub false, run_cellsam true
+        backsub_cellsam: it[1] == true && it[4] == true // run_backsub true, run_cellsam true
+        cellsam_only: it[1] == false && it[4] == true   // run_backsub false, run_cellsam true
     }.set { ch_cellsam }
 
     //
