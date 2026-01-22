@@ -3,7 +3,7 @@ channels:
   - conda-forge
   - bioconda
 dependencies:
-  - python >=3.10
+  - python =3.12
   - pip
   - pip:
       - sopa ==2.1.11
