@@ -26,6 +26,9 @@ process SEGMENTATIONREPORT {
     def prefix = task.ext.prefix ?: "${meta.id}"
     def args = task.ext.args ?: ''
     """
+    export DENO_DIR=\$PWD/.deno_cache
+    mkdir -p "\$DENO_DIR"
+    
     Rscript -e "spatialVis::copy_report_template(
         template_name = 'segmentation_report_template.qmd',
         output_dir = '.',
