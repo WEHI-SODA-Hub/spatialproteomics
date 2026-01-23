@@ -1,0 +1,23 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/environment-schema.json
+channels:
+  - conda-forge
+  - pytorch
+dependencies:
+  - python =3.10
+  - pytorch
+  - torchvision
+  - tifffile
+  - scikit-image
+  - scikit-learn
+  - scipy
+  - pyyaml
+  - matplotlib
+  - numpy
+  - tqdm
+  - dask
+  - dask-image
+  - zarr >2
+  - pip
+  - pip:
+      - git+https://github.com/facebookresearch/segment-anything.git
+      - git+https://github.com/mikemcka/cellSAM_dask.git@master
