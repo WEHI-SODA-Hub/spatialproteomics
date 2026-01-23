@@ -19,8 +19,8 @@ process CELLSAMSEGMENT {
     script:
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
-    def mem_channels = membrane_channels.first() != [] ? membrane_channels.first().split(":") : []
-    def nuc_channel = nuclear_channel.first()
+    def mem_channels = membrane_channels != [] ? membrane_channels.split(":") : []
+    def nuc_channel = nuclear_channel
     
     """
     #!/usr/bin/env python3
