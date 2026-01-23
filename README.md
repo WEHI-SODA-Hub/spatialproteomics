@@ -20,11 +20,11 @@
 
 **WEHI-SODA-Hub/sp_segment** is a pipeline for running cell segmentation
 on COMET and MIBI data. For COMET, background subtraction can be performed
-followed by patched cellpose segmentation, or non-patched mesmer segmentation.
-For MIBI, mesmer segmentation can be run. Whole-cell and nuclear segmentations
-are run separately, and then consolidated into whole cells with nuclei with full
-shape and intensity measurements per compartment. The output GeoJSON files can
-be viewed in QuPath.
+followed by patched cellpose segmentation, non-patched mesmer segmentation, or
+CellSAM foundation model segmentation. For MIBI, mesmer or CellSAM segmentation 
+can be run. Whole-cell and nuclear segmentations are run separately, and then 
+consolidated into whole cells with nuclei with full shape and intensity 
+measurements per compartment. The output GeoJSON files can be viewed in QuPath.
 
 <details>
   <summary>Click to view Mermaid diagram</summary>
@@ -69,6 +69,8 @@ The pipeline uses the following tools:
   -- background subtraction tool for COMET.
 - [MesmerSegmentation](https://github.com/WEHI-SODA-Hub/mesmersegmentation) -- a
   CLI for running Mesmer segmentation of MIBI and OME-XML TIFFs.
+- [CellSAM](https://github.com/vanvalenlab/cellSAM) -- a foundation model for
+  cell segmentation across diverse imaging modalities.
 - [cellmeasurement](https://github.com/WEHI-SODA-Hub/cellmeasurement) -- a
   Groovy app that matches whole-cell segmentations with nuclei, and uses the
   QuPath API to calculate compartment measurements and intensities.
@@ -99,9 +101,9 @@ Usage will depend on your desired steps. See [usage docs](docs/usage.md) for mor
 Prepare a sample sheet as follows:
 
 `samplesheet.csv`:
-
-```csv
-sample,run_backsub,run_mesmer,run_cellpose,tiff
+run_cellsam,tiff
+sample1,true,true,false,false,/path/to/sample1.tiff
+sample2,true,false,true,fals_mesmer,run_cellpose,tiff
 sample1,true,true,false,/path/to/sample1.tiff
 sample2,true,false,true,/path/to/sample2.tiff
 ```
@@ -115,17 +117,19 @@ You may also prefer to use YAML for your samplesheet, either is supported:
   run_backsub: true
   run_mesmer: true
   run_cellpose: false
+  run_cellsam: false
   tiff: /path/to/sample1.tiff
 - sample: sample2
   run_backsub: true
   run_mesmer: true
   run_cellpose: false
+  run_cellsam: false
   tiff: /path/to/sample2.tiff
 ```
 
 > [!WARNING]
-> Please ensure that your image name and all directories in your file path do not contain spaces.
-
+> Please ensure that your image name and all directories in yo, cellpose, or 
+cellsam), the 
 If you don't specify any segmentation algorithm to run (mesmer or cellpose), the
 pipeline will run a background subtraction only.
 
@@ -166,9 +170,9 @@ sure that you surround your channel name with quotes. For example, CD45:"HLA I".
 You can also set the segmentation parameters for mesmer either via CLI
 (e.g., `--combine_method prod` or in a config file pass to the workflow
 via `-c`. See [usage](docs/usage.md) for a full list.
-
-> [!WARNING]
-> You cannot run both Mesmer and Cellpose segmentation on the same sample (with
+multiple segmentation methods (Mesmer, Cellpose, or CellSAM) 
+> on the same sample (with the same name). If you want to run multiple methods 
+> on a sample, put it on a different You cannot run both Mesmer and Cellpose segmentation on the same sample (with
 > the same name). If you want to run both on a sample, put it on a different
 > line and give it a different sample name.
 
@@ -194,6 +198,50 @@ parameters.
 
 If you want to skip measurements (this may take some time for large images), you
 can use set the parameter `skip_measurements` to `true`.
+
+### CellSAM segmentation
+
+CellSAM is a foundation model for cell segmentation that works across different
+imaging modalities. To use CellSAM as your segmentation algorithm, specify a
+config file like so:
+
+```csv
+sample,run_backsub,run_cellsam,tiff,nuclear_channel,membrane_channels
+sample1,true,true,/path/to/sample1.tiff,DAPI,CD45:CD8
+sample2,false,true,/path/to/sample2.tiff,DAPI,CD45
+```
+
+Nuclear channels only support one entry; membrane channels may have multiple
+values separated by `:` characters. If your channels have spaces in them, make
+sure that you surround your channel name with quotes.
+
+CellSAM uses a tiling approach for large images and supports the following
+parameters:
+
+- `--cellsam_bbox_threshold` (default: 0.4): Confidence threshold for cell detection
+- `--cellsam_block_size` (default: 1024): Size of tiles for processing
+- `--cellsam_overlap` (default: 56): Tile overlap for merging
+- `--cellsam_iou_threshold` (default: 0.5): IOU threshold for label merging
+- `--cellsam_use_wsi` (default: true): Enable tiling for large images
+
+#### Model weights
+
+CellSAM can automatically download the latest model weights (v1.2) from 
+[users.deepcell.org](https://users.deepcell.org). To use the latest weights:
+
+1. Create an account at [users.deepcell.org](https://users.deepcell.org)
+2. Generate your access token
+3. Set it as a Nextflow secret:
+   ```bash
+   nextflow secrets set DEEPCELL_ACCESS_TOKEN $YOUR_TOKEN
+   ```
+
+If the token is not set, CellSAM will use the default bundled model weights.
+
+> [!NOTE]
+> You cannot run both Mesmer/Cellpose and CellSAM segmentation on the same sample 
+> (with the same name). If you want to run multiple methods on a sample, put it 
+> on a different line and give it a different sample name.
 
 ## Dealing with large images
 

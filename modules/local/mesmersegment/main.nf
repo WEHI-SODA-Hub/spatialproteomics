@@ -20,18 +20,42 @@ process MESMERSEGMENT {
     script:
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
-    def membrane_channel_args = membrane_channels.first() != [] ?
-        membrane_channels.first().split(":").collect {
+    def membrane_channel_args = membrane_channels != '' && membrane_channels != [] ?
+        membrane_channels.split(":").collect {
             "--membrane-channel \"${it}\""
         }.join(' ') : ''
     """
     mesmer-segment \\
         ${tiff} \\
         --compartment ${compartment} \\
-        --nuclear-channel ${nuclear_channel.first()} \\
+        --nuclear-channel ${nuclear_channel} \\
         ${membrane_channel_args} \\
         ${args} \\
         > "${prefix}_${compartment}.tiff"
+    
+    # Post-process: transpose mask if dimensions are swapped
+    python3 <<'EOF'
+import tifffile
+import numpy as np
+
+# Read input image to get expected dimensions
+input_img = tifffile.imread("${tiff}")
+if input_img.ndim == 3:
+    expected_shape = input_img.shape[1:]  # (Y, X) from (C, Y, X)
+else:
+    expected_shape = input_img.shape
+
+# Read mesmer output mask
+mask = tifffile.imread("${prefix}_${compartment}.tiff")
+
+# Check if dimensions are swapped (mask is X,Y instead of Y,X)
+if mask.shape != expected_shape and mask.shape == expected_shape[::-1]:
+    print(f"Transposing mask from {mask.shape} to {expected_shape}")
+    mask = mask.T
+    tifffile.imwrite("${prefix}_${compartment}.tiff", mask, compression='deflate')
+else:
+    print(f"Mask dimensions correct: {mask.shape}")
+EOF
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

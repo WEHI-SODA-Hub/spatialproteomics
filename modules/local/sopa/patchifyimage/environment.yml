@@ -1,10 +1,9 @@
----
 # yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/environment-schema.json
 channels:
   - conda-forge
   - bioconda
 dependencies:
-  - tifffile =2025.6.11
-  - xarray =2024.11.0
-  - numpy =1.26
-  - typer =0.16
+  - python =3.12
+  - pip
+  - pip:
+      - sopa ==2.1.11

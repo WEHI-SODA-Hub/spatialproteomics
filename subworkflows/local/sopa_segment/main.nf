@@ -26,9 +26,9 @@ workflow SOPA_SEGMENT {
     COMBINECHANNELS.out.combined_tiff
         .join( ch_sopa, by: 0 )
         .map { meta, combined_tiff, _tiff, nuclear_channel, membrane_channels ->
-            def membrane_name = membrane_channels.first().split(':').size() == 1 ?
-                membrane_channels.first() : 'combined_membrane'
-            [ meta, combined_tiff, nuclear_channel, [membrane_name] ]
+            def membrane_name = membrane_channels.split(':').size() == 1 ?
+                membrane_channels : 'combined_membrane'
+            [ meta, combined_tiff, nuclear_channel, membrane_name ]
         }.set { ch_combined }
 
     //
@@ -43,7 +43,7 @@ workflow SOPA_SEGMENT {
                 meta,
                 tiff,
                 nuclear_channel,
-                [''] // no membrane channels for nuclear segmentation
+                '' // no membrane channels for nuclear segmentation
             ]
         },
         'nuclear'
@@ -102,8 +102,8 @@ workflow SOPA_SEGMENT {
                     annotations,
                     false, // run_mesmer
                     true,  // run_cellpose
-                    nuclear_channel,
-                    membrane_channels,
+                    nuclear_channel.first(),
+                    membrane_channels.first(),
                     combined_tiff
                 ]
             }.set { ch_segmentationreport }
