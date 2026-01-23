@@ -4,6 +4,7 @@ process CELLSAMSEGMENT {
     secret 'DEEPCELL_ACCESS_TOKEN'
 
     conda "${moduleDir}/environment.yml"
+    container 'community.wave.seqera.io/library/python_pytorch_torchvision_tifffile_pruned:f802da66d91b8999'
 
     input:
     tuple val(meta), path(tiff), val(nuclear_channel), val(membrane_channels)
@@ -19,7 +20,7 @@ process CELLSAMSEGMENT {
     script:
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
-    def mem_channels = membrane_channels != [] ? membrane_channels.split(":") : []
+    def mem_channels = membrane_channels != '' && membrane_channels != [] ? membrane_channels.split(":") : []
     def nuc_channel = nuclear_channel
     
     """
