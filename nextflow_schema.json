@@ -80,70 +80,69 @@
                 "patch_width_pixel": {
                     "type": "integer",
                     "description": "Width of patches in pixels.",
-        
-                            "fa_icon": "fas fa-tachometer-alt",
-                            "minimum": 0.0,
-                            "maximum": 1.0
-                        },
-                        "cellsam_block_size": {
-                            "type": "integer",
-                            "default": 712,
-                            "description": "Tile size for large image processing. Recommended: 256-512 for dense images, 400-600 for sparse.",
-                            "fa_icon": "fas fa-th",
-                            "minimum": 128,
-                            "maximum": 2048
-                        },
-                        "cellsam_overlap": {
-                            "type": "integer",
-                            "default": 120,
-                            "description": "Tile overlap region in pixels. Should encompass typical cell size for proper merging.",
-                            "fa_icon": "fas fa-compress-arrows-alt",
-                            "minimum": 0,
-                            "maximum": 256
-                        },
-                        "cellsam_iou_depth": {
-                            "type": "integer",
-                            "default": 120,
-                            "description": "Depth for IOU-based label merging across tiles.",
-                            "fa_icon": "fas fa-layer-group",
-                            "minimum": 0,
-                            "maximum": 256
-                        },
-                        "cellsam_iou_threshold": {
-                            "type": "number",
-                            "default": 0.5,
-                            "description": "IOU threshold for merging overlapping labels across tiles.",
-                            "fa_icon": "fas fa-project-diagram",
-                            "minimum": 0.0,
-                            "maximum": 1.0
-                        },
-                        "cellsam_use_wsi": {
-                            "type": "boolean",
-                            "default": true,
-                            "description": "Enable tiling for large images. Recommended for images with >3000 cells.",
-                            "fa_icon": "fas fa-th-large"
-                        },
-                        "cellsam_gauge_cell_size": {
-                            "type": "boolean",
-                            "default": false,
-                            "description": "Perform preliminary segmentation to estimate cell sizes.",
-                            "fa_icon": "fas fa-ruler-combined"
-                        },
-                        "cellsam_low_contrast_enhancement": {
-                            "type": "boolean",
-                            "default": false,
-                            "description": "Apply contrast enhancement preprocessing for low-contrast images.",
-                            "fa_icon": "fas fa-adjust"
-                        },
-                        "cellsam_model_path": {
-                            "type": "string",
-                            "description": "Path to custom CellSAM model weights. If not specified, uses latest generalist model (v1.2 with DEEPCELL_ACCESS_TOKEN).",
-                            "fa_icon": "fas fa-file-medical",
-                            "format": "file-path"
-                        }
-                    }
+                    "fa_icon": "fas fa-crop"
                 },
-                "measurement_options": {
+                "patch_overlap_pixel": {
+                    "type": "integer",
+                    "description": "Pixel overlap of patches.",
+                    "fa_icon": "fas fa-crop"
+                }
+            }
+        },
+        "cellpose_options": {
+            "title": "Cellpose options",
+            "type": "object",
+            "fa_icon": "fas fa-vial",
+            "description": "Parameters used by Cellpose for the cell segmentation.",
+            "properties": {
+                "cellpose_diameter": {
+                    "type": "integer",
+                    "description": "Diameter of cells in pixels for cellpose.",
+                    "fa_icon": "fas fa-circle"
+                },
+                "cellpose_min_area": {
+                    "type": "number",
+                    "description": "Minimum area of cells in square pixels for cellpose.",
+                    "fa_icon": "fas fa-arrows-alt"
+                },
+                "cellpose_flow_threshold": {
+                    "type": "number",
+                    "description": "Flow threshold for cellpose.",
+                    "fa_icon": "fas fa-tachometer-alt"
+                },
+                "cellpose_cellprob_threshold": {
+                    "type": "number",
+                    "description": "Cell probability threshold for cellpose.",
+                    "fa_icon": "fas fa-check-circle"
+                },
+                "cellpose_model_type": {
+                    "type": "string",
+                    "description": "Cellpose model to use for segmentation (e.g. nuclei, cyto, cyto2, cyto3 etc.).",
+                    "fa_icon": "fas fa-cogs"
+                },
+                "cellpose_pretrained_model": {
+                    "type": "string",
+                    "format": "file-path",
+                    "description": "Path to a pre-trained Cellpose model.",
+                    "fa_icon": "fas fa-file-upload"
+                }
+            }
+        },
+        "mesmer_options": {
+            "title": "Mesmer options",
+            "type": "object",
+            "fa_icon": "fas fa-vial",
+            "description": "Parameters used by the MesmerSegmentation tool.",
+            "properties": {
+                "mesmer_segmentation_level": {
+                    "type": "integer",
+                    "description": "Segmentation level (legacy parameter).",
+                    "fa_icon": "fas fa-layer-group",
+                    "minimum": 0,
+                    "maximum": 10
+                },
+                "mesmer_maxima_threshold": {
+                    "type": "number",
                     "description": "Controls segmentation level directly in mesmer, (lower values = more cells, higher values = fewer cells). ",
                     "fa_icon": "fas fa-tachometer-alt",
                     "minimum": 0
@@ -181,6 +180,78 @@
                     "description": "Number of pixels to crop the image by on each side before segmentation.",
                     "fa_icon": "fas fa-crop",
                     "minimum": 0
+                }
+            }
+        },
+        "cellsam_options": {
+            "title": "CellSAM options",
+            "type": "object",
+            "fa_icon": "fas fa-brain",
+            "description": "Parameters used by CellSAM for foundation model cell segmentation.",
+            "properties": {
+                "cellsam_bbox_threshold": {
+                    "type": "number",
+                    "default": 0.4,
+                    "description": "Confidence threshold for cell detection. Lower values (0.3-0.4) increase recall for out-of-distribution images.",
+                    "fa_icon": "fas fa-tachometer-alt",
+                    "minimum": 0.0,
+                    "maximum": 1.0
+                },
+                "cellsam_block_size": {
+                    "type": "integer",
+                    "default": 400,
+                    "description": "Tile size for large image processing. Recommended: 256-512 for dense images, 400-600 for sparse.",
+                    "fa_icon": "fas fa-th",
+                    "minimum": 128,
+                    "maximum": 2048
+                },
+                "cellsam_overlap": {
+                    "type": "integer",
+                    "default": 56,
+                    "description": "Tile overlap region in pixels. Should encompass typical cell size for proper merging.",
+                    "fa_icon": "fas fa-compress-arrows-alt",
+                    "minimum": 0,
+                    "maximum": 256
+                },
+                "cellsam_iou_depth": {
+                    "type": "integer",
+                    "default": 56,
+                    "description": "Depth for IOU-based label merging across tiles.",
+                    "fa_icon": "fas fa-layer-group",
+                    "minimum": 0,
+                    "maximum": 256
+                },
+                "cellsam_iou_threshold": {
+                    "type": "number",
+                    "default": 0.5,
+                    "description": "IOU threshold for merging overlapping labels across tiles.",
+                    "fa_icon": "fas fa-project-diagram",
+                    "minimum": 0.0,
+                    "maximum": 1.0
+                },
+                "cellsam_use_wsi": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Enable tiling for large images. Recommended for images with >3000 cells.",
+                    "fa_icon": "fas fa-th-large"
+                },
+                "cellsam_gauge_cell_size": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Perform preliminary segmentation to estimate cell sizes.",
+                    "fa_icon": "fas fa-ruler-combined"
+                },
+                "cellsam_low_contrast_enhancement": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Apply contrast enhancement preprocessing for low-contrast images.",
+                    "fa_icon": "fas fa-adjust"
+                },
+                "cellsam_model_path": {
+                    "type": "string",
+                    "description": "Path to custom CellSAM model weights. If not specified, uses latest generalist model (v1.2 with DEEPCELL_ACCESS_TOKEN).",
+                    "fa_icon": "fas fa-file-medical",
+                    "format": "file-path"
                 }
             }
         },
@@ -364,80 +435,6 @@
                 }
             }
         }
-        ,
-        "cellsam_options": {
-            "title": "CellSAM options",
-            "type": "object",
-            "fa_icon": "fas fa-brain",
-            "description": "Parameters used by CellSAM for foundation model cell segmentation.",
-            "properties": {
-                "cellsam_bbox_threshold": {
-                    "type": "number",
-                    "default": 0.4,
-                    "description": "Confidence threshold for cell detection. Lower values (0.3-0.4) increase recall for out-of-distribution images.",
-                    "fa_icon": "fas fa-tachometer-alt",
-                    "minimum": 0.0,
-                    "maximum": 1.0
-                },
-                "cellsam_block_size": {
-                    "type": "integer",
-                    "default": 712,
-                    "description": "Tile size for large image processing. Recommended: 256-512 for dense images, 400-600 for sparse.",
-                    "fa_icon": "fas fa-th",
-                    "minimum": 128,
-                    "maximum": 2048
-                },
-                "cellsam_overlap": {
-                    "type": "integer",
-                    "default": 120,
-                    "description": "Tile overlap region in pixels. Should encompass typical cell size for proper merging.",
-                    "fa_icon": "fas fa-compress-arrows-alt",
-                    "minimum": 0,
-                    "maximum": 256
-                },
-                "cellsam_iou_depth": {
-                    "type": "integer",
-                    "default": 120,
-                    "description": "Depth for IOU-based label merging across tiles.",
-                    "fa_icon": "fas fa-layer-group",
-                    "minimum": 0,
-                    "maximum": 256
-                },
-                "cellsam_iou_threshold": {
-                    "type": "number",
-                    "default": 0.5,
-                    "description": "IOU threshold for merging overlapping labels across tiles.",
-                    "fa_icon": "fas fa-project-diagram",
-                    "minimum": 0.0,
-                    "maximum": 1.0
-                },
-                "cellsam_use_wsi": {
-                    "type": "boolean",
-                    "default": true,
-                    "description": "Enable tiling for large images. Recommended for images with >3000 cells.",
-                    "fa_icon": "fas fa-th-large"
-                },
-                "cellsam_gauge_cell_size": {
-                    "type": "boolean",
-                    "default": false,
-                    "description": "Perform preliminary segmentation to estimate cell sizes.",
-                    "fa_icon": "fas fa-ruler-combined"
-                },
-                "cellsam_low_contrast_enhancement": {
-                    "type": "boolean",
-                    "default": false,
-                    "description": "Apply contrast enhancement preprocessing for low-contrast images.",
-                    "fa_icon": "fas fa-adjust"
-                },
-                "cellsam_model_path": {
-                    "type": "string",
-                    "description": "Path to custom CellSAM model weights. If not specified, uses latest generalist model (v1.2 with DEEPCELL_ACCESS_TOKEN).",
-                    "fa_icon": "fas fa-file-medical",
-                    "format": "file-path"
-                }
-            }
-        },
-        
     },
     "allOf": [
         {
