@@ -1,0 +1,32 @@
+nextflow_process {
+
+    name 'Test KRONOSEMBEDDINGS'
+    script '../main.nf'
+    process 'KRONOSEMBEDDINGS'
+
+    test("KRONOSEMBEDDINGS - stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'test' ],
+                    file("test.tiff"),
+                    file("test_mask.tiff")
+                ]
+                input[1] = file("model_dir")
+                input[2] = file("marker_metadata.csv")
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out).match() }
+            )
+        }
+    }
+}

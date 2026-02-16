@@ -255,6 +255,77 @@
                 }
             }
         },
+        "kronos_options": {
+            "title": "KRONOS options",
+            "type": "object",
+            "fa_icon": "fas fa-dna",
+            "description": "Parameters for KRONOS foundation model cell embedding extraction.",
+            "help_text": "KRONOS is a foundation model for multiplex spatial proteomic images. These parameters control the embedding extraction step that runs after cell measurement.",
+            "properties": {
+                "skip_kronos": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Skip KRONOS embedding extraction step.",
+                    "fa_icon": "fas fa-stopwatch",
+                    "help_text": "Set this to `false` to run KRONOS embedding extraction after cell measurement. Requires kronos_model_path and kronos_marker_metadata to be set."
+                },
+                "kronos_model_path": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "Path to directory containing KRONOS model weights (.pt file) and config.json.",
+                    "fa_icon": "fas fa-file-medical",
+                    "help_text": "The directory should contain the model checkpoint (e.g. kronos_vits16_model.pt) and optionally a config.json file. Download from https://github.com/mahmoodlab/KRONOS or Hugging Face Hub (MahmoodLab/kronos)."
+                },
+                "kronos_marker_metadata": {
+                    "type": "string",
+                    "format": "file-path",
+                    "description": "Path to KRONOS marker metadata CSV file with columns: marker_name, marker_id, marker_mean, marker_std.",
+                    "fa_icon": "fas fa-file-csv",
+                    "help_text": "This CSV maps marker names to KRONOS internal marker IDs and provides normalization statistics. A default metadata file is provided with the KRONOS repository. KRONOS uses fuzzy string matching to match image channel names to the metadata, but exact matches are preferred."
+                },
+                "kronos_patch_size": {
+                    "type": "integer",
+                    "default": 64,
+                    "description": "Size of cell-centered patches to extract for KRONOS inference.",
+                    "fa_icon": "fas fa-crop",
+                    "minimum": 16,
+                    "maximum": 256,
+                    "help_text": "The patch size in pixels for cell-centered crops. Larger patches capture more context but increase computation. Typical values are 32-128."
+                },
+                "kronos_batch_size": {
+                    "type": "integer",
+                    "default": 32,
+                    "description": "Batch size for KRONOS model inference.",
+                    "fa_icon": "fas fa-layer-group",
+                    "minimum": 1,
+                    "maximum": 512,
+                    "help_text": "Number of cell patches to process simultaneously. Larger batch sizes are faster but require more GPU memory."
+                },
+                "kronos_num_workers": {
+                    "type": "integer",
+                    "default": 4,
+                    "description": "Number of parallel DataLoader workers for loading and preprocessing cell patches.",
+                    "fa_icon": "fas fa-cogs",
+                    "minimum": 0,
+                    "maximum": 32,
+                    "help_text": "Controls how many CPU processes load and preprocess patches in parallel while the GPU runs inference. Set to 0 for single-process loading (useful for debugging). On HPC, set this to match the number of CPUs allocated to the KRONOS job for best throughput."
+                },
+                "kronos_max_value": {
+                    "type": "number",
+                    "default": 65535,
+                    "description": "Maximum intensity value for image normalization (65535 for 16-bit images).",
+                    "fa_icon": "fas fa-sliders-h",
+                    "minimum": 1,
+                    "help_text": "Used to scale raw pixel intensities before applying KRONOS normalization. Use 65535 for 16-bit images, 255 for 8-bit."
+                },
+                "kronos_marker_mapping": {
+                    "type": "string",
+                    "description": "JSON string mapping image marker names to KRONOS marker names for markers that cannot be auto-matched.",
+                    "fa_icon": "fas fa-exchange-alt",
+                    "help_text": "Provide a JSON string like '{\"CD3e\": \"CD3E\", \"PanCK\": \"PANCK\"}' to manually resolve marker name mismatches between your image channels and the KRONOS metadata. KRONOS performs case-insensitive matching automatically, so only provide mappings for markers that truly differ in name."
+                }
+            }
+        },
         "measurement_options": {
             "title": "Cell measurement options",
             "type": "object",
@@ -457,6 +528,9 @@
         },
         {
             "$ref": "#/$defs/cellsam_options"
+        },
+        {
+            "$ref": "#/$defs/kronos_options"
         },
         {
             "$ref": "#/$defs/measurement_options"

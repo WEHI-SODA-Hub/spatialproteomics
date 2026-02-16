@@ -64,6 +64,8 @@ workflow CELLSAM_SEGMENT_WBACKSUB {
     nuclear_segmentation_mask    = CELLSAM_SEGMENT.out.nuclear_segmentation_mask    // channel: [ val(meta), *.tiff ]
     wholecell_segmentation_mask  = CELLSAM_SEGMENT.out.wholecell_segmentation_mask  // channel: [ val(meta), *.tiff ]
     annotations                  = CELLSAM_SEGMENT.out.annotations                   // channel: [ val(meta), *.parquet ]
+    kronos_embeddings            = CELLSAM_SEGMENT.out.kronos_embeddings              // channel: [ val(meta), *.csv ] OPTIONAL
+    kronos_marker_report         = CELLSAM_SEGMENT.out.kronos_marker_report           // channel: [ val(meta), *.txt ] OPTIONAL
     report                       = CELLSAM_SEGMENT.out.report                        // channel: [ val(meta), *.html ]
 
     versions = ch_versions                                                            // channel: [ versions.yml ]

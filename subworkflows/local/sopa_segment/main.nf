@@ -2,6 +2,7 @@ include { COMBINECHANNELS                                    } from '../../../mo
 include { SOPA_SEGMENT_COMPARTMENT as SOPA_SEGMENT_NUCLEAR   } from '../sopa_segment_compartment/main.nf'
 include { SOPA_SEGMENT_COMPARTMENT as SOPA_SEGMENT_WHOLECELL } from '../sopa_segment_compartment/main.nf'
 include { CELLMEASUREMENT                                    } from '../../../modules/local/cellmeasurement/main.nf'
+include { KRONOSEMBEDDINGS                                    } from '../../../modules/local/kronosembeddings/main.nf'
 include { SEGMENTATIONREPORT                                 } from '../../../modules/local/segmentationreport/main.nf'
 
 workflow SOPA_SEGMENT {
@@ -87,6 +88,38 @@ workflow SOPA_SEGMENT {
     )
     ch_versions = ch_versions.mix(CELLMEASUREMENT.out.versions.first())
 
+    //
+    // Optional KRONOS embedding extraction
+    //
+    ch_kronos_embeddings = Channel.empty()
+    ch_kronos_marker_report = Channel.empty()
+    if (!params.skip_kronos) {
+
+        // Create channel for KRONOS input: original tiff + whole-cell mask
+        ch_sopa
+            .join(SOPA_SEGMENT_WHOLECELL.out.tiff)
+            .map {
+                meta,
+                tiff,
+                _nuclear_channel,
+                _membrane_channels,
+                whole_cell_mask -> [
+                    meta,
+                    tiff,
+                    whole_cell_mask
+                ]
+            }.set { ch_kronos_input }
+
+        KRONOSEMBEDDINGS(
+            ch_kronos_input,
+            file(params.kronos_model_path),
+            file(params.kronos_marker_metadata)
+        )
+        ch_versions = ch_versions.mix(KRONOSEMBEDDINGS.out.versions.first())
+        ch_kronos_embeddings = KRONOSEMBEDDINGS.out.embeddings
+        ch_kronos_marker_report = KRONOSEMBEDDINGS.out.marker_report
+    }
+
     // Optional SEGMENTATIONREPORT module
     ch_report = Channel.empty()
     if (params.generate_report) {
@@ -120,8 +153,10 @@ workflow SOPA_SEGMENT {
     }
 
     emit:
-    annotations = CELLMEASUREMENT.out.annotations   // channel: [ val(meta), *.geojson ]
-    report      = ch_report                         // channel: [ val(meta), *.html ] OPTIONAL
+    annotations          = CELLMEASUREMENT.out.annotations   // channel: [ val(meta), *.geojson ]
+    kronos_embeddings    = ch_kronos_embeddings               // channel: [ val(meta), *.csv ] OPTIONAL
+    kronos_marker_report = ch_kronos_marker_report            // channel: [ val(meta), *.txt ] OPTIONAL
+    report               = ch_report                         // channel: [ val(meta), *.html ] OPTIONAL
 
     versions = ch_versions                          // channel: [ versions.yml ]
 }

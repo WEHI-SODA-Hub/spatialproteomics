@@ -64,6 +64,8 @@ workflow MESMER_SEGMENT_WBACKSUB {
     annotations      = MESMER_SEGMENT.out.annotations       // channel: [ val(meta), *.geojson ]
     whole_cell_tif   = MESMER_SEGMENT.out.whole_cell_tif    // channel: [ val(meta), *.tiff ]
     nuclear_tif      = MESMER_SEGMENT.out.nuclear_tif       // channel: [ val(meta), *.tiff ]
+    kronos_embeddings     = MESMER_SEGMENT.out.kronos_embeddings   // channel: [ val(meta), *.csv ] OPTIONAL
+    kronos_marker_report  = MESMER_SEGMENT.out.kronos_marker_report // channel: [ val(meta), *.txt ] OPTIONAL
 
     versions = ch_versions                                  // channel: [ versions.yml ]
 }
