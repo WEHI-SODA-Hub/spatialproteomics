@@ -544,6 +544,11 @@ def main():
     # Determine device
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using device: {device}")
+    
+    # Disable multiprocessing workers on CPU or NFS to avoid cleanup issues
+    if device == "cpu" and args.num_workers > 0:
+        print(f"  Warning: Disabling num_workers (was {args.num_workers}) on CPU to avoid NFS/multiprocessing issues")
+        args.num_workers = 0
 
     # Load marker metadata
     print(f"Loading KRONOS marker metadata from {args.marker_metadata}")
