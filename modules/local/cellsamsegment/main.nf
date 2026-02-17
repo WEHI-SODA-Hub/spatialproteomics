@@ -1,6 +1,6 @@
 process CELLSAMSEGMENT {
     tag "$meta.id"
-    label 'process_high'
+    label 'process_multi'
     secret 'DEEPCELL_ACCESS_TOKEN'
 
     conda "${moduleDir}/environment.yml"
