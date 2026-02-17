@@ -74,6 +74,8 @@ The pipeline uses the following tools:
 - [cellmeasurement](https://github.com/WEHI-SODA-Hub/cellmeasurement) -- a
   Groovy app that matches whole-cell segmentations with nuclei, and uses the
   QuPath API to calculate compartment measurements and intensities.
+- [KRONOS](https://github.com/mahmoodlab/KRONOS) -- a foundation model for
+  multiplex spatial proteomics that extracts rich embeddings for each cell.
 - [sopa](https://github.com/gustaveroussy/sopa) -- we use the sopa CLI tool to
   patchify images and perform cellpose segmentation.
 - [spatialVis](https://github.com/WEHI-SODA-Hub/spatialVis) -- R package for spatial
