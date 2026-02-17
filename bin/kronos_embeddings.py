@@ -453,26 +453,35 @@ def merge_embeddings_into_geojson(geojson_path, cell_ids, centroids, embeddings,
         cell_features.append(feature)
         # Compute proper area-weighted centroid using Shoelace formula
         # GeoJSON coordinates are [x, y] where x=column, y=row in image space
-        coords = feature["geometry"]["coordinates"][0]  # outer ring
+        coords = feature["geometry"]["coordinates"]
+        # Handle different GeoJSON polygon nesting: Polygon vs MultiPolygon
+        if isinstance(coords[0][0], list):
+            coords = coords[0]  # Polygon: get outer ring
+        
         n = len(coords) - 1  # last point == first point (closed ring)
         A = 0.0
         cx = 0.0
         cy = 0.0
-        for i in range(n):
-            x0, y0 = coords[i]
-            x1, y1 = coords[i + 1]
-            cross = x0 * y1 - x1 * y0
-            A += cross
-            cx += (x0 + x1) * cross
-            cy += (y0 + y1) * cross
-        A = A / 2.0
-        if abs(A) > 1e-10:
-            cx = cx / (6.0 * A)
-            cy = cy / (6.0 * A)
-        else:
-            # Degenerate polygon, fall back to vertex average
-            cx = sum(c[0] for c in coords) / len(coords)
-            cy = sum(c[1] for c in coords) / len(coords)
+        try:
+            for i in range(n):
+                x0, y0 = coords[i][0], coords[i][1] if isinstance(coords[i], list) else coords[i]
+                x1, y1 = coords[i + 1][0], coords[i + 1][1] if isinstance(coords[i + 1], list) else coords[i + 1]
+                cross = x0 * y1 - x1 * y0
+                A += cross
+                cx += (x0 + x1) * cross
+                cy += (y0 + y1) * cross
+            A = A / 2.0
+            if abs(A) > 1e-10:
+                cx = cx / (6.0 * A)
+                cy = cy / (6.0 * A)
+            else:
+                # Degenerate polygon, fall back to vertex average
+                cx = sum(pt[0] if isinstance(pt, list) else pt for pt in coords) / len(coords)
+                cy = sum(pt[1] if isinstance(pt, list) else pt for pt in coords) / len(coords)
+        except (IndexError, TypeError):
+            # If coordinate unpacking fails, use simple average
+            cx = sum(pt[0] for pt in coords if isinstance(pt, (list, tuple))) / len(coords)
+            cy = sum(pt[1] for pt in coords if isinstance(pt, (list, tuple))) / len(coords)
         cell_geojson_centroids.append((cy, cx))  # (y, x) to match embedding convention
 
     if not cell_features or len(cell_ids) == 0:
