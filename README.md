@@ -199,6 +199,69 @@ parameters.
 If you want to skip measurements (this may take some time for large images), you
 can use set the parameter `skip_measurements` to `true`.
 
+### KRONOS embeddings
+
+KRONOS is a foundation model for multiplex spatial proteomics that extracts rich, 384-dimensional embeddings for each cell. These embeddings capture cellular phenotype and microenvironment context, enabling downstream analysis like clustering, classification, and spatial analysis.
+
+To enable KRONOS embeddings:
+
+```bash
+nextflow run main.nf \
+  --input samplesheet.csv \
+  --skip_kronos false \
+  --kronos_model_path /path/to/kronos_model \
+  --kronos_marker_metadata /path/to/marker_metadata.csv \
+  --kronos_merge_geojson true \
+  ...
+```
+
+#### KRONOS parameters
+
+- `--skip_kronos` (default: true): Set to `false` to enable KRONOS embedding extraction
+- `--kronos_model_path` (required): Path to the KRONOS model checkpoint (.pt file)
+- `--kronos_marker_metadata` (required): Path to marker metadata CSV file mapping marker IDs to names
+- `--kronos_merge_geojson` (default: false): Merge embeddings into the cellmeasurement GeoJSON output
+- `--kronos_patch_size` (default: 64): Patch size for cell-centered crops
+- `--kronos_batch_size` (default: 32): Batch size for model inference
+- `--kronos_num_workers` (default: 4): Number of DataLoader workers for parallel data loading
+- `--kronos_max_value` (default: 65535): Maximum intensity value for normalization
+- `--kronos_marker_mapping` (optional): JSON string mapping image marker names to KRONOS marker names
+
+#### Perfect cell matching
+
+When `--kronos_merge_geojson` is enabled, the pipeline automatically creates a new segmentation mask directly from the GeoJSON polygons. This ensures **100% perfect matching** between KRONOS embeddings and cells in the GeoJSON output, eliminating missing embeddings that would otherwise occur due to cell filtering in upstream segmentation/measurement steps.
+
+This approach guarantees that:
+- Every cell in the GeoJSON gets a KRONOS embedding
+- No embeddings are wasted on filtered-out cells
+- The merged GeoJSON contains complete data for all cells
+
+**Requirements**: The GeoJSON mask generation requires `shapely` and `rasterio` Python packages, which are included in the KRONOS environment.
+
+#### Output files
+
+KRONOS produces the following outputs:
+
+- `*_kronos_embeddings.csv`: CSV file with cell IDs, centroids, and 384 embedding dimensions
+- `*_marker_report.txt`: Report showing which image channels were matched to KRONOS markers
+- `*_kronos_merged.geojson` (if `--kronos_merge_geojson=true`): GeoJSON file with embeddings added as cell properties
+
+The merged GeoJSON file contains all original cell measurements plus 384 additional properties (`kronos_emb_0` through `kronos_emb_383`), enabling integrated analysis of morphology, intensity, and KRONOS embeddings.
+
+#### Marker matching
+
+KRONOS expects specific marker names based on its training data. The pipeline automatically performs case-insensitive matching between your image channel names and the KRONOS marker metadata. For markers that don't auto-match, use `--kronos_marker_mapping`:
+
+```bash
+--kronos_marker_mapping '{"CD3e": "CD3E", "PanCK": "PANCK"}'
+```
+
+#### GPU acceleration
+
+KRONOS automatically uses GPU acceleration when available. The pipeline is configured to request 1 GPU per KRONOS job. If no GPU is available, it falls back to CPU (which is significantly slower).
+
+For more information about KRONOS, see the [KRONOS GitHub repository](https://github.com/mahmoodlab/KRONOS).
+
 ### CellSAM segmentation
 
 CellSAM is a foundation model for cell segmentation that works across different

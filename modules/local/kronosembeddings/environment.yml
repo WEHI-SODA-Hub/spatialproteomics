@@ -12,6 +12,8 @@ dependencies:
   - conda-forge::pandas>=2.0
   - conda-forge::tifffile>=2023.0
   - conda-forge::h5py>=3.9
+  - conda-forge::shapely>=2.0
+  - conda-forge::rasterio>=1.3
   - pip
   - pip:
       - xformers>=0.0.18
