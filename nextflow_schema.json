@@ -323,6 +323,13 @@
                     "description": "JSON string mapping image marker names to KRONOS marker names for markers that cannot be auto-matched.",
                     "fa_icon": "fas fa-exchange-alt",
                     "help_text": "Provide a JSON string like '{\"CD3e\": \"CD3E\", \"PanCK\": \"PANCK\"}' to manually resolve marker name mismatches between your image channels and the KRONOS metadata. KRONOS performs case-insensitive matching automatically, so only provide mappings for markers that truly differ in name."
+                },
+                "kronos_merge_geojson": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Merge KRONOS embeddings into the cellmeasurement GeoJSON output.",
+                    "fa_icon": "fas fa-object-group",
+                    "help_text": "When enabled, a merged GeoJSON file is produced containing the original cell measurements plus all 384 KRONOS embedding dimensions as additional properties per cell. Cells are matched by centroid proximity. This significantly increases GeoJSON file size but provides a single-file output for downstream analysis."
                 }
             }
         },

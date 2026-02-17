@@ -18,7 +18,9 @@ Usage:
         [--patch-size 64] \
         [--batch-size 32] \
         [--max-value 65535] \
-        [--marker-mapping '{"CD3e": "CD3E"}']
+        [--marker-mapping '{"CD3e": "CD3E"}'] \
+        [--geojson annotations.geojson] \
+        [--merge-geojson]
 """
 
 import argparse
@@ -419,6 +421,100 @@ def save_embeddings(cell_ids, centroids, embeddings, output_path, sample_id=None
     print(f"Saved {len(cell_ids)} cell embeddings ({embedding_dim}D) to {output_path}")
 
 
+def merge_embeddings_into_geojson(geojson_path, cell_ids, centroids, embeddings, output_path, distance_threshold=5.0):
+    """
+    Merge KRONOS embeddings into a GeoJSON file by matching cells via centroid proximity.
+
+    The cellmeasurement GeoJSON uses UUIDs (not mask labels) for cell IDs, so we
+    match cells by finding the nearest GeoJSON feature centroid to each embedding
+    centroid. A distance threshold prevents incorrect matches.
+
+    Args:
+        geojson_path: Path to the input GeoJSON from cellmeasurement.
+        cell_ids: List of cell IDs (mask labels) from embedding extraction.
+        centroids: List of (y, x) centroid tuples from embedding extraction.
+        embeddings: numpy array of shape (num_cells, embedding_dim).
+        output_path: Path for the output merged GeoJSON.
+        distance_threshold: Maximum distance (pixels) for centroid matching.
+
+    Returns:
+        Tuple of (num_matched, num_unmatched, num_geojson_cells).
+    """
+    with open(geojson_path) as f:
+        geojson = json.load(f)
+
+    # Extract centroids from GeoJSON cell features using Shoelace formula
+    cell_features = []
+    cell_geojson_centroids = []
+    for feature in geojson.get("features", []):
+        props = feature.get("properties", {})
+        if props.get("objectType") != "cell":
+            continue
+        cell_features.append(feature)
+        # Compute proper area-weighted centroid using Shoelace formula
+        # GeoJSON coordinates are [x, y] where x=column, y=row in image space
+        coords = feature["geometry"]["coordinates"][0]  # outer ring
+        n = len(coords) - 1  # last point == first point (closed ring)
+        A = 0.0
+        cx = 0.0
+        cy = 0.0
+        for i in range(n):
+            x0, y0 = coords[i]
+            x1, y1 = coords[i + 1]
+            cross = x0 * y1 - x1 * y0
+            A += cross
+            cx += (x0 + x1) * cross
+            cy += (y0 + y1) * cross
+        A = A / 2.0
+        if abs(A) > 1e-10:
+            cx = cx / (6.0 * A)
+            cy = cy / (6.0 * A)
+        else:
+            # Degenerate polygon, fall back to vertex average
+            cx = sum(c[0] for c in coords) / len(coords)
+            cy = sum(c[1] for c in coords) / len(coords)
+        cell_geojson_centroids.append((cy, cx))  # (y, x) to match embedding convention
+
+    if not cell_features or len(cell_ids) == 0:
+        # Nothing to merge, write unchanged
+        with open(output_path, "w") as f:
+            json.dump(geojson, f)
+        return 0, 0, len(cell_features)
+
+    # Build arrays for vectorised distance computation
+    emb_centroids = np.array(centroids)  # (N, 2) as (y, x)
+    geo_centroids = np.array(cell_geojson_centroids)  # (M, 2) as (y, x)
+
+    embedding_dim = embeddings.shape[1]
+    emb_columns = [f"kronos_emb_{i}" for i in range(embedding_dim)]
+
+    num_matched = 0
+    num_unmatched = 0
+
+    # For each GeoJSON cell, find nearest embedding centroid
+    for feat_idx, feature in enumerate(cell_features):
+        gc = geo_centroids[feat_idx]
+        # Compute distances to all embedding centroids
+        dists = np.sqrt(np.sum((emb_centroids - gc) ** 2, axis=1))
+        best_idx = np.argmin(dists)
+        best_dist = dists[best_idx]
+
+        if best_dist <= distance_threshold:
+            # Add embeddings as measurements
+            measurements = feature["properties"].setdefault("measurements", {})
+            measurements["kronos_cell_id"] = int(cell_ids[best_idx])
+            for i, col_name in enumerate(emb_columns):
+                measurements[col_name] = float(embeddings[best_idx, i])
+            num_matched += 1
+        else:
+            num_unmatched += 1
+
+    with open(output_path, "w") as f:
+        json.dump(geojson, f)
+
+    return num_matched, num_unmatched, len(cell_features)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Extract KRONOS embeddings for segmented cells"
@@ -435,7 +531,15 @@ def main():
     parser.add_argument("--max-value", type=float, default=65535.0, help="Maximum intensity value for normalization (default: 65535)")
     parser.add_argument("--marker-mapping", default=None, help="JSON string or file path mapping image markers to KRONOS markers")
     parser.add_argument("--sample-id", default=None, help="Sample identifier to include in output")
+    parser.add_argument("--geojson", default=None, help="Path to GeoJSON from cellmeasurement (required for --merge-geojson)")
+    parser.add_argument("--merge-geojson", action="store_true", default=False,
+                        help="Merge embeddings into GeoJSON as per-cell properties")
+    parser.add_argument("--distance-threshold", type=float, default=5.0,
+                        help="Max pixel distance for centroid matching between embeddings and GeoJSON cells (default: 5.0)")
     args = parser.parse_args()
+
+    if args.merge_geojson and not args.geojson:
+        parser.error("--merge-geojson requires --geojson to be specified")
 
     # Determine device
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -537,6 +641,19 @@ def main():
         if unmatched_report:
             f.write(f"\n{unmatched_report}\n")
     print(f"  Marker matching report saved to {report_path}")
+
+    # Optionally merge embeddings into GeoJSON
+    if args.merge_geojson:
+        merged_geojson_path = args.output.replace("_kronos_embeddings.csv", "_kronos_merged.geojson")
+        if not merged_geojson_path.endswith(".geojson"):
+            merged_geojson_path = args.output.rsplit(".", 1)[0] + "_kronos_merged.geojson"
+        print(f"Merging embeddings into GeoJSON: {args.geojson}")
+        num_matched, num_unmatched, num_geo_cells = merge_embeddings_into_geojson(
+            args.geojson, cell_ids, centroids, patch_embeddings,
+            merged_geojson_path, distance_threshold=args.distance_threshold
+        )
+        print(f"  GeoJSON merge: {num_matched}/{num_geo_cells} cells matched, {num_unmatched} unmatched")
+        print(f"  Merged GeoJSON saved to {merged_geojson_path}")
 
     print("Done!")
 

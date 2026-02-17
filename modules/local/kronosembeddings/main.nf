@@ -3,7 +3,7 @@ process KRONOSEMBEDDINGS {
     label 'process_multi'
 
     conda "${moduleDir}/environment.yml"
-    container 'community.wave.seqera.io/library/python_pytorch_torchvision_tifffile_pruned:f802da66d91b8999'
+    container 'community.wave.seqera.io/library/python_git_pytorch_cuda-toolkit_pruned:c59f368fefe7b5bf'
 
     input:
     tuple val(meta),
@@ -11,11 +11,13 @@ process KRONOSEMBEDDINGS {
         path(whole_cell_mask)
     path(kronos_model)
     path(marker_metadata)
+    tuple val(meta2), path(geojson)
 
     output:
-    tuple val(meta), path("*_kronos_embeddings.csv"), emit: embeddings
-    tuple val(meta), path("*_marker_report.txt")    , emit: marker_report
-    path "versions.yml"                              , emit: versions
+    tuple val(meta), path("*_kronos_embeddings.csv")  , emit: embeddings
+    tuple val(meta), path("*_marker_report.txt")       , emit: marker_report
+    tuple val(meta), path("*_kronos_merged.geojson")   , emit: merged_geojson, optional: true
+    path "versions.yml"                                , emit: versions
 
     when:
     task.ext.when == null || task.ext.when
@@ -23,6 +25,7 @@ process KRONOSEMBEDDINGS {
     script:
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
+    def merge_args = params.kronos_merge_geojson ? "--geojson ${geojson} --merge-geojson" : ''
     """
     kronos_embeddings.py \\
         --tiff ${tiff} \\
@@ -31,6 +34,7 @@ process KRONOSEMBEDDINGS {
         --marker-metadata ${marker_metadata} \\
         --output ${prefix}_kronos_embeddings.csv \\
         --sample-id ${prefix} \\
+        ${merge_args} \\
         ${args}
 
     cat <<-END_VERSIONS > versions.yml
@@ -46,6 +50,7 @@ process KRONOSEMBEDDINGS {
     """
     touch ${prefix}_kronos_embeddings.csv
     touch ${prefix}_kronos_embeddings_marker_report.txt
+    ${params.kronos_merge_geojson ? "touch ${prefix}_kronos_merged.geojson" : ''}
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
