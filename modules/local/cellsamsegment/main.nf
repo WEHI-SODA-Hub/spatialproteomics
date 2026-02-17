@@ -126,6 +126,42 @@ process CELLSAMSEGMENT {
         return cellsam_img
     
     
+    def remove_border_cells(mask):
+        '''
+        Remove cells that touch the image borders.
+        
+        Args:
+            mask: 2D numpy array with cell labels
+        
+        Returns:
+            Filtered mask with border-touching cells removed (set to 0)
+        '''
+        h, w = mask.shape
+        border_cells = set()
+        
+        # Find cells touching top and bottom edges
+        border_cells.update(mask[0, :])
+        border_cells.update(mask[h-1, :])
+        
+        # Find cells touching left and right edges
+        border_cells.update(mask[:, 0])
+        border_cells.update(mask[:, w-1])
+        
+        # Remove background (0) from border cells set
+        border_cells.discard(0)
+        
+        # Create filtered mask
+        filtered_mask = mask.copy()
+        for cell_id in border_cells:
+            filtered_mask[mask == cell_id] = 0
+        
+        n_removed = len(border_cells)
+        n_total = len(np.unique(mask)) - 1  # -1 for background
+        print(f"Removed {n_removed} border-touching cells (kept {n_total - n_removed}/{n_total})")
+        
+        return filtered_mask
+    
+    
     def extract_channels(tiff_path, nuclear_channel, membrane_channels, compartment):
         '''
         Extract and format channels from a multi-channel TIFF for CellSAM.
@@ -221,6 +257,9 @@ process CELLSAMSEGMENT {
                           help='Apply low contrast enhancement')
         parser.add_argument('--model-path', type=str, default=None,
                           help='Custom model path (optional)')
+        parser.add_argument('--remove-border-cells', type=lambda x: x.lower() == 'true',
+                          default='${params.cellsam_remove_border_cells}',
+                          help='Remove cells touching image borders')
         
         return parser
     
@@ -275,6 +314,10 @@ process CELLSAMSEGMENT {
         
         # Run segmentation
         mask = run_segmentation(args)
+        
+        # Remove border-touching cells if requested
+        if args.remove_border_cells:
+            mask = remove_border_cells(mask)
         
         # Save segmentation mask
         output_path = "${prefix}_${compartment}.tiff"

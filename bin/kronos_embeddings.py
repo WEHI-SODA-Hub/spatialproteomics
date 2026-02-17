@@ -811,6 +811,12 @@ def main():
         img_height, img_width = image.shape[1], image.shape[2]
         mask, uuid_to_label = create_mask_from_geojson(args.geojson, img_width, img_height)
         print(f"  Mask shape: {mask.shape}, unique cells: {len(uuid_to_label)}")
+        
+        # Save the GeoJSON-derived mask for inspection/reuse
+        prefix = args.sample_id if args.sample_id else "sample"
+        geojson_mask_path = os.path.join(os.path.dirname(args.output), f"{prefix}_geojson_mask.tif")
+        tifffile.imwrite(geojson_mask_path, mask.astype(np.uint16))
+        print(f"  Saved GeoJSON-derived mask to {geojson_mask_path}")
     else:
         # Read segmentation mask from file
         print(f"Reading segmentation mask: {args.mask}")
