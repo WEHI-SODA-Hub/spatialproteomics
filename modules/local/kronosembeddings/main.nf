@@ -3,7 +3,7 @@ process KRONOSEMBEDDINGS {
     label 'process_multi'
 
     conda "${moduleDir}/environment.yml"
-    container 'community.wave.seqera.io/library/python_git_pytorch_pytorch-cuda_pruned:50d08fbe9260649a'
+    container 'community.wave.seqera.io/library/python_git_pytorch_cuda-toolkit_pruned:d422b75285a90031'
 
     input:
     tuple val(meta),
