@@ -26,6 +26,11 @@ process SEGMENTATIONREPORT {
     def prefix = task.ext.prefix ?: "${meta.id}"
     def args = task.ext.args ?: ''
     """
+    # Process-specific cache directory to avoid cache conflicts
+    export XDG_CACHE_HOME="\$(pwd)/.quarto_cache"
+    
+    mkdir -p "\$XDG_CACHE_HOME"
+    
     export DENO_DIR=\$PWD/.deno_cache
     mkdir -p "\$DENO_DIR"
     
