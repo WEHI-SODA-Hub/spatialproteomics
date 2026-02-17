@@ -89,7 +89,7 @@ Please see the [docs for more detailed information on pipeline usage and output]
 If you are running this pipeline from WEHI, it has been set up to run on [Seqera Platform](https://seqera.services.biocommons.org.au/).
 
 > [!NOTE]
-> If you don't have a .gradle directory in your home, make sure you create it with `mkdir $HOME/.gradle` before runnning the pipeline. You con't need to do this if you are running via WEHI's Seqera Platform mentioned above.
+> If you don't have a .gradle directory in your home, make sure you create it with `mkdir $HOME/.gradle` before running the pipeline. You don't need to do this if you are running via WEHI's Seqera Platform mentioned above.
 
 Usage will depend on your desired steps. See [usage docs](docs/usage.md) for more detailed information.
 
@@ -101,11 +101,11 @@ Usage will depend on your desired steps. See [usage docs](docs/usage.md) for mor
 Prepare a sample sheet as follows:
 
 `samplesheet.csv`:
-run_cellsam,tiff
+
+```csv
+sample,run_backsub,run_mesmer,run_cellpose,run_cellsam,tiff
 sample1,true,true,false,false,/path/to/sample1.tiff
-sample2,true,false,true,fals_mesmer,run_cellpose,tiff
-sample1,true,true,false,/path/to/sample1.tiff
-sample2,true,false,true,/path/to/sample2.tiff
+sample2,true,false,false,true,/path/to/sample2.tiff
 ```
 
 You may also prefer to use YAML for your samplesheet, either is supported:
@@ -128,10 +128,9 @@ You may also prefer to use YAML for your samplesheet, either is supported:
 ```
 
 > [!WARNING]
-> Please ensure that your image name and all directories in yo, cellpose, or 
-cellsam), the 
-If you don't specify any segmentation algorithm to run (mesmer or cellpose), the
-pipeline will run a background subtraction only.
+> Please ensure that your image name and all directories in your path do not contain spaces.
+
+If you don't specify any segmentation algorithm to run (mesmer, cellpose, or cellsam), the pipeline will run a background subtraction only.
 
 Now, you can run the pipeline using:
 
@@ -170,11 +169,9 @@ sure that you surround your channel name with quotes. For example, CD45:"HLA I".
 You can also set the segmentation parameters for mesmer either via CLI
 (e.g., `--combine_method prod` or in a config file pass to the workflow
 via `-c`. See [usage](docs/usage.md) for a full list.
-multiple segmentation methods (Mesmer, Cellpose, or CellSAM) 
-> on the same sample (with the same name). If you want to run multiple methods 
-> on a sample, put it on a different You cannot run both Mesmer and Cellpose segmentation on the same sample (with
-> the same name). If you want to run both on a sample, put it on a different
-> line and give it a different sample name.
+
+> [!NOTE]
+> You cannot run multiple segmentation methods (Mesmer, Cellpose, or CellSAM) on the same sample (with the same name). If you want to run multiple methods on a sample, put it on a different line and give it a different sample name.
 
 ### Cellpose segmentation
 
