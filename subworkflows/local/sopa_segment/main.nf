@@ -96,26 +96,28 @@ workflow SOPA_SEGMENT {
     ch_kronos_merged_geojson = Channel.empty()
     if (!params.skip_kronos) {
 
-        // Create channel for KRONOS input: original tiff + whole-cell mask
+        // Create channel for KRONOS input: original tiff + whole-cell mask + geojson
         ch_sopa
             .join(SOPA_SEGMENT_WHOLECELL.out.tiff)
+            .join(CELLMEASUREMENT.out.annotations)
             .map {
                 meta,
                 tiff,
                 _nuclear_channel,
                 _membrane_channels,
-                whole_cell_mask -> [
+                whole_cell_mask,
+                geojson -> [
                     meta,
                     tiff,
-                    whole_cell_mask
+                    whole_cell_mask,
+                    geojson
                 ]
             }.set { ch_kronos_input }
 
         KRONOSEMBEDDINGS(
             ch_kronos_input,
             file(params.kronos_model_path),
-            file(params.kronos_marker_metadata),
-            CELLMEASUREMENT.out.annotations
+            file(params.kronos_marker_metadata)
         )
         ch_versions = ch_versions.mix(KRONOSEMBEDDINGS.out.versions.first())
         ch_kronos_embeddings = KRONOSEMBEDDINGS.out.embeddings

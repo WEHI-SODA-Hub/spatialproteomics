@@ -255,6 +255,12 @@ KRONOS expects specific marker names based on its training data. The pipeline au
 --kronos_marker_mapping '{"CD3e": "CD3E", "PanCK": "PANCK"}'
 ```
 
+For COMET data with fluorophore suffixes in channel names, you can map them like this:
+
+```bash
+--kronos_marker_mapping '{"DAPI": "DAPI", "FOXP3_T - TRITC": "FOXP3", "CD3_T - Cy5": "CD3"}'
+```
+
 #### GPU acceleration
 
 KRONOS automatically uses GPU acceleration when available. The pipeline is configured to request 1 GPU per KRONOS job. If no GPU is available, it falls back to CPU (which is significantly slower).

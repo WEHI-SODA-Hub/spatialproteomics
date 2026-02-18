@@ -8,10 +8,10 @@ process KRONOSEMBEDDINGS {
     input:
     tuple val(meta),
         path(tiff),
-        path(whole_cell_mask)
+        path(whole_cell_mask),
+        path(geojson)
     path(kronos_model)
     path(marker_metadata)
-    tuple val(meta2), path(geojson)
 
     output:
     tuple val(meta), path("*_kronos_embeddings.csv")  , emit: embeddings

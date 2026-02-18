@@ -89,9 +89,10 @@ workflow MESMER_SEGMENT {
     ch_kronos_merged_geojson = Channel.empty()
     if (!params.skip_kronos) {
 
-        // Create channel for KRONOS input: tiff + whole-cell mask
+        // Create channel for KRONOS input: tiff + whole-cell mask + geojson
         ch_mesmer_segment
             .join(MESMERWC.out.segmentation_mask)
+            .join(CELLMEASUREMENT.out.annotations)
             .map {
                 sample,
                 _run_backsub,
@@ -101,18 +102,19 @@ workflow MESMER_SEGMENT {
                 tiff,
                 _nuclear_channel,
                 _membrane_channels,
-                whole_cell_mask -> [
+                whole_cell_mask,
+                geojson -> [
                     sample,
                     tiff,
-                    whole_cell_mask
+                    whole_cell_mask,
+                    geojson
                 ]
             }.set { ch_kronos_input }
 
         KRONOSEMBEDDINGS(
             ch_kronos_input,
             file(params.kronos_model_path),
-            file(params.kronos_marker_metadata),
-            CELLMEASUREMENT.out.annotations
+            file(params.kronos_marker_metadata)
         )
         ch_versions = ch_versions.mix(KRONOSEMBEDDINGS.out.versions.first())
         ch_kronos_embeddings = KRONOSEMBEDDINGS.out.embeddings
