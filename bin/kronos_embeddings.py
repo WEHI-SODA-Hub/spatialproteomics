@@ -768,7 +768,17 @@ def main():
             with open(args.marker_mapping) as f:
                 user_mapping = json.load(f)
         else:
-            try:W={image.shape[2]})")
+            try:
+                user_mapping = json.loads(args.marker_mapping)
+            except json.JSONDecodeError:
+                print(f"WARNING: Could not parse --marker-mapping as JSON: {args.marker_mapping}")
+
+    # Read image
+    print(f"Reading image: {args.tiff}")
+    image = tifffile.imread(args.tiff)
+    if image.ndim == 2:
+        image = image[np.newaxis, ...]  # add channel dim
+    print(f"  Image shape: {image.shape} (C={image.shape[0]}, H={image.shape[1]}, W={image.shape[2]})")
 
     # Get channel names from image metadata
     channel_names = get_channel_names(args.tiff)
