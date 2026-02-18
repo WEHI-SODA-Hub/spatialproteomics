@@ -333,6 +333,39 @@
                 }
             }
         },
+        "mask_smoothing_options": {
+            "title": "Mask smoothing options",
+            "type": "object",
+            "fa_icon": "fas fa-magic",
+            "description": "Parameters for optional mask smoothing before cell measurement.",
+            "help_text": "Enable mask smoothing to reduce polygon complexity in segmentation masks. This can prevent StackOverflowError in QuPath's GeoJSON export when cell ROIs have overly complex/jagged boundaries.",
+            "properties": {
+                "smooth_masks": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Enable mask smoothing before cell measurement.",
+                    "fa_icon": "fas fa-wave-square",
+                    "help_text": "When enabled, segmentation masks are smoothed to reduce polygon complexity before being passed to cellmeasurement. This can prevent StackOverflowError caused by deeply nested coordinate arrays in complex cell geometries."
+                },
+                "smooth_method": {
+                    "type": "string",
+                    "default": "morphological",
+                    "description": "Smoothing method: 'morphological' or 'gaussian'.",
+                    "enum": ["morphological", "gaussian"],
+                    "fa_icon": "fas fa-sliders-h",
+                    "help_text": "Choose between morphological (binary close + open with disk kernel, conservative) or gaussian (blur + re-threshold, stronger smoothing for very jagged masks)."
+                },
+                "smooth_kernel_size": {
+                    "type": "number",
+                    "default": 2,
+                    "minimum": 1,
+                    "maximum": 10,
+                    "description": "Kernel size for smoothing (disk radius for morphological, sigma for gaussian).",
+                    "fa_icon": "fas fa-expand",
+                    "help_text": "For morphological method: radius of the disk structuring element (integer). For gaussian method: standard deviation (sigma) of the Gaussian kernel. Larger values produce more smoothing."
+                }
+            }
+        },
         "measurement_options": {
             "title": "Cell measurement options",
             "type": "object",
@@ -538,6 +571,9 @@
         },
         {
             "$ref": "#/$defs/kronos_options"
+        },
+        {
+            "$ref": "#/$defs/mask_smoothing_options"
         },
         {
             "$ref": "#/$defs/measurement_options"

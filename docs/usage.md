@@ -152,6 +152,14 @@ The following Mesmer parameters can be set:
 | patch_width_pixel   | Width and height of image patch in pixels                                |
 | patch_overlap_pixel | Number of pixels that image patches will overlap                         |
 
+### Mask smoothing options
+
+| Parameter Name     | Description                                                                                                                                                                                |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| smooth_masks       | Enable mask smoothing before cell measurement to reduce polygon complexity (default: `false`). Prevents StackOverflowError in QuPath's GeoJSON export for images with complex cell boundaries. |
+| smooth_method      | Smoothing method: `morphological` (close+open with disk kernel, conservative) or `gaussian` (blur+threshold, stronger smoothing). Default: `morphological`.                                  |
+| smooth_kernel_size | Kernel size for smoothing. For morphological: disk radius (integer). For gaussian: sigma. Larger values = more smoothing. Default: `2`.                                                    |
+
 ### Cell measurement options
 
 | Parameter Name              | Description                                                                                                                   |

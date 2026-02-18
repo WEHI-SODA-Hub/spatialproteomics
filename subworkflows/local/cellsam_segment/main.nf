@@ -1,6 +1,8 @@
 include { CELLSAMSEGMENT as CELLSAMWC  } from '../../../modules/local/cellsamsegment/main.nf'
 include { CELLSAMSEGMENT as CELLSAMNUC } from '../../../modules/local/cellsamsegment/main.nf'
 include { CELLMEASUREMENT               } from '../../../modules/local/cellmeasurement/main.nf'
+include { SMOOTHMASKS as SMOOTHMASKS_NUC } from '../../../modules/local/smoothmasks/main.nf'
+include { SMOOTHMASKS as SMOOTHMASKS_WC  } from '../../../modules/local/smoothmasks/main.nf'
 include { KRONOSEMBEDDINGS               } from '../../../modules/local/kronosembeddings/main.nf'
 include { COMBINECHANNELS               } from '../../../modules/local/combinechannels/main.nf'
 include { SEGMENTATIONREPORT            } from '../../../modules/local/segmentationreport/main.nf'
@@ -71,6 +73,25 @@ workflow CELLSAM_SEGMENT {
                 whole_cell_mask
             ]
         }.set { ch_cellmeasurement }
+
+    //
+    // Optional mask smoothing to reduce polygon complexity
+    //
+    if (params.smooth_masks) {
+        SMOOTHMASKS_NUC(
+            ch_cellmeasurement.map { sample, tiff, nuclear_mask, whole_cell_mask -> [sample, nuclear_mask] }
+        )
+        SMOOTHMASKS_WC(
+            ch_cellmeasurement.map { sample, tiff, nuclear_mask, whole_cell_mask -> [sample, whole_cell_mask] }
+        )
+        ch_cellmeasurement
+            .map { sample, tiff, nuclear_mask, whole_cell_mask -> [sample, tiff] }
+            .join(SMOOTHMASKS_NUC.out.smoothed_mask)
+            .join(SMOOTHMASKS_WC.out.smoothed_mask)
+            .set { ch_cellmeasurement }
+
+        ch_versions = ch_versions.mix(SMOOTHMASKS_NUC.out.versions.first())
+    }
 
     //
     // Run CELLMEASUREMENT module on the whole-cell and nuclear segmentation masks

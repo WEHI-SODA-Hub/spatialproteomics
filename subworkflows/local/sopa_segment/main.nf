@@ -2,6 +2,8 @@ include { COMBINECHANNELS                                    } from '../../../mo
 include { SOPA_SEGMENT_COMPARTMENT as SOPA_SEGMENT_NUCLEAR   } from '../sopa_segment_compartment/main.nf'
 include { SOPA_SEGMENT_COMPARTMENT as SOPA_SEGMENT_WHOLECELL } from '../sopa_segment_compartment/main.nf'
 include { CELLMEASUREMENT                                    } from '../../../modules/local/cellmeasurement/main.nf'
+include { SMOOTHMASKS as SMOOTHMASKS_NUC                     } from '../../../modules/local/smoothmasks/main.nf'
+include { SMOOTHMASKS as SMOOTHMASKS_WC                      } from '../../../modules/local/smoothmasks/main.nf'
 include { KRONOSEMBEDDINGS                                    } from '../../../modules/local/kronosembeddings/main.nf'
 include { SEGMENTATIONREPORT                                 } from '../../../modules/local/segmentationreport/main.nf'
 
@@ -79,6 +81,25 @@ workflow SOPA_SEGMENT {
                 wholecell_tiff
             ]
         }.set { ch_cellmeasurement }
+
+    //
+    // Optional mask smoothing to reduce polygon complexity
+    //
+    if (params.smooth_masks) {
+        SMOOTHMASKS_NUC(
+            ch_cellmeasurement.map { meta, tiff, nuclear_tiff, wholecell_tiff -> [meta, nuclear_tiff] }
+        )
+        SMOOTHMASKS_WC(
+            ch_cellmeasurement.map { meta, tiff, nuclear_tiff, wholecell_tiff -> [meta, wholecell_tiff] }
+        )
+        ch_cellmeasurement
+            .map { meta, tiff, nuclear_tiff, wholecell_tiff -> [meta, tiff] }
+            .join(SMOOTHMASKS_NUC.out.smoothed_mask)
+            .join(SMOOTHMASKS_WC.out.smoothed_mask)
+            .set { ch_cellmeasurement }
+
+        ch_versions = ch_versions.mix(SMOOTHMASKS_NUC.out.versions.first())
+    }
 
     //
     // Run CELLMEASUREMENT module on the whole-cell and nuclear segmentation masks
