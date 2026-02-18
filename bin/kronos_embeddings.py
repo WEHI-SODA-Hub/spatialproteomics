@@ -841,13 +841,33 @@ def main():
     model, precision, embedding_dim = load_kronos_model(args.model_path, args.config_path, device)
     print(f"  Model loaded: precision={precision}, embedding_dim={embedding_dim}")
 
-    # Extract embeddings
+    # Extract embeddings with CUDA error handling
     print(f"Extracting embeddings (batch_size={args.batch_size}, num_workers={args.num_workers})...")
-    results = extract_embeddings(
-        model, patches, marker_ids, marker_means, marker_stds,
-        max_value=args.max_value, batch_size=args.batch_size,
-        num_workers=args.num_workers, device=device, precision=precision,
-    )
+    try:
+        results = extract_embeddings(
+            model, patches, marker_ids, marker_means, marker_stds,
+            max_value=args.max_value, batch_size=args.batch_size,
+            num_workers=args.num_workers, device=device, precision=precision,
+        )
+    except (torch.cuda.OutOfMemoryError, RuntimeError) as e:
+        if "CUDA" in str(e) and device == "cuda":
+            print(f"\n  WARNING: CUDA error encountered: {e}")
+            print("  Falling back to CPU execution (this will be slower)...")
+            device = "cpu"
+            args.num_workers = 0  # Disable multiprocessing on CPU to avoid NFS issues
+            
+            # Reload model on CPU
+            model, precision, embedding_dim = load_kronos_model(args.model_path, args.config_path, device)
+            print(f"  Model reloaded on CPU")
+            
+            # Retry extraction on CPU
+            results = extract_embeddings(
+                model, patches, marker_ids, marker_means, marker_stds,
+                max_value=args.max_value, batch_size=args.batch_size,
+                num_workers=args.num_workers, device=device, precision=precision,
+            )
+        else:
+            raise
 
     patch_embeddings = results["patch_embeddings"]
     print(f"  Patch embeddings shape: {patch_embeddings.shape}")
