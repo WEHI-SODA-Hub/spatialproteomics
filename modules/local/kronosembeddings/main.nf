@@ -3,15 +3,15 @@ process KRONOSEMBEDDINGS {
     label 'process_multi'
 
     conda "${moduleDir}/environment.yml"
-    container 'community.wave.seqera.io/library/python_pytorch_pytorch-cuda_numpy_pruned:5c3f3a8603f5a23a'
+    container 'community.wave.seqera.io/library/python_git_pytorch_cuda-toolkit_pruned:d422b75285a90031'
 
     input:
     tuple val(meta),
         path(tiff),
-        path(whole_cell_mask),
-        path(geojson)
+        path(whole_cell_mask)
     path(kronos_model)
     path(marker_metadata)
+    tuple val(meta2), path(geojson)
 
     output:
     tuple val(meta), path("*_kronos_embeddings.csv")  , emit: embeddings

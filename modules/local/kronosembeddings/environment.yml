@@ -1,19 +1,19 @@
+---
 channels:
+  - conda-forge
   - pytorch
   - nvidia
-  - conda-forge
-
 dependencies:
   - python=3.11
-  - pytorch::pytorch=2.1.*
-  - pytorch::pytorch-cuda=11.8
-  - numpy>=1.26.4
-  - pandas>=2.0
-  - tifffile>=2023.0
-  - h5py>=3.9
-  - shapely>=2.0
-  - rasterio>=1.3
   - git
+  - pytorch::pytorch>=2.0.0
+  - nvidia::cuda-toolkit=12.1
+  - conda-forge::numpy>=1.26.4
+  - conda-forge::pandas>=2.0
+  - conda-forge::tifffile>=2023.0
+  - conda-forge::h5py>=3.9
+  - conda-forge::shapely>=2.0
+  - conda-forge::rasterio>=1.3
   - pip
   - pip:
       - xformers>=0.0.18

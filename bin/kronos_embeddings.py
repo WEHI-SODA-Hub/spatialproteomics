@@ -752,7 +752,7 @@ def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using device: {device}")
     
-    # Disable multiprocessing workers on CPU or NFS to avoid cleanup issues
+    # Disable multiprocessing workers on CPU to avoid cleanup issues
     if device == "cpu" and args.num_workers > 0:
         print(f"  Warning: Disabling num_workers (was {args.num_workers}) on CPU to avoid NFS/multiprocessing issues")
         args.num_workers = 0
@@ -768,17 +768,7 @@ def main():
             with open(args.marker_mapping) as f:
                 user_mapping = json.load(f)
         else:
-            try:
-                user_mapping = json.loads(args.marker_mapping)
-            except json.JSONDecodeError:
-                print(f"WARNING: Could not parse --marker-mapping as JSON: {args.marker_mapping}")
-
-    # Read image
-    print(f"Reading image: {args.tiff}")
-    image = tifffile.imread(args.tiff)
-    if image.ndim == 2:
-        image = image[np.newaxis, ...]  # add channel dim
-    print(f"  Image shape: {image.shape} (C={image.shape[0]}, H={image.shape[1]}, W={image.shape[2]})")
+            try:W={image.shape[2]})")
 
     # Get channel names from image metadata
     channel_names = get_channel_names(args.tiff)
@@ -841,33 +831,13 @@ def main():
     model, precision, embedding_dim = load_kronos_model(args.model_path, args.config_path, device)
     print(f"  Model loaded: precision={precision}, embedding_dim={embedding_dim}")
 
-    # Extract embeddings with CUDA error handling
+    # Extract embeddings
     print(f"Extracting embeddings (batch_size={args.batch_size}, num_workers={args.num_workers})...")
-    try:
-        results = extract_embeddings(
-            model, patches, marker_ids, marker_means, marker_stds,
-            max_value=args.max_value, batch_size=args.batch_size,
-            num_workers=args.num_workers, device=device, precision=precision,
-        )
-    except (torch.cuda.OutOfMemoryError, RuntimeError) as e:
-        if "CUDA" in str(e) and device == "cuda":
-            print(f"\n  WARNING: CUDA error encountered: {e}")
-            print("  Falling back to CPU execution (this will be slower)...")
-            device = "cpu"
-            args.num_workers = 0  # Disable multiprocessing on CPU to avoid NFS issues
-            
-            # Reload model on CPU
-            model, precision, embedding_dim = load_kronos_model(args.model_path, args.config_path, device)
-            print(f"  Model reloaded on CPU")
-            
-            # Retry extraction on CPU
-            results = extract_embeddings(
-                model, patches, marker_ids, marker_means, marker_stds,
-                max_value=args.max_value, batch_size=args.batch_size,
-                num_workers=args.num_workers, device=device, precision=precision,
-            )
-        else:
-            raise
+    results = extract_embeddings(
+        model, patches, marker_ids, marker_means, marker_stds,
+        max_value=args.max_value, batch_size=args.batch_size,
+        num_workers=args.num_workers, device=device, precision=precision,
+    )
 
     patch_embeddings = results["patch_embeddings"]
     print(f"  Patch embeddings shape: {patch_embeddings.shape}")
