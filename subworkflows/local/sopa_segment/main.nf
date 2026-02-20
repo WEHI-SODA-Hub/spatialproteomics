@@ -159,8 +159,8 @@ workflow SOPA_SEGMENT {
                     annotations,
                     false, // run_mesmer
                     true,  // run_cellpose
-                    nuclear_channel.first(),
-                    membrane_channels.first(),
+                    nuclear_channel,
+                    membrane_channels,
                     combined_tiff
                 ]
             }.set { ch_segmentationreport }
