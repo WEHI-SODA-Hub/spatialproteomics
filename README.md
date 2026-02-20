@@ -200,7 +200,7 @@ can use set the parameter `skip_measurements` to `true`.
 
 ### KRONOS embeddings
 
-KRONOS is a foundation model for multiplex spatial proteomics that extracts rich, 384-dimensional embeddings for each cell. These embeddings capture cellular phenotype and microenvironment context, enabling downstream analysis like clustering, classification, and spatial analysis.
+KRONOS is a foundation model for multiplex spatial proteomics that extracts rich embeddings for each cell. These embeddings capture cellular phenotype and microenvironment context, enabling downstream analysis like clustering, classification, and spatial analysis.The authors say they will be updating and maintaining kronos with updates from dino v2 to v3 ect. We shall see.
 
 To enable KRONOS embeddings:
 
@@ -226,16 +226,9 @@ nextflow run main.nf \
 - `--kronos_max_value` (default: 65535): Maximum intensity value for normalization
 - `--kronos_marker_mapping` (optional): JSON string mapping image marker names to KRONOS marker names
 
-#### Perfect cell matching
+#### Embeddings for filtered data with KRONOS
 
 When `--kronos_merge_geojson` is enabled, the pipeline automatically creates a new segmentation mask directly from the GeoJSON polygons. This ensures **100% perfect matching** between KRONOS embeddings and cells in the GeoJSON output, eliminating missing embeddings that would otherwise occur due to cell filtering in upstream segmentation/measurement steps.
-
-This approach guarantees that:
-- Every cell in the GeoJSON gets a KRONOS embedding
-- No embeddings are wasted on filtered-out cells
-- The merged GeoJSON contains complete data for all cells
-
-**Requirements**: The GeoJSON mask generation requires `shapely` and `rasterio` Python packages, which are included in the KRONOS environment.
 
 #### Output files
 
@@ -245,9 +238,9 @@ KRONOS produces the following outputs:
 - `*_marker_report.txt`: Report showing which image channels were matched to KRONOS markers
 - `*_kronos_merged.geojson` (if `--kronos_merge_geojson=true`): GeoJSON file with embeddings added as cell properties
 
-The merged GeoJSON file contains all original cell measurements plus 384 additional properties (`kronos_emb_0` through `kronos_emb_383`), enabling integrated analysis of morphology, intensity, and KRONOS embeddings.
+The merged GeoJSON file contains all original cell measurements plus additional features (`kronos_emb_0` through `kronos_emb_#`), enabling integrated analysis of morphology, intensity, and KRONOS embeddings.
 
-#### Marker matching
+#### Marker matching (This is Important)
 
 KRONOS expects specific marker names based on its training data. The pipeline automatically performs case-insensitive matching between your image channel names and the KRONOS marker metadata. For markers that don't auto-match, use `--kronos_marker_mapping`:
 
@@ -260,10 +253,6 @@ For COMET data with fluorophore suffixes in channel names, you can map them like
 ```bash
 --kronos_marker_mapping '{"DAPI": "DAPI", "FOXP3_T - TRITC": "FOXP3", "CD3_T - Cy5": "CD3"}'
 ```
-
-#### GPU acceleration
-
-KRONOS automatically uses GPU acceleration when available. The pipeline is configured to request 1 GPU per KRONOS job. If no GPU is available, it falls back to CPU (which is significantly slower).
 
 For more information about KRONOS, see the [KRONOS GitHub repository](https://github.com/mahmoodlab/KRONOS).
 
