@@ -31,9 +31,6 @@ process SEGMENTATIONREPORT {
     
     mkdir -p "\$XDG_CACHE_HOME"
     
-    export DENO_DIR=\$PWD/.deno_cache
-    mkdir -p "\$DENO_DIR"
-    
     Rscript -e "spatialVis::copy_report_template(
         template_name = 'segmentation_report_template.qmd',
         output_dir = '.',
