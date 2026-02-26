@@ -431,15 +431,15 @@ def save_embeddings(cell_ids, centroids, embeddings, output_path, sample_id=None
 def create_mask_from_geojson(geojson_path, width, height):
     """
     Create a segmentation mask from GeoJSON cell annotations.
-    
+
     This ensures perfect 1:1 correspondence between mask labels and GeoJSON cells.
     Each cell in the GeoJSON is assigned a sequential label (1, 2, 3, ...).
-    
+
     Args:
         geojson_path: Path to GeoJSON file with cell annotations
         width: Image width in pixels
         height: Image height in pixels
-        
+
     Returns:
         Tuple of (mask, uuid_to_label_dict) where:
             - mask: numpy array of shape (height, width) with cell labels
@@ -448,32 +448,32 @@ def create_mask_from_geojson(geojson_path, width, height):
     if not GEOJSON_TO_MASK_AVAILABLE:
         raise ImportError("shapely and rasterio are required for GeoJSON to mask conversion. "
                          "Install with: pip install shapely rasterio")
-    
+
     print(f"Creating mask from GeoJSON: {geojson_path}")
-    
+
     with open(geojson_path) as f:
         geojson = json.load(f)
-    
+
     # Extract cell features and create label mapping
     cell_features = []
     uuid_to_label = {}
     label = 1
-    
+
     for feature in geojson.get('features', []):
         if feature.get('properties', {}).get('objectType') == 'cell':
             cell_features.append(feature)
             uuid_to_label[feature['id']] = label
             label += 1
-    
+
     print(f"  Found {len(cell_features)} cells in GeoJSON")
-    
+
     # Parse polygon coordinates
     def parse_polygon_coords(coords):
         # Flatten nested coordinate structures
         while len(coords) > 0 and isinstance(coords[0], list) and len(coords[0]) > 0 and isinstance(coords[0][0], list):
             coords = coords[0]
         return Polygon(coords)
-    
+
     # Create shapes for rasterization
     shapes = []
     for feature in cell_features:
@@ -481,7 +481,7 @@ def create_mask_from_geojson(geojson_path, width, height):
         poly = parse_polygon_coords(coords)
         label_val = uuid_to_label[feature['id']]
         shapes.append((poly, label_val))
-    
+
     # Rasterize polygons into mask
     print(f"  Rasterizing {len(shapes)} cells into {width}x{height} mask...")
     mask = features.rasterize(
@@ -491,21 +491,21 @@ def create_mask_from_geojson(geojson_path, width, height):
         dtype=np.uint16,
         all_touched=False
     )
-    
+
     unique_labels = len(np.unique(mask)) - 1  # exclude background
     print(f"  Created mask with {unique_labels} unique cell labels")
-    
+
     return mask, uuid_to_label
 
 
-def merge_embeddings_into_geojson(geojson_path, mask_path, cell_ids, centroids, embeddings, output_path, 
+def merge_embeddings_into_geojson(geojson_path, mask_path, cell_ids, centroids, embeddings, output_path,
                                   distance_threshold=5.0, use_geojson_mask=False, uuid_to_label=None):
     """
     Merge KRONOS embeddings into a GeoJSON file by matching via mask labels.
 
     Builds a mapping from GeoJSON cell UUID to mask label by extracting the mask
     value at each cell's centroid, then uses this to match embeddings to GeoJSON features.
-    
+
     If use_geojson_mask=True, creates a new mask directly from the GeoJSON to ensure
     perfect 1:1 correspondence between mask labels and GeoJSON cells.
 
@@ -546,26 +546,26 @@ def merge_embeddings_into_geojson(geojson_path, mask_path, cell_ids, centroids, 
                     mask_width = int(max(xs))
                     mask_height = int(max(ys))
                     break
-        
+
         # Create mask from GeoJSON
         mask, uuid_to_label = create_mask_from_geojson(geojson_path, mask_width, mask_height)
-        
+
         # For GeoJSON-derived mask, we have direct UUID to label mapping
         # Build mask_label to embedding index mapping
         mask_label_to_emb_idx = {label: idx for idx, label in enumerate(cell_ids)}
-        
+
         embedding_dim = embeddings.shape[1]
         emb_columns = [f"kronos_emb_{i}" for i in range(embedding_dim)]
-        
+
         num_matched = 0
         num_unmatched = 0
-        
-        cell_features = [f for f in geojson.get('features', []) 
+
+        cell_features = [f for f in geojson.get('features', [])
                         if f.get('properties', {}).get('objectType') == 'cell']
-        
+
         for feature in cell_features:
             feature_id = feature["id"]
-            
+
             if feature_id in uuid_to_label:
                 mask_label = uuid_to_label[feature_id]
                 if mask_label in mask_label_to_emb_idx:
@@ -579,18 +579,18 @@ def merge_embeddings_into_geojson(geojson_path, mask_path, cell_ids, centroids, 
                     num_unmatched += 1
             else:
                 num_unmatched += 1
-        
+
         with open(output_path, "w") as f:
             json.dump(geojson, f)
-        
+
         method_counts = {"by_label": num_matched, "by_distance": 0}
         print(f"  GeoJSON-derived mask matching: {num_matched}/{len(cell_features)} cells matched")
-        
+
         if num_unmatched > 0:
             print(f"  Warning: {num_unmatched} cells could not be matched")
-        
+
         return num_matched, num_unmatched, len(cell_features), method_counts
-    
+
     else:
         # Original mask-based matching logic
         # Load the whole-cell mask to extract labels at centroids
@@ -603,26 +603,26 @@ def merge_embeddings_into_geojson(geojson_path, mask_path, cell_ids, centroids, 
     cell_features = []
     uuid_to_mask_label = {}
     unmapped_features = []
-    
+
     for feature in geojson.get("features", []):
         props = feature.get("properties", {})
         if props.get("objectType") != "cell":
             continue
         cell_features.append(feature)
-        
+
         # Compute centroid using Shoelace formula
         coords = feature["geometry"]["coordinates"]
-        
+
         # Flatten nested coordinate structures to get to [x, y] pairs
         while len(coords) > 0 and isinstance(coords[0], list) and len(coords[0]) > 0 and isinstance(coords[0][0], list):
             coords = coords[0]  # unwrap one level
-        
+
         # Now coords should be [[x, y], [x, y], ...]
         n = len(coords) - 1  # last point == first point (closed ring)
         A = 0.0
         cx = 0.0
         cy = 0.0
-        
+
         for i in range(n):
             x0, y0 = coords[i][0], coords[i][1]
             x1, y1 = coords[i + 1][0], coords[i + 1][1]
@@ -638,11 +638,11 @@ def merge_embeddings_into_geojson(geojson_path, mask_path, cell_ids, centroids, 
             # Degenerate polygon, fall back to vertex average
             cx = sum(pt[0] for pt in coords) / len(coords)
             cy = sum(pt[1] for pt in coords) / len(coords)
-        
+
         # Extract mask label at centroid (x, y) -> (col, row)
         cx_int = int(round(cx))
         cy_int = int(round(cy))
-        
+
         if 0 <= cy_int < mask_height and 0 <= cx_int < mask_width:
             mask_label = int(mask[cy_int, cx_int])
             if mask_label > 0:  # skip background
@@ -657,7 +657,7 @@ def merge_embeddings_into_geojson(geojson_path, mask_path, cell_ids, centroids, 
         with open(output_path, "w") as f:
             json.dump(geojson, f)
         return 0, 0, len(cell_features), {}
-    
+
     print(f"  Mapped {len(uuid_to_mask_label)}/{len(cell_features)} GeoJSON cells to mask labels")
     if unmapped_features:
         print(f"  Warning: {len(unmapped_features)} cells could not be mapped (centroid outside mask or on background)")
@@ -681,7 +681,7 @@ def merge_embeddings_into_geojson(geojson_path, mask_path, cell_ids, centroids, 
     for feature in cell_features:
         feature_id = feature["id"]
         matched = False
-        
+
         # Try exact match via mask label
         if feature_id in uuid_to_mask_label:
             mask_label = uuid_to_mask_label[feature_id]
@@ -694,21 +694,21 @@ def merge_embeddings_into_geojson(geojson_path, mask_path, cell_ids, centroids, 
                 num_matched += 1
                 num_matched_by_label += 1
                 matched = True
-        
+
         if not matched:
             num_unmatched += 1
 
     with open(output_path, "w") as f:
         json.dump(geojson, f)
-    
+
     # Report matching statistics
     method_counts = {
         "by_label": num_matched_by_label,
         "by_distance": num_matched_by_distance
     }
-    
+
     print(f"  Matching statistics: {num_matched_by_label} by mask label, {num_matched_by_distance} by distance")
-    
+
     # Report distance statistics for unmatched cells
     if unmatched_distances:
         unmatched_distances = np.array(unmatched_distances)
@@ -744,14 +744,14 @@ def main():
 
     if args.merge_geojson and not args.geojson:
         parser.error("--merge-geojson requires --geojson to be specified")
-    
+
     if args.merge_geojson and not GEOJSON_TO_MASK_AVAILABLE:
         parser.error("--merge-geojson requires shapely and rasterio for GeoJSON mask creation. Install with: pip install shapely rasterio")
 
     # Determine device
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using device: {device}")
-    
+
     # Disable multiprocessing workers on CPU to avoid cleanup issues
     if device == "cpu" and args.num_workers > 0:
         print(f"  Warning: Disabling num_workers (was {args.num_workers}) on CPU to avoid NFS/multiprocessing issues")
@@ -811,7 +811,7 @@ def main():
         img_height, img_width = image.shape[1], image.shape[2]
         mask, uuid_to_label = create_mask_from_geojson(args.geojson, img_width, img_height)
         print(f"  Mask shape: {mask.shape}, unique cells: {len(uuid_to_label)}")
-        
+
         # Save the GeoJSON-derived mask for inspection/reuse
         prefix = args.sample_id if args.sample_id else "sample"
         geojson_mask_path = os.path.join(os.path.dirname(args.output), f"{prefix}_geojson_mask.tif")
@@ -876,7 +876,7 @@ def main():
         if not merged_geojson_path.endswith(".geojson"):
             merged_geojson_path = args.output.rsplit(".", 1)[0] + "_kronos_merged.geojson"
         print(f"Merging embeddings into GeoJSON: {args.geojson}")
-        
+
         # Use GeoJSON-derived mask for perfect matching
         num_matched, num_unmatched, num_geo_cells, method_counts = merge_embeddings_into_geojson(
             args.geojson, None, cell_ids, centroids, patch_embeddings,

@@ -22,7 +22,7 @@ process CELLSAMSEGMENT {
     def prefix = task.ext.prefix ?: "${meta.id}"
     def mem_channels = membrane_channels != '' && membrane_channels != [] ? membrane_channels.split(":") : []
     def mem_channel_args = mem_channels.collect { "--membrane-channel '${it}'" }.join(' ')
-    
+
     """
     cellsam_segment.py \\
         ${tiff} \\

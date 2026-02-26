@@ -32,7 +32,7 @@ process MESMERSEGMENT {
         ${membrane_channel_args} \\
         ${args} \\
         > "${prefix}_${compartment}.tiff"
-    
+
     # Post-process: transpose mask if dimensions are swapped
     mesmer_postprocess.py "${tiff}" "${prefix}_${compartment}.tiff"
 

@@ -7,7 +7,7 @@ import argparse
 def postprocess_mask(input_tiff, mask_path):
     """
     Post-process mesmer output mask to fix transposed dimensions.
-    
+
     Mesmer sometimes outputs masks with swapped X,Y dimensions.
     This script detects and corrects that issue.
     """
@@ -34,6 +34,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Post-process mesmer segmentation masks')
     parser.add_argument('input_tiff', help='Original input TIFF file')
     parser.add_argument('mask_path', help='Mesmer output mask to post-process')
-    
+
     args = parser.parse_args()
     postprocess_mask(args.input_tiff, args.mask_path)

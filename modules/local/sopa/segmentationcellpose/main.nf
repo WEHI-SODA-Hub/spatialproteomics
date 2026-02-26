@@ -23,7 +23,7 @@ process SOPA_SEGMENTATIONCELLPOSE {
     def membrane_channel_arg = (membrane_channel && membrane_channel != "[]") ? "--channels \"${membrane_channel}\"" : ""
     """
     export NUMBA_CACHE_DIR=\$PWD/.numba_cache
-    
+
     sopa segmentation cellpose \\
         ${args} \\
         --patch-index ${index} \\
