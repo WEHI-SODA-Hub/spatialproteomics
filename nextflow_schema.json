@@ -347,22 +347,14 @@
                     "fa_icon": "fas fa-wave-square",
                     "help_text": "When enabled, segmentation masks are smoothed using parallel Shapely polygon simplification to reduce polygon complexity before being passed to cellmeasurement."
                 },
-                "smooth_tolerance": {
-                    "type": "number",
-                    "default": 1,
-                    "minimum": 0.1,
-                    "maximum": 10,
-                    "description": "Douglas-Peucker tolerance for Shapely simplification (pixels). Higher values produce more simplification.",
-                    "fa_icon": "fas fa-sliders-h",
-                    "help_text": "Tolerance parameter for Shapely's polygon simplification. Typical values: 0.5–2.0."
-                },
-                "smooth_min_area": {
+                "smooth_kernel_size": {
                     "type": "integer",
-                    "default": 10,
+                    "default": 2,
                     "minimum": 1,
-                    "description": "Minimum polygon area to keep after simplification (pixels²).",
-                    "fa_icon": "fas fa-expand",
-                    "help_text": "Prevents tiny fragments from being retained after smoothing."
+                    "maximum": 10,
+                    "description": "Disk radius for morphological close+open smoothing (pixels).",
+                    "fa_icon": "fas fa-circle",
+                    "help_text": "Larger values produce smoother boundaries but may merge nearby cells. Only used when smooth_masks is enabled."
                 },
                 "smooth_n_workers": {
                     "type": "integer",
