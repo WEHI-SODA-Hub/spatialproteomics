@@ -21,9 +21,9 @@
 **WEHI-SODA-Hub/sp_segment** is a pipeline for running cell segmentation
 on COMET and MIBI data. For COMET, background subtraction can be performed
 followed by patched cellpose segmentation, non-patched mesmer segmentation, or
-CellSAM foundation model segmentation. For MIBI, mesmer or CellSAM segmentation 
-can be run. Whole-cell and nuclear segmentations are run separately, and then 
-consolidated into whole cells with nuclei with full shape and intensity 
+CellSAM foundation model segmentation. For MIBI, mesmer or CellSAM segmentation
+can be run. Whole-cell and nuclear segmentations are run separately, and then
+consolidated into whole cells with nuclei with full shape and intensity
 measurements per compartment. The output GeoJSON files can be viewed in QuPath.
 
 <details>
@@ -283,7 +283,7 @@ parameters:
 
 #### Model weights
 
-CellSAM can automatically download the latest model weights (v1.2) from 
+CellSAM can automatically download the latest model weights (v1.2) from
 [users.deepcell.org](https://users.deepcell.org). To use the latest weights:
 
 1. Create an account at [users.deepcell.org](https://users.deepcell.org)
@@ -296,8 +296,8 @@ CellSAM can automatically download the latest model weights (v1.2) from
 If the token is not set, CellSAM will use the default bundled model weights.
 
 > [!NOTE]
-> You cannot run both Mesmer/Cellpose and CellSAM segmentation on the same sample 
-> (with the same name). If you want to run multiple methods on a sample, put it 
+> You cannot run both Mesmer/Cellpose and CellSAM segmentation on the same sample
+> (with the same name). If you want to run multiple methods on a sample, put it
 > on a different line and give it a different sample name.
 
 ## Dealing with large images
