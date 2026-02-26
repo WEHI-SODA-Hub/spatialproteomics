@@ -1,157 +1,237 @@
 #!/usr/bin/env python3
 """
-Smooth label segmentation masks to reduce polygon complexity.
+Smooth label segmentation masks using Shapely polygon simplification.
+Parallelised for large masks (e.g. 40k x 40k with 100k+ labels).
 
-Supports two methods:
-  - morphological: per-label binary close + open with a disk structuring element
-  - gaussian: per-label Gaussian blur then re-threshold at 0.5
-
-This prevents StackOverflowError in QuPath's GeoJSON export when cell ROIs have
-overly complex/jagged polygon boundaries.
+Rasterizes in crop-local space to minimise memory overhead per worker.
 """
 
 import argparse
 import sys
-
 import numpy as np
 import tifffile
-from scipy import ndimage
-from skimage.morphology import disk, binary_closing, binary_opening
-from skimage.filters import gaussian
+from multiprocessing import shared_memory
+from concurrent.futures import ProcessPoolExecutor
+from scipy.ndimage import find_objects
+from skimage.measure import find_contours
+from skimage.draw import polygon as draw_polygon
+from shapely.geometry import Polygon
+from shapely.validation import make_valid
 
 
-def smooth_label_morphological(label_mask, kernel_size=2):
+# ── Worker (must be module-level for pickling) ────────────────────────────────
+
+def _process_label(args):
     """
-    Smooth each label in a label mask using morphological close then open.
+    Process a single label: contour → simplify → rasterize.
+    Rasterizes in crop-local space then offsets to global coordinates.
+    """
+    (label_id, slc_starts, slc_stops, shm_name,
+     mask_shape, mask_dtype, tolerance, min_area) = args
+
+    shm = shared_memory.SharedMemory(name=shm_name)
+    label_mask = np.ndarray(mask_shape, dtype=mask_dtype, buffer=shm.buf)
+
+    try:
+        slc = tuple(slice(s, e) for s, e in zip(slc_starts, slc_stops))
+        crop = label_mask[slc] == label_id
+
+        if not np.any(crop):
+            return label_id, None, None
+
+        contours = find_contours(crop, level=0.5)
+        if not contours:
+            return label_id, None, None
+
+        largest = max(contours, key=lambda c: c.shape[0])
+        if len(largest) < 4:
+            return label_id, None, None
+
+        minr, minc = slc_starts
+        crop_h = slc_stops[0] - slc_starts[0]
+        crop_w = slc_stops[1] - slc_starts[1]
+        crop_shape = (crop_h, crop_w)
+
+        # Contour coords are crop-local (row, col) → convert to (x, y) for Shapely
+        coords = [(c[1], c[0]) for c in largest]
+
+        poly = Polygon(coords)
+        if not poly.is_valid:
+            poly = make_valid(poly)
+        if poly.is_empty or poly.area < min_area:
+            return label_id, None, None
+
+        simplified = poly.simplify(tolerance=tolerance, preserve_topology=True)
+        if simplified.is_empty:
+            return label_id, None, None
+
+        polys = (
+            [simplified] if simplified.geom_type == "Polygon"
+            else list(simplified.geoms)
+        )
+
+        all_rr, all_cc = [], []
+        for p in polys:
+            if p.is_empty or p.area < min_area:
+                continue
+
+            x, y = p.exterior.coords.xy
+
+            # Rasterize in crop-local space
+            local_y = np.array(y)  # already crop-local
+            local_x = np.array(x)  # already crop-local
+            rr, cc = draw_polygon(local_y, local_x, shape=crop_shape)
+
+            # Offset to global coordinates
+            rr = rr + minr
+            cc = cc + minc
+
+            # Clip to mask bounds — guards against sub-pixel edge cases
+            valid = (
+                (rr >= 0) & (rr < mask_shape[0]) &
+                (cc >= 0) & (cc < mask_shape[1])
+            )
+            all_rr.append(rr[valid])
+            all_cc.append(cc[valid])
+
+        if not all_rr:
+            return label_id, None, None
+
+        return label_id, np.concatenate(all_rr), np.concatenate(all_cc)
+
+    except Exception as e:
+        print(f"  [warn] label {label_id} failed: {e}", flush=True)
+        # Fallback: return original pixels for this label
+        orig_rr, orig_cc = np.where(label_mask == label_id)
+        return label_id, orig_rr, orig_cc
+
+    finally:
+        shm.close()  # Never unlink in workers — only the creator does that
+
+
+# ── Main smoothing function ───────────────────────────────────────────────────
+
+def smooth_label_shapely_parallel(
+    label_mask, tolerance=1.0, min_area=10, n_workers=8, chunksize=200
+):
+    """
+    Parallelised Shapely-based label smoothing using shared memory.
 
     Parameters
     ----------
     label_mask : np.ndarray
         Integer label image where 0 is background.
-    kernel_size : int
-        Radius of the disk structuring element (default: 2).
-
-    Returns
-    -------
-    np.ndarray
-        Smoothed label mask with the same dtype.
+    tolerance : float
+        Douglas-Peucker tolerance in pixels. Higher = more simplification.
+        Typical values: 0.5–2.0.
+    min_area : int
+        Minimum polygon area (px²) to retain after simplification.
+    n_workers : int
+        Number of parallel worker processes.
+    chunksize : int
+        Number of labels per executor dispatch chunk.
     """
-    selem = disk(kernel_size)
-    labels = np.unique(label_mask)
-    labels = labels[labels != 0]
+    print(f"Setting up shared memory for mask {label_mask.shape} {label_mask.dtype}...")
+    shm = shared_memory.SharedMemory(create=True, size=label_mask.nbytes)
+    shared_arr = np.ndarray(label_mask.shape, dtype=label_mask.dtype, buffer=shm.buf)
+    np.copyto(shared_arr, label_mask)
+
+    print("Finding label bounding boxes...")
+    slices = find_objects(label_mask)
+    n_labels = sum(1 for s in slices if s is not None)
+    print(f"Processing {n_labels} labels with {n_workers} workers, chunksize={chunksize}...")
+
+    # Serialise slices as (starts, stops) tuples — slice objects aren't picklable
+    work = []
+    for label_id, slc in enumerate(slices, start=1):
+        if slc is None:
+            continue
+        slc_starts = tuple(s.start for s in slc)
+        slc_stops  = tuple(s.stop  for s in slc)
+        work.append((
+            label_id, slc_starts, slc_stops,
+            shm.name, label_mask.shape, label_mask.dtype,
+            tolerance, min_area
+        ))
 
     smoothed = np.zeros_like(label_mask)
+    done = 0
 
-    for label_id in labels:
-        binary = label_mask == label_id
-        # Close first (fills small holes, connects nearby regions)
-        binary = binary_closing(binary, selem)
-        # Then open (removes small protrusions, smooths boundary)
-        binary = binary_opening(binary, selem)
-        smoothed[binary & (smoothed == 0)] = label_id
+    try:
+        with ProcessPoolExecutor(max_workers=n_workers) as executor:
+            for label_id, rr, cc in executor.map(
+                _process_label, work, chunksize=chunksize
+            ):
+                if rr is not None and len(rr) > 0:
+                    # First-write wins for any overlap between adjacent labels
+                    free = smoothed[rr, cc] == 0
+                    smoothed[rr[free], cc[free]] = label_id
+                done += 1
+                if done % 5000 == 0:
+                    print(f"  {done}/{n_labels} labels done...", flush=True)
+    finally:
+        shm.close()
+        shm.unlink()  # Only unlink in the creator process
 
     return smoothed
 
 
-def smooth_label_gaussian(label_mask, sigma=1.0):
-    """
-    Smooth each label in a label mask using Gaussian blur + re-threshold.
-
-    Parameters
-    ----------
-    label_mask : np.ndarray
-        Integer label image where 0 is background.
-    sigma : float
-        Standard deviation of Gaussian kernel (default: 1.0).
-
-    Returns
-    -------
-    np.ndarray
-        Smoothed label mask with the same dtype.
-    """
-    labels = np.unique(label_mask)
-    labels = labels[labels != 0]
-
-    smoothed = np.zeros_like(label_mask)
-    # Track confidence for overlap resolution
-    confidence = np.zeros(label_mask.shape, dtype=np.float32)
-
-    for label_id in labels:
-        binary = (label_mask == label_id).astype(np.float32)
-        blurred = gaussian(binary, sigma=sigma, preserve_range=True)
-        mask = blurred > 0.5
-
-        # Resolve overlaps: keep label with highest blur confidence
-        overlap = mask & (smoothed != 0)
-        if np.any(overlap):
-            better = blurred > confidence
-            smoothed[mask & ((smoothed == 0) | better)] = label_id
-            confidence[mask & ((confidence < blurred))] = blurred[mask & ((confidence < blurred))]
-        else:
-            smoothed[mask] = label_id
-            confidence[mask] = blurred[mask]
-
-    return smoothed
-
+# ── CLI ───────────────────────────────────────────────────────────────────────
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Smooth label segmentation masks to reduce polygon complexity."
+        description="Parallelised Shapely smoothing of label masks for QuPath export."
+    )
+    parser.add_argument("input_mask",  help="Input label mask TIFF.")
+    parser.add_argument("output_mask", help="Output smoothed mask TIFF.")
+    parser.add_argument(
+        "--tolerance", type=float, default=1.0,
+        help="Douglas-Peucker tolerance in pixels (default: 1.0)."
     )
     parser.add_argument(
-        "input_mask",
-        help="Path to input label mask TIFF file."
+        "--min-area", type=int, default=10,
+        help="Minimum polygon area in px² to retain (default: 10)."
     )
     parser.add_argument(
-        "output_mask",
-        help="Path to output smoothed label mask TIFF file."
+        "--n-workers", type=int, default=8,
+        help="Number of parallel worker processes (default: 8). "
+             "Match to --cpus-per-task in your SLURM script."
     )
     parser.add_argument(
-        "--method",
-        choices=["morphological", "gaussian"],
-        default="morphological",
-        help="Smoothing method: 'morphological' (close+open with disk) or "
-             "'gaussian' (blur+threshold). Default: morphological."
-    )
-    parser.add_argument(
-        "--kernel-size",
-        type=float,
-        default=2,
-        help="For morphological: disk radius (int, default: 2). "
-             "For gaussian: sigma value (float, default: 2)."
+        "--chunksize", type=int, default=200,
+        help="Labels per worker chunk (default: 200). "
+             "Increase for many small cells, decrease for fewer large cells."
     )
     args = parser.parse_args()
 
-    print(f"Reading mask: {args.input_mask}")
+    print(f"Reading: {args.input_mask}")
     mask = tifffile.imread(args.input_mask)
     original_dtype = mask.dtype
-    print(f"Mask shape: {mask.shape}, dtype: {original_dtype}")
+    print(f"Shape: {mask.shape}, dtype: {original_dtype}")
 
     n_labels = len(np.unique(mask)) - 1  # exclude background
-    print(f"Number of labels: {n_labels}")
+    print(f"Labels found: {n_labels}")
 
     if n_labels == 0:
-        print("No labels found, copying input to output unchanged.")
+        print("No labels found — writing input unchanged.")
         tifffile.imwrite(args.output_mask, mask)
         sys.exit(0)
 
-    print(f"Smoothing with method={args.method}, kernel_size={args.kernel_size}")
-
-    if args.method == "morphological":
-        smoothed = smooth_label_morphological(mask, kernel_size=int(args.kernel_size))
-    elif args.method == "gaussian":
-        smoothed = smooth_label_gaussian(mask, sigma=args.kernel_size)
-    else:
-        print(f"Unknown method: {args.method}", file=sys.stderr)
-        sys.exit(1)
+    smoothed = smooth_label_shapely_parallel(
+        mask,
+        tolerance=args.tolerance,
+        min_area=args.min_area,
+        n_workers=args.n_workers,
+        chunksize=args.chunksize,
+    )
 
     # Preserve original dtype
     smoothed = smoothed.astype(original_dtype)
 
-    n_labels_after = len(np.unique(smoothed)) - 1
-    print(f"Labels after smoothing: {n_labels_after} (lost {n_labels - n_labels_after})")
+    n_after = len(np.unique(smoothed)) - 1
+    print(f"Labels after smoothing: {n_after} (lost {n_labels - n_after})")
 
-    print(f"Writing smoothed mask: {args.output_mask}")
+    print(f"Writing: {args.output_mask}")
     tifffile.imwrite(args.output_mask, smoothed)
     print("Done.")
 

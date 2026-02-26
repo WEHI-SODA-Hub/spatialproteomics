@@ -345,24 +345,42 @@
                     "default": false,
                     "description": "Enable mask smoothing before cell measurement.",
                     "fa_icon": "fas fa-wave-square",
-                    "help_text": "When enabled, segmentation masks are smoothed to reduce polygon complexity before being passed to cellmeasurement. This can prevent StackOverflowError caused by deeply nested coordinate arrays in complex cell geometries."
+                    "help_text": "When enabled, segmentation masks are smoothed using parallel Shapely polygon simplification to reduce polygon complexity before being passed to cellmeasurement."
                 },
-                "smooth_method": {
-                    "type": "string",
-                    "default": "morphological",
-                    "description": "Smoothing method: 'morphological' or 'gaussian'.",
-                    "enum": ["morphological", "gaussian"],
-                    "fa_icon": "fas fa-sliders-h",
-                    "help_text": "Choose between morphological (binary close + open with disk kernel, conservative) or gaussian (blur + re-threshold, stronger smoothing for very jagged masks)."
-                },
-                "smooth_kernel_size": {
+                "smooth_tolerance": {
                     "type": "number",
-                    "default": 2,
-                    "minimum": 1,
+                    "default": 1,
+                    "minimum": 0.1,
                     "maximum": 10,
-                    "description": "Kernel size for smoothing (disk radius for morphological, sigma for gaussian).",
+                    "description": "Douglas-Peucker tolerance for Shapely simplification (pixels). Higher values produce more simplification.",
+                    "fa_icon": "fas fa-sliders-h",
+                    "help_text": "Tolerance parameter for Shapely's polygon simplification. Typical values: 0.5–2.0."
+                },
+                "smooth_min_area": {
+                    "type": "integer",
+                    "default": 10,
+                    "minimum": 1,
+                    "description": "Minimum polygon area to keep after simplification (pixels²).",
                     "fa_icon": "fas fa-expand",
-                    "help_text": "For morphological method: radius of the disk structuring element (integer). For gaussian method: standard deviation (sigma) of the Gaussian kernel. Larger values produce more smoothing."
+                    "help_text": "Prevents tiny fragments from being retained after smoothing."
+                },
+                "smooth_n_workers": {
+                    "type": "integer",
+                    "default": 8,
+                    "minimum": 1,
+                    "maximum": 64,
+                    "description": "Number of parallel worker processes for smoothing.",
+                    "fa_icon": "fas fa-tasks",
+                    "help_text": "Set to match available CPUs for optimal performance. Should match --cpus-per-task in your resource configuration"
+                },
+                "smooth_chunksize": {
+                    "type": "integer",
+                    "default": 200,
+                    "minimum": 1,
+                    "maximum": 10000,
+                    "description": "Number of labels per worker chunk.",
+                    "fa_icon": "fas fa-layer-group",
+                    "help_text": "Tune based on cell size distribution. Larger values for many small cells, smaller values for fewer large cells."
                 }
             }
         },
