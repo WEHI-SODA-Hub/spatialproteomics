@@ -58,41 +58,59 @@ def _process_label(args):
         poly = Polygon(coords)
         if not poly.is_valid:
             poly = make_valid(poly)
-        if poly.is_empty or poly.area < min_area:
-            return label_id, None, None
 
-        simplified = poly.simplify(tolerance=tolerance, preserve_topology=True)
-        if simplified.is_empty:
+        # make_valid can return MultiPolygon or GeometryCollection — normalise to
+        # a list of Polygons before proceeding to avoid .exterior attribute errors
+        if poly.geom_type == "Polygon":
+            candidate_polys = [poly]
+        elif poly.geom_type == "MultiPolygon":
+            candidate_polys = list(poly.geoms)
+        elif poly.geom_type == "GeometryCollection":
+            candidate_polys = [g for g in poly.geoms if g.geom_type == "Polygon"]
+        else:
             return label_id, None, None
-
-        polys = (
-            [simplified] if simplified.geom_type == "Polygon"
-            else list(simplified.geoms)
-        )
 
         all_rr, all_cc = [], []
-        for p in polys:
-            if p.is_empty or p.area < min_area:
+        for candidate in candidate_polys:
+            if candidate.is_empty or candidate.area < min_area:
                 continue
 
-            x, y = p.exterior.coords.xy
+            simplified = candidate.simplify(tolerance=tolerance, preserve_topology=True)
+            if simplified.is_empty:
+                continue
 
-            # Rasterize in crop-local space
-            local_y = np.array(y)  # already crop-local
-            local_x = np.array(x)  # already crop-local
-            rr, cc = draw_polygon(local_y, local_x, shape=crop_shape)
+            # simplify can also return MultiPolygon — normalise again
+            if simplified.geom_type == "Polygon":
+                simplified_polys = [simplified]
+            elif simplified.geom_type == "MultiPolygon":
+                simplified_polys = list(simplified.geoms)
+            elif simplified.geom_type == "GeometryCollection":
+                simplified_polys = [g for g in simplified.geoms if g.geom_type == "Polygon"]
+            else:
+                continue
 
-            # Offset to global coordinates
-            rr = rr + minr
-            cc = cc + minc
+            for p in simplified_polys:
+                if p.is_empty or p.area < min_area:
+                    continue
 
-            # Clip to mask bounds — guards against sub-pixel edge cases
-            valid = (
-                (rr >= 0) & (rr < mask_shape[0]) &
-                (cc >= 0) & (cc < mask_shape[1])
-            )
-            all_rr.append(rr[valid])
-            all_cc.append(cc[valid])
+                x, y = p.exterior.coords.xy
+
+                # Rasterize in crop-local space
+                local_y = np.array(y)  # already crop-local
+                local_x = np.array(x)  # already crop-local
+                rr, cc = draw_polygon(local_y, local_x, shape=crop_shape)
+
+                # Offset to global coordinates
+                rr = rr + minr
+                cc = cc + minc
+
+                # Clip to mask bounds — guards against sub-pixel edge cases
+                valid = (
+                    (rr >= 0) & (rr < mask_shape[0]) &
+                    (cc >= 0) & (cc < mask_shape[1])
+                )
+                all_rr.append(rr[valid])
+                all_cc.append(cc[valid])
 
         if not all_rr:
             return label_id, None, None
@@ -156,6 +174,7 @@ def smooth_label_shapely_parallel(
 
     smoothed = np.zeros_like(label_mask)
     done = 0
+    warned = 0
 
     try:
         with ProcessPoolExecutor(max_workers=n_workers) as executor:
@@ -166,12 +185,17 @@ def smooth_label_shapely_parallel(
                     # First-write wins for any overlap between adjacent labels
                     free = smoothed[rr, cc] == 0
                     smoothed[rr[free], cc[free]] = label_id
+                else:
+                    warned += 1
                 done += 1
                 if done % 5000 == 0:
                     print(f"  {done}/{n_labels} labels done...", flush=True)
     finally:
         shm.close()
         shm.unlink()  # Only unlink in the creator process
+
+    if warned > 0:
+        print(f"  [warn] {warned} labels produced no output pixels (below min_area or geometry failure)")
 
     return smoothed
 
