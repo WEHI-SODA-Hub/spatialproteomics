@@ -3,7 +3,7 @@ process SMOOTHMASKS {
     label 'process_medium'
 
     conda "${moduleDir}/environment.yml"
-    container "community.wave.seqera.io/library/python_tifffile_numpy_scipy_scikit-image:8a30b9473d14d4b6"
+    container "community​.wave​.seqera​.io/library/python_tifffile_numpy_scipy_pruned:e54488103afb8110"
 
     input:
     tuple val(meta), path(mask)
