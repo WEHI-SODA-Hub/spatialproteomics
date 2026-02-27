@@ -84,7 +84,7 @@
                 },
                 "patch_overlap_pixel": {
                     "type": "integer",
-                    "description": "Pixel overlap of patches.",
+                    "description": "Pixel overlap of patches. This should be set to at least the size of the largest cell in the image to ensure that cells are not split across patches.",
                     "fa_icon": "fas fa-crop"
                 }
             }
@@ -200,7 +200,7 @@
                 "cellsam_block_size": {
                     "type": "integer",
                     "default": 400,
-                    "description": "Tile size for large image processing. Recommended: 256-512 for dense images, 400-600 for sparse.",
+                    "description": "Tile size for large image processing. Recommended: 256-512 for dense images, 400-600 for sparse. Have found 712 works well for COMET images with 0.28 micron pixels and typical cell sizes of 10-40 microns.",
                     "fa_icon": "fas fa-th",
                     "minimum": 128,
                     "maximum": 2048
@@ -216,7 +216,7 @@
                 "cellsam_iou_depth": {
                     "type": "integer",
                     "default": 56,
-                    "description": "Depth for IOU-based label merging across tiles.",
+                    "description": "Depth for IOU-based label merging across tiles. 250 works well for COMET images.",
                     "fa_icon": "fas fa-layer-group",
                     "minimum": 0,
                     "maximum": 256
