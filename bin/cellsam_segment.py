@@ -275,9 +275,8 @@ def main():
     # Run segmentation
     mask = run_segmentation(args)
 
-    # Remove border-touching cells if requested
-    if args.remove_border_cells:
-        mask = remove_border_cells(mask)
+    # Always remove border-touching cells
+    mask = remove_border_cells(mask)
 
     # Save segmentation mask
     tifffile.imwrite(args.output, mask.astype(np.uint32))
