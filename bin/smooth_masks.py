@@ -2,11 +2,19 @@
 """
 Smooth label segmentation masks to reduce polygon complexity.
 
-Uses morphological close + open per label, parallelised via shared memory
-for scalability on large masks (e.g. 40k x 40k with 100k+ labels).
+Two methods are supported, both parallelised via shared memory for scalability
+on large masks (e.g. 40k x 40k with 100k+ labels):
 
-This prevents StackOverflowError in QuPath's GeoJSON export when cell ROIs
-have overly complex/jagged polygon boundaries.
+  morphological (default)
+    Morphological close + open per label using a disk structuring element.
+
+  shapely
+    Converts each label's boundary to a Shapely polygon and runs
+    shapely.simplify (Douglas-Peucker) to reduce vertex count directly.
+    This is the most direct way to reduce polygon complexity before GeoJSON
+    export and can prevent StackOverflowError in QuPath.
+
+Both methods write a new integer label TIFF of the same dtype as the input.
 """
 
 import argparse
@@ -17,6 +25,9 @@ from multiprocessing import shared_memory
 from concurrent.futures import ProcessPoolExecutor
 from scipy.ndimage import find_objects
 from skimage.morphology import disk, binary_closing, binary_opening
+from skimage.measure import find_contours
+from skimage.draw import polygon as draw_polygon
+from shapely.geometry import Polygon
 
 
 # ── Worker (must be module-level for pickling) ────────────────────────────────
@@ -143,6 +154,170 @@ def smooth_label_morphological_parallel(
     return smoothed
 
 
+# ── Shapely worker (must be module-level for pickling) ────────────────────────
+
+def _process_label_shapely(args):
+    """
+    Process a single label using Shapely polygon simplification.
+
+    Pipeline: binary crop → skimage contour → Shapely Polygon →
+              shapely.simplify(tolerance) → skimage rasterize → global pixels.
+    """
+    (label_id, slc_starts, slc_stops, shm_name,
+     mask_shape, mask_dtype, tolerance, min_area) = args
+
+    shm = shared_memory.SharedMemory(name=shm_name)
+    label_mask = np.ndarray(mask_shape, dtype=mask_dtype, buffer=shm.buf)
+
+    try:
+        slc = tuple(slice(s, e) for s, e in zip(slc_starts, slc_stops))
+        crop = (label_mask[slc] == label_id).astype(np.uint8)
+
+        if not np.any(crop):
+            return label_id, None, None
+
+        # Pad so contours touching the crop border are closed cleanly
+        padded = np.pad(crop, 1, mode='constant', constant_values=0)
+        contours = find_contours(padded, 0.5)
+
+        if not contours:
+            return label_id, None, None
+
+        # Work with the largest contour; undo the 1-pixel padding offset
+        contour = max(contours, key=len) - 1.0
+
+        if len(contour) < 3:
+            return label_id, None, None
+
+        # Build Shapely polygon — coords are (col, row) = (x, y)
+        poly = Polygon(zip(contour[:, 1], contour[:, 0]))
+        if not poly.is_valid:
+            poly = poly.buffer(0)
+
+        poly = poly.simplify(tolerance, preserve_topology=True)
+
+        if poly.is_empty or poly.area < min_area:
+            return label_id, None, None
+
+        # If simplification produced a MultiPolygon, keep the largest part
+        if poly.geom_type == 'MultiPolygon':
+            poly = max(poly.geoms, key=lambda p: p.area)
+
+        if poly.is_empty:
+            return label_id, None, None
+
+        # Rasterize simplified polygon in crop-local space
+        ext = np.array(poly.exterior.coords)
+        poly_rows = ext[:, 1]   # y → row
+        poly_cols = ext[:, 0]   # x → col
+
+        crop_h = slc_stops[0] - slc_starts[0]
+        crop_w = slc_stops[1] - slc_starts[1]
+        local_rr, local_cc = draw_polygon(poly_rows, poly_cols,
+                                          shape=(crop_h, crop_w))
+
+        # Offset to global coordinates
+        rr = local_rr + slc_starts[0]
+        cc = local_cc + slc_starts[1]
+
+        # Clip to mask bounds
+        valid = (
+            (rr >= 0) & (rr < mask_shape[0]) &
+            (cc >= 0) & (cc < mask_shape[1])
+        )
+
+        if not np.any(valid):
+            return label_id, None, None
+
+        return label_id, rr[valid], cc[valid]
+
+    except Exception as e:
+        print(f"  [warn] label {label_id} failed: {e}", flush=True)
+        # Fallback: return original pixels unchanged
+        orig_rr, orig_cc = np.where(label_mask == label_id)
+        return label_id, orig_rr, orig_cc
+
+    finally:
+        shm.close()
+
+
+# ── Shapely smoothing driver ──────────────────────────────────────────────────
+
+def smooth_label_shapely_parallel(
+    label_mask, tolerance=1.0, min_area=0, n_workers=8, chunksize=200
+):
+    """
+    Parallelised Shapely polygon simplification using shared memory.
+
+    Each label boundary is extracted as a Shapely Polygon, simplified with the
+    Douglas-Peucker algorithm (``shapely.simplify``), then rasterized back to
+    pixel coordinates.  This directly reduces polygon vertex count, which is the
+    root cause of StackOverflowError in QuPath's GeoJSON export.
+
+    Parameters
+    ----------
+    label_mask : np.ndarray
+        Integer label image where 0 is background.
+    tolerance : float
+        Douglas-Peucker simplification tolerance in pixels (default: 1.0).
+        Higher values produce simpler polygons but less accurate boundaries.
+    min_area : float
+        Minimum polygon area in pixels² to retain after simplification.
+        Labels whose simplified polygon falls below this are removed (default: 0).
+    n_workers : int
+        Number of parallel worker processes.
+    chunksize : int
+        Number of labels per executor dispatch chunk.
+    """
+    print(f"Setting up shared memory for mask {label_mask.shape} {label_mask.dtype}...")
+    shm = shared_memory.SharedMemory(create=True, size=label_mask.nbytes)
+    shared_arr = np.ndarray(label_mask.shape, dtype=label_mask.dtype, buffer=shm.buf)
+    np.copyto(shared_arr, label_mask)
+
+    print("Finding label bounding boxes...")
+    slices = find_objects(label_mask)
+    n_labels = sum(1 for s in slices if s is not None)
+    print(f"Processing {n_labels} labels with {n_workers} workers, chunksize={chunksize}...")
+
+    work = []
+    for label_id, slc in enumerate(slices, start=1):
+        if slc is None:
+            continue
+        slc_starts = tuple(s.start for s in slc)
+        slc_stops  = tuple(s.stop  for s in slc)
+        work.append((
+            label_id, slc_starts, slc_stops,
+            shm.name, label_mask.shape, label_mask.dtype,
+            tolerance, min_area
+        ))
+
+    smoothed = np.zeros_like(label_mask)
+    done = 0
+    warned = 0
+
+    try:
+        with ProcessPoolExecutor(max_workers=n_workers) as executor:
+            for label_id, rr, cc in executor.map(
+                _process_label_shapely, work, chunksize=chunksize
+            ):
+                if rr is not None and len(rr) > 0:
+                    free = smoothed[rr, cc] == 0
+                    smoothed[rr[free], cc[free]] = label_id
+                else:
+                    warned += 1
+                done += 1
+                if done % 5000 == 0:
+                    print(f"  {done}/{n_labels} labels done...", flush=True)
+    finally:
+        shm.close()
+        shm.unlink()
+
+    if warned > 0:
+        print(f"  [warn] {warned} labels produced no output pixels (removed by simplification or too small)")
+
+    return smoothed
+
+
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
 def main():
@@ -151,11 +326,35 @@ def main():
     )
     parser.add_argument("input_mask",  help="Input label mask TIFF.")
     parser.add_argument("output_mask", help="Output smoothed mask TIFF.")
+
+    # --- method selection ---
+    parser.add_argument(
+        "--method", choices=["morphological", "shapely"],
+        default="morphological",
+        help="Smoothing method: 'morphological' (close+open, default) or "
+             "'shapely' (Douglas-Peucker polygon simplification)."
+    )
+
+    # --- morphological options ---
     parser.add_argument(
         "--kernel-size", type=int, default=2,
-        help="Radius of the disk structuring element for morphological "
-             "close+open (default: 2)."
+        help="[morphological] Radius of the disk structuring element for "
+             "morphological close+open (default: 2)."
     )
+
+    # --- shapely options ---
+    parser.add_argument(
+        "--tolerance", type=float, default=1.0,
+        help="[shapely] Douglas-Peucker simplification tolerance in pixels "
+             "(default: 1.0). Higher values produce simpler polygons."
+    )
+    parser.add_argument(
+        "--min-area", type=float, default=0.0,
+        help="[shapely] Minimum polygon area in pixels\u00b2 to retain after "
+             "simplification; smaller regions are dropped (default: 0)."
+    )
+
+    # --- shared options ---
     parser.add_argument(
         "--n-workers", type=int, default=8,
         help="Number of parallel worker processes (default: 8). "
@@ -180,12 +379,23 @@ def main():
         tifffile.imwrite(args.output_mask, mask)
         sys.exit(0)
 
-    smoothed = smooth_label_morphological_parallel(
-        mask,
-        kernel_size=args.kernel_size,
-        n_workers=args.n_workers,
-        chunksize=args.chunksize,
-    )
+    print(f"Using smoothing method: {args.method}")
+
+    if args.method == "morphological":
+        smoothed = smooth_label_morphological_parallel(
+            mask,
+            kernel_size=args.kernel_size,
+            n_workers=args.n_workers,
+            chunksize=args.chunksize,
+        )
+    else:  # shapely
+        smoothed = smooth_label_shapely_parallel(
+            mask,
+            tolerance=args.tolerance,
+            min_area=args.min_area,
+            n_workers=args.n_workers,
+            chunksize=args.chunksize,
+        )
 
     # Preserve original dtype
     smoothed = smoothed.astype(original_dtype)

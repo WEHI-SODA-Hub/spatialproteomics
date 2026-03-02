@@ -345,7 +345,15 @@
                     "default": false,
                     "description": "Enable mask smoothing before cell measurement.",
                     "fa_icon": "fas fa-wave-square",
-                    "help_text": "When enabled, segmentation masks are smoothed using parallel Shapely polygon simplification to reduce polygon complexity before being passed to cellmeasurement."
+                    "help_text": "When enabled, segmentation masks are smoothed to reduce polygon complexity before being passed to cellmeasurement. Choose the method with smooth_method."
+                },
+                "smooth_method": {
+                    "type": "string",
+                    "default": "morphological",
+                    "description": "Smoothing algorithm: 'morphological' (disk close+open) or 'shapely' (Douglas-Peucker polygon simplification).",
+                    "fa_icon": "fas fa-cogs",
+                    "enum": ["morphological", "shapely"],
+                    "help_text": "'morphological' applies binary close then open with a disk kernel to smooth pixel boundaries. 'shapely' extracts the polygon boundary for each label and applies Shapely's simplify (Douglas-Peucker) algorithm, which directly reduces vertex count — the main cause of StackOverflowError in QuPath GeoJSON export."
                 },
                 "smooth_kernel_size": {
                     "type": "integer",
@@ -373,6 +381,22 @@
                     "description": "Number of labels per worker chunk.",
                     "fa_icon": "fas fa-layer-group",
                     "help_text": "Tune based on cell size distribution. Larger values for many small cells, smaller values for fewer large cells."
+                },
+                "smooth_tolerance": {
+                    "type": "number",
+                    "default": 0.1,
+                    "minimum": 0.001,
+                    "description": "[shapely] Douglas-Peucker simplification tolerance in pixels.",
+                    "fa_icon": "fas fa-sliders-h",
+                    "help_text": "Controls how aggressively polygon boundaries are simplified when smooth_method is 'shapely'. Higher values produce simpler (fewer vertex) polygons but less accurate boundaries. Typical range: 0.5–3.0 pixels. Only used when smooth_method is 'shapely'."
+                },
+                "smooth_min_area": {
+                    "type": "number",
+                    "default": 0,
+                    "minimum": 0,
+                    "description": "[shapely] Minimum polygon area in pixels² to retain after simplification.",
+                    "fa_icon": "fas fa-compress-arrows-alt",
+                    "help_text": "Labels whose simplified polygon area falls below this threshold are removed from the output mask. Useful for discarding fragments created by aggressive simplification. Only used when smooth_method is 'shapely'."
                 }
             }
         },

@@ -31,6 +31,7 @@ process SMOOTHMASKS {
         python: \$(python3 --version | sed 's/Python //')
         scipy: \$(python3 -c "import scipy; print(scipy.__version__)")
         scikit-image: \$(python3 -c "import skimage; print(skimage.__version__)")
+        shapely: \$(python3 -c "import shapely; print(shapely.__version__)")
     END_VERSIONS
     """
 
@@ -45,6 +46,7 @@ process SMOOTHMASKS {
         python: \$(python3 --version | sed 's/Python //')
         scipy: \$(python3 -c "import scipy; print(scipy.__version__)")
         scikit-image: \$(python3 -c "import skimage; print(skimage.__version__)")
+        shapely: \$(python3 -c "import shapely; print(shapely.__version__)")
     END_VERSIONS
     """
 }

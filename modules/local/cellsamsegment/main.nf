@@ -38,8 +38,7 @@ process CELLSAMSEGMENT {
         ${params.cellsam_use_wsi ? '--use-wsi' : ''} \\
         ${params.cellsam_gauge_cell_size ? '--gauge-cell-size' : ''} \\
         ${params.cellsam_low_contrast_enhancement ? '--low-contrast-enhancement' : ''} \\
-        ${params.cellsam_model_path ? "--model-path ${params.cellsam_model_path}" : ''} \\
-        ${params.cellsam_remove_border_cells ? '--remove-border-cells' : ''}
+        ${params.cellsam_model_path ? "--model-path ${params.cellsam_model_path}" : ''}
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
