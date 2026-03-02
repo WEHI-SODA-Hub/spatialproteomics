@@ -199,15 +199,15 @@
                 },
                 "cellsam_block_size": {
                     "type": "integer",
-                    "default": 400,
-                    "description": "Tile size for large image processing. Recommended: 256-512 for dense images, 400-600 for sparse. Have found 712 works well for COMET images with 0.28 micron pixels and typical cell sizes of 10-40 microns.",
+                    "default": 600,
+                    "description": "Tile size for large image processing. Recommended: 256-512 for dense images, 400-600 for sparse.",
                     "fa_icon": "fas fa-th",
                     "minimum": 128,
                     "maximum": 2048
-                },
+                },  
                 "cellsam_overlap": {
                     "type": "integer",
-                    "default": 56,
+                    "default": 250,
                     "description": "Tile overlap region in pixels. Should encompass typical cell size for proper merging.",
                     "fa_icon": "fas fa-compress-arrows-alt",
                     "minimum": 0,
@@ -215,7 +215,7 @@
                 },
                 "cellsam_iou_depth": {
                     "type": "integer",
-                    "default": 56,
+                    "default": 250,
                     "description": "Depth for IOU-based label merging across tiles. 250 works well for COMET images.",
                     "fa_icon": "fas fa-layer-group",
                     "minimum": 0,
@@ -384,11 +384,11 @@
                 },
                 "smooth_tolerance": {
                     "type": "number",
-                    "default": 0.1,
-                    "minimum": 0.001,
+                    "default": 1,
+                    "minimum": 0.01,
                     "description": "[shapely] Douglas-Peucker simplification tolerance in pixels.",
                     "fa_icon": "fas fa-sliders-h",
-                    "help_text": "Controls how aggressively polygon boundaries are simplified when smooth_method is 'shapely'. Higher values produce simpler (fewer vertex) polygons but less accurate boundaries. Typical range: 0.5–3.0 pixels. Only used when smooth_method is 'shapely'."
+                    "help_text": "Controls how aggressively polygon boundaries are simplified when smooth_method is 'shapely'. Higher values produce simpler (fewer vertex) polygons but less accurate boundaries. Important to minimise vertex count to prevent StackOverflowError in QuPath GeoJSON export. Tune based on typical cell size and boundary complexity. Start with threshold 1 and adjust as needed."
                 },
                 "smooth_min_area": {
                     "type": "number",

@@ -200,7 +200,7 @@ can use set the parameter `skip_measurements` to `true`.
 
 ### KRONOS embeddings
 
-KRONOS is a foundation model for multiplex spatial proteomics that extracts rich embeddings for each cell. These embeddings capture cellular phenotype and microenvironment context, enabling downstream analysis like clustering, classification, and spatial analysis.The authors say they will be updating and maintaining kronos with updates from dino v2 to v3 ect. We shall see.
+KRONOS is a foundation model for multiplex spatial proteomics that extracts rich embeddings for each cell. These embeddings capture cellular phenotype and microenvironment context, enabling downstream analysis like clustering, classification, and spatial analysis.
 
 To enable KRONOS embeddings:
 
@@ -228,7 +228,7 @@ nextflow run main.nf \
 
 #### Embeddings for filtered data with KRONOS
 
-When `--kronos_merge_geojson` is enabled, the pipeline automatically creates a new segmentation mask directly from the GeoJSON polygons. This ensures **100% perfect matching** between KRONOS embeddings and cells in the GeoJSON output, eliminating missing embeddings that would otherwise occur due to cell filtering in upstream segmentation/measurement steps.
+When `--kronos_merge_geojson` is enabled, the pipeline automatically creates a new segmentation mask directly from the GeoJSON polygons.
 
 #### Output files
 
@@ -240,7 +240,7 @@ KRONOS produces the following outputs:
 
 The merged GeoJSON file contains all original cell measurements plus additional features (`kronos_emb_0` through `kronos_emb_#`), enabling integrated analysis of morphology, intensity, and KRONOS embeddings.
 
-#### Marker matching (This is Important)
+#### Marker matching
 
 KRONOS expects specific marker names based on its training data. The pipeline automatically performs case-insensitive matching between your image channel names and the KRONOS marker metadata. For markers that don't auto-match, use `--kronos_marker_mapping`:
 
@@ -276,7 +276,7 @@ CellSAM uses a tiling approach for large images and supports the following
 parameters:
 
 - `--cellsam_bbox_threshold` (default: 0.4): Confidence threshold for cell detection
-- `--cellsam_block_size` (default: 1024): Size of tiles for processing
+- `--cellsam_block_size` (default: 600): Size of tiles for processing
 - `--cellsam_overlap` (default: 56): Tile overlap for merging
 - `--cellsam_iou_threshold` (default: 0.5): IOU threshold for label merging
 - `--cellsam_use_wsi` (default: true): Enable tiling for large images
