@@ -22,14 +22,27 @@ def get_channel_names(tif, n_channels):
     Extract channel names from TIFF metadata.
 
     Tries multiple strategies in order:
-    1. OME-XML metadata
-    2. ImageJ metadata
-    3. Fallback to numbered channels
+    1. MIBI JSON metadata (per-page JSON with channel.target)
+    2. OME-XML metadata
+    3. ImageJ metadata
+    4. Fallback to numbered channels
     '''
+    import json
     channel_names = []
 
+    # Try MIBI JSON metadata (each page has a JSON description with channel.target)
+    try:
+        first_desc = json.loads(tif.pages[0].description)
+        if 'channel.target' in first_desc:
+            channel_names = []
+            for page in tif.pages:
+                desc = json.loads(page.description)
+                channel_names.append(desc['channel.target'])
+    except (json.JSONDecodeError, TypeError, KeyError):
+        pass
+
     # Try OME-XML metadata
-    if tif.is_ome:
+    if not channel_names and tif.is_ome:
         try:
             from xml.etree import ElementTree as ET
             ome_xml = tif.ome_metadata
