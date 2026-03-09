@@ -25,6 +25,14 @@ process MESMERSEGMENT {
             "--membrane-channel \"${it}\""
         }.join(' ') : ''
     """
+    # Serialize model download: first task downloads, others wait
+    (
+        flock -x 200
+        if [ ! -f "\$HOME/.deepcell/models/MultiplexSegmentation/saved_model.pb" ]; then
+            python -c "from deepcell.applications import Mesmer; Mesmer()"
+        fi
+    ) 200>"\$HOME/.deepcell/model_download.lock"
+
     mesmer-segment \\
         ${tiff} \\
         --compartment ${compartment} \\
