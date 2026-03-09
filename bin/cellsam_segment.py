@@ -252,6 +252,12 @@ def parse_arguments():
 
 def run_segmentation(args):
     '''Run CellSAM segmentation pipeline.'''
+    import torch
+    if torch.cuda.is_available():
+        print(f"GPU available: {torch.cuda.get_device_name(0)}", file=sys.stderr)
+    else:
+        print("WARNING: No GPU detected - CellSAM will run on CPU and may be very slow.", file=sys.stderr)
+
     # Extract and format channels
     img = extract_channels(
         args.tiff,
