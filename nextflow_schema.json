@@ -180,6 +180,12 @@
                     "description": "Number of pixels to crop the image by on each side before segmentation.",
                     "fa_icon": "fas fa-crop",
                     "minimum": 0
+                },
+                "mesmer_transpose_mask": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Force-transpose the Mesmer output mask. Enable this if the segmentation result appears spatially flipped relative to the input image.",
+                    "fa_icon": "fas fa-exchange-alt"
                 }
             }
         },

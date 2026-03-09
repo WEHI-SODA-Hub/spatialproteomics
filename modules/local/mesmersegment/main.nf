@@ -34,7 +34,7 @@ process MESMERSEGMENT {
         > "${prefix}_${compartment}.tiff"
 
     # Post-process: transpose mask if dimensions are swapped
-    mesmer_postprocess.py "${tiff}" "${prefix}_${compartment}.tiff"
+    mesmer_postprocess.py "${tiff}" "${prefix}_${compartment}.tiff" ${params.mesmer_transpose_mask ? '--force-transpose' : ''}
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
