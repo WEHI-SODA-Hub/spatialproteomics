@@ -148,6 +148,51 @@ def combine_channels(array: DataArray, channels: List[str], combined_name: str,
                      coords={"C": new_coords}, attrs=array.attrs)
 
 
+def create_ome_xml(width: int, height: int,
+                   num_channels: int, channel_names: List[str]) -> str:
+    """
+    Create minimal OME-XML metadata from scratch with the given channel names.
+    Used when the source image has no OME-XML (e.g. MIBI TIFF with JSON metadata).
+    """
+    ome_ns = "http://www.openmicroscopy.org/Schemas/OME/2016-06"
+    xsi_ns = "http://www.w3.org/2001/XMLSchema-instance"
+    schema_loc = (
+        "http://www.openmicroscopy.org/Schemas/OME/2016-06 "
+        "http://www.openmicroscopy.org/Schemas/OME/2016-06/ome.xsd"
+    )
+    ET.register_namespace("", ome_ns)
+    ET.register_namespace("xsi", xsi_ns)
+
+    root = ET.Element(f"{{{ome_ns}}}OME")
+    root.set(f"{{{xsi_ns}}}schemaLocation", schema_loc)
+
+    image = ET.SubElement(root, f"{{{ome_ns}}}Image", {"ID": "Image:0", "Name": "combined"})
+    pixels = ET.SubElement(image, f"{{{ome_ns}}}Pixels", {
+        "ID": "Pixels:0",
+        "DimensionOrder": "XYZCT",
+        "Type": "uint16",
+        "SizeX": str(width),
+        "SizeY": str(height),
+        "SizeZ": "1",
+        "SizeC": str(num_channels),
+        "SizeT": "1",
+        "PhysicalSizeX": "1.0",
+        "PhysicalSizeY": "1.0",
+    })
+    for c, name in enumerate(channel_names):
+        ET.SubElement(pixels, f"{{{ome_ns}}}Channel", {
+            "ID": f"Channel:0:{c}",
+            "Name": name,
+            "SamplesPerPixel": "1",
+        })
+    tiff_data = ET.SubElement(pixels, f"{{{ome_ns}}}TiffData")
+    tiff_data.set("PlaneCount", str(num_channels))
+
+    xml_str = '<?xml version="1.0" encoding="UTF-8"?>\n' + \
+        ET.tostring(root, encoding='unicode')
+    return xml_str
+
+
 def update_ome_xml(original_xml: str, width: int, height: int,
                    num_channels: int, channel_names: List[str]) -> str:
     """
@@ -244,9 +289,10 @@ def main(
                                           final_channels)
         updated_metadata = updated_metadata.encode('utf-8')
     except ValueError as e:
-        typer.echo(f"Warning: {e} Proceeding without updated OME-XML metadata.",
+        typer.echo(f"Warning: {e} Creating OME-XML from scratch.",
                    err=True)
-        updated_metadata = ""
+        updated_metadata = create_ome_xml(width, height, c,
+                                          final_channels).encode('utf-8')
 
     imwrite(sys.stdout.buffer, output_array,
             photometric='minisblack',
