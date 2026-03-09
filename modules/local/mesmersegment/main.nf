@@ -31,7 +31,7 @@ process MESMERSEGMENT {
         if [ ! -f "\$HOME/.deepcell/models/MultiplexSegmentation/saved_model.pb" ]; then
             python -c "from deepcell.applications import Mesmer; Mesmer()"
         fi
-    ) 200>"\$HOME/.deepcell/model_download.lock"
+    ) 200>>"\$HOME/.deepcell/model_download.lock"
 
     mesmer-segment \\
         ${tiff} \\
