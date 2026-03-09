@@ -21,6 +21,8 @@ process CELLMEASUREMENT {
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
+    export GRADLE_USER_HOME=\$PWD/.gradle
+
     /cellmeasurement.sh \\
         --args="${args} \\
             --nuclear-mask=\$PWD/${nuclear_mask} \\
