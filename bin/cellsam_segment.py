@@ -253,6 +253,9 @@ def parse_arguments():
 def run_segmentation(args):
     '''Run CellSAM segmentation pipeline.'''
     import torch
+    print(f"PyTorch version: {torch.__version__}", file=sys.stderr)
+    print(f"CUDA available: {torch.cuda.is_available()}", file=sys.stderr)
+    print(f"CUDA version: {torch.version.cuda}", file=sys.stderr)
     if torch.cuda.is_available():
         print(f"GPU available: {torch.cuda.get_device_name(0)}", file=sys.stderr)
     else:
