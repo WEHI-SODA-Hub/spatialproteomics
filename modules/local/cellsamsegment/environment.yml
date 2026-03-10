@@ -1,7 +1,9 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/environment-schema.json
 channels:
-  - conda-forge
   - pytorch
+  - nvidia/label/cuda-12.1.0
+  - nvidia
+  - conda-forge
 dependencies:
   - python =3.10
   - pytorch::pytorch=2.5.1=*cuda12*
