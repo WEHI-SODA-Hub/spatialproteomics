@@ -4,8 +4,9 @@ channels:
   - pytorch
 dependencies:
   - python =3.10
-  - pytorch
-  - torchvision
+  - pytorch::pytorch=2.5.1=*cuda12*
+  - pytorch::torchvision=0.20.1
+  - pytorch::pytorch-cuda=12.1
   - tifffile
   - scikit-image
   - scikit-learn
