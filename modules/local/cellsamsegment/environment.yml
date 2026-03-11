@@ -1,14 +1,14 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/environment-schema.json
 channels:
   - pytorch
-  - nvidia/label/cuda-12.1.0
+  - nvidia/label/cuda-12.8.0
   - nvidia
   - conda-forge
 dependencies:
   - python =3.10
-  - pytorch::pytorch=2.5.1=*cuda12*
-  - pytorch::torchvision=0.20.1
-  - pytorch::pytorch-cuda=12.1
+  - pytorch::pytorch=2.1.0=*cuda12.8*
+  - pytorch::torchvision=0.21.0
+  - pytorch::pytorch-cuda=12.8
   - tifffile
   - scikit-image
   - scikit-learn
