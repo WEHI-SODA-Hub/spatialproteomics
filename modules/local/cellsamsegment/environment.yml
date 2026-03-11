@@ -14,7 +14,7 @@ dependencies:
   - scikit-learn
   - scipy
   - pyyaml
-  - matplotlib
+  - matplotlib-base
   - numpy
   - tqdm
   - dask
