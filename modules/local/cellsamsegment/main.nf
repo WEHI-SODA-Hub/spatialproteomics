@@ -4,7 +4,7 @@ process CELLSAMSEGMENT {
     secret 'DEEPCELL_ACCESS_TOKEN'
 
     conda "${moduleDir}/environment.yml"
-    container 'community.wave.seqera.io/library/python_tifffile_scikit-image_scikit-learn_pruned:e5256254dc277cc0'
+    container 'community.wave.seqera.io/library/python_tifffile_scikit-image_scikit-learn_pruned:593e00ba324c12b3'
 
     input:
     tuple val(meta), path(tiff), val(nuclear_channel), val(membrane_channels)
