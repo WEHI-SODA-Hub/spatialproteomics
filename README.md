@@ -19,7 +19,7 @@
 ## Introduction
 
 **WEHI-SODA-Hub/sp_segment** is a pipeline for running cell segmentation
-on COMET and MIBI data. For COMET, background subtraction can be performed
+on COMET, MIBI, and OPAL data. For COMET, background subtraction can be performed
 followed by patched cellpose segmentation, non-patched mesmer segmentation, or
 CellSAM foundation model segmentation. For MIBI, mesmer or CellSAM segmentation
 can be run. Whole-cell and nuclear segmentations are run separately, and then

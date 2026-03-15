@@ -8,6 +8,34 @@ import sys
 import os
 
 
+def _local_tag_name(tag):
+    '''Return XML tag name without namespace.'''
+    return tag.split('}', 1)[-1]
+
+
+def parse_ome_channel_names(ome_xml):
+    '''Parse channel names from OME-XML (namespace-agnostic).'''
+    from xml.etree import ElementTree as ET
+
+    root = ET.fromstring(ome_xml)
+    pixels = None
+
+    for elem in root.iter():
+        if _local_tag_name(elem.tag) == 'Pixels':
+            pixels = elem
+            break
+
+    if pixels is None:
+        return []
+
+    channel_names = []
+    for elem in pixels:
+        if _local_tag_name(elem.tag) == 'Channel':
+            channel_names.append(elem.get('Name') or elem.get('ID'))
+
+    return channel_names
+
+
 def download_model_weights():
     '''Download latest CellSAM model weights (v1.2) from users.deepcell.org.'''
     if 'DEEPCELL_ACCESS_TOKEN' in os.environ:
@@ -23,7 +51,7 @@ def get_channel_names(tif, n_channels):
 
     Tries multiple strategies in order:
     1. MIBI JSON metadata (per-page JSON with channel.target)
-    2. OME-XML metadata
+    2. OME-XML metadata (including OPAL OME/QPTIFF exports)
     3. ImageJ metadata
     4. Fallback to numbered channels
     '''
@@ -42,21 +70,15 @@ def get_channel_names(tif, n_channels):
         pass
 
     # Try OME-XML metadata
-    if not channel_names and tif.is_ome:
+    if not channel_names:
         try:
-            from xml.etree import ElementTree as ET
             ome_xml = tif.ome_metadata
-            root = ET.fromstring(ome_xml)
+            if not ome_xml and tif.pages:
+                desc_tag = tif.pages[0].tags.get("ImageDescription")
+                ome_xml = desc_tag.value if desc_tag else tif.pages[0].description
 
-            # Parse with OME namespace
-            ns = {'ome': 'http://www.openmicroscopy.org/Schemas/OME/2016-06'}
-            channels = root.findall('.//ome:Channel', ns)
-
-            # Fallback: try without namespace
-            if not channels:
-                channels = root.findall('.//Channel')
-
-            channel_names = [ch.get('Name') or ch.get('ID') for ch in channels]
+            if ome_xml:
+                channel_names = parse_ome_channel_names(ome_xml)
         except Exception:
             pass
 

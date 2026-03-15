@@ -2,7 +2,7 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "$id": "https://raw.githubusercontent.com/WEHI-SODA-Hub/sp_segment/master/nextflow_schema.json",
     "title": "WEHI-SODA-Hub/sp_segment pipeline parameters",
-    "description": "Cell segmentation and downstream analysis pipeline for the COMET and MIBI spatial platforms",
+    "description": "Cell segmentation and downstream analysis pipeline for the COMET, MIBI, and OPAL spatial platforms",
     "type": "object",
     "$defs": {
         "input_output_options": {
