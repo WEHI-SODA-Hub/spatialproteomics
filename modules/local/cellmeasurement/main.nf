@@ -2,7 +2,7 @@ process CELLMEASUREMENT {
     tag "$meta.id"
     label 'process_multi'
 
-    container "ghcr.io/wehi-soda-hub/cellmeasurement:0.2.3"
+    container "ghcr.io/wehi-soda-hub/cellmeasurement:0.2.5"
 
     input:
     tuple val(meta),
