@@ -100,6 +100,21 @@ def json_extract_channel_names(pages) -> List[str]:
     return channel_names
 
 
+def imagej_extract_channel_names(tiff: TiffFile) -> List[str]:
+    """
+    Extract channel names from ImageJ metadata when available.
+    """
+    imagej_metadata = getattr(tiff, "imagej_metadata", None)
+    if not imagej_metadata or not isinstance(imagej_metadata, dict):
+        return []
+
+    labels = imagej_metadata.get("Labels")
+    if not labels:
+        return []
+
+    return [str(label) for label in labels]
+
+
 def detect_channel_names_and_metadata(tiff: TiffFile) -> Tuple[List[str], Dict[str, Any], str]:
     """
     Detect channel names and metadata from supported TIFF metadata formats.
@@ -122,11 +137,25 @@ def detect_channel_names_and_metadata(tiff: TiffFile) -> Tuple[List[str], Dict[s
 
     # OME metadata (covers standard OME-TIFF and OPAL OME/QPTIFF exports)
     if not channel_names:
-        ome_xml = tiff.ome_metadata or first_page.description
+        ome_xml = tiff.ome_metadata
+        if not ome_xml and isinstance(first_page.description, str):
+            description = first_page.description.strip()
+            if description.startswith("<"):
+                ome_xml = first_page.description
+
         if ome_xml:
-            channel_names = ome_extract_channel_names(ome_xml)
-            attrs.update(ome_extract_pixels_metadata(ome_xml))
-            metadata_source = "ome-xml"
+            try:
+                channel_names = ome_extract_channel_names(ome_xml)
+                attrs.update(ome_extract_pixels_metadata(ome_xml))
+                metadata_source = "ome-xml"
+            except (ET.ParseError, ValueError, TypeError):
+                pass
+
+    # ImageJ metadata (e.g. OPAL exports without embedded OME-XML)
+    if not channel_names:
+        channel_names = imagej_extract_channel_names(tiff)
+        if channel_names:
+            metadata_source = "imagej"
 
     return channel_names, attrs, metadata_source
 
