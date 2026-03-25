@@ -1,6 +1,7 @@
 include { MESMERSEGMENT as MESMERWC  } from '../../../modules/local/mesmersegment/main.nf'
 include { MESMERSEGMENT as MESMERNUC } from '../../../modules/local/mesmersegment/main.nf'
 include { CELLMEASUREMENT            } from '../../../modules/local/cellmeasurement/main.nf'
+include { UNIFORMNORMALIZE           } from '../../../modules/local/uniformnormalize/main.nf'
 include { SMOOTHMASKS as SMOOTHMASKS_NUC } from '../../../modules/local/smoothmasks/main.nf'
 include { SMOOTHMASKS as SMOOTHMASKS_WC  } from '../../../modules/local/smoothmasks/main.nf'
 include { KRONOSEMBEDDINGS            } from '../../../modules/local/kronosembeddings/main.nf'
@@ -102,6 +103,27 @@ workflow MESMER_SEGMENT {
     )
     ch_versions = ch_versions.mix(CELLMEASUREMENT.out.versions.first())
 
+    ch_annotations = CELLMEASUREMENT.out.annotations
+    if (params.run_uniform) {
+        UNIFORMNORMALIZE(
+            CELLMEASUREMENT.out.annotations.map { meta, geojson -> geojson }.collect()
+        )
+        ch_versions = ch_versions.mix(UNIFORMNORMALIZE.out.versions.first())
+
+        CELLMEASUREMENT.out.annotations
+            .map { meta, geojson -> [meta.id.toString(), meta, geojson] }
+            .join(
+                UNIFORMNORMALIZE.out.normalized_annotations.map { geojson ->
+                    [geojson.getBaseName().replaceAll(/_uniform$/, ''), geojson]
+                },
+                by: 0
+            )
+            .map { sample_id, meta, original_geojson, uniform_geojson ->
+                [meta, uniform_geojson]
+            }
+            .set { ch_annotations }
+    }
+
     //
     // Optional KRONOS embedding extraction
     //
@@ -154,7 +176,7 @@ workflow MESMER_SEGMENT {
         ch_versions = ch_versions.mix(COMBINECHANNELS.out.versions.first())
 
         ch_mesmer_segment
-            .join(CELLMEASUREMENT.out.annotations)
+            .join(ch_annotations)
             .join(COMBINECHANNELS.out.combined_tiff, by: 0)
             .map {
                 sample,
@@ -189,7 +211,7 @@ workflow MESMER_SEGMENT {
     }
 
     emit:
-    annotations      = CELLMEASUREMENT.out.annotations   // channel: [ val(meta), *.geojson ]
+    annotations      = ch_annotations                  // channel: [ val(meta), *.geojson ]
     whole_cell_tif   = MESMERWC.out.segmentation_mask    // channel: [ val(meta), *.tiff ]
     nuclear_tif      = MESMERNUC.out.segmentation_mask   // channel: [ val(meta), *.tiff ]
     kronos_embeddings     = ch_kronos_embeddings          // channel: [ val(meta), *.csv ] OPTIONAL

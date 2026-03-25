@@ -2,6 +2,7 @@ include { COMBINECHANNELS                                    } from '../../../mo
 include { SOPA_SEGMENT_COMPARTMENT as SOPA_SEGMENT_NUCLEAR   } from '../sopa_segment_compartment/main.nf'
 include { SOPA_SEGMENT_COMPARTMENT as SOPA_SEGMENT_WHOLECELL } from '../sopa_segment_compartment/main.nf'
 include { CELLMEASUREMENT                                    } from '../../../modules/local/cellmeasurement/main.nf'
+include { UNIFORMNORMALIZE                                   } from '../../../modules/local/uniformnormalize/main.nf'
 include { SMOOTHMASKS as SMOOTHMASKS_NUC                     } from '../../../modules/local/smoothmasks/main.nf'
 include { SMOOTHMASKS as SMOOTHMASKS_WC                      } from '../../../modules/local/smoothmasks/main.nf'
 include { KRONOSEMBEDDINGS                                    } from '../../../modules/local/kronosembeddings/main.nf'
@@ -109,6 +110,27 @@ workflow SOPA_SEGMENT {
     )
     ch_versions = ch_versions.mix(CELLMEASUREMENT.out.versions.first())
 
+    ch_annotations = CELLMEASUREMENT.out.annotations
+    if (params.run_uniform) {
+        UNIFORMNORMALIZE(
+            CELLMEASUREMENT.out.annotations.map { meta, geojson -> geojson }.collect()
+        )
+        ch_versions = ch_versions.mix(UNIFORMNORMALIZE.out.versions.first())
+
+        CELLMEASUREMENT.out.annotations
+            .map { meta, geojson -> [meta.id.toString(), meta, geojson] }
+            .join(
+                UNIFORMNORMALIZE.out.normalized_annotations.map { geojson ->
+                    [geojson.getBaseName().replaceAll(/_uniform$/, ''), geojson]
+                },
+                by: 0
+            )
+            .map { sample_id, meta, original_geojson, uniform_geojson ->
+                [meta, uniform_geojson]
+            }
+            .set { ch_annotations }
+    }
+
     //
     // Optional KRONOS embedding extraction
     //
@@ -148,7 +170,7 @@ workflow SOPA_SEGMENT {
     ch_report = Channel.empty()
     if (params.generate_report) {
         ch_combined
-            .join(CELLMEASUREMENT.out.annotations)
+            .join(ch_annotations)
             .map {
                 sample,
                 combined_tiff,
@@ -177,7 +199,7 @@ workflow SOPA_SEGMENT {
     }
 
     emit:
-    annotations          = CELLMEASUREMENT.out.annotations   // channel: [ val(meta), *.geojson ]
+    annotations          = ch_annotations                     // channel: [ val(meta), *.geojson ]
     kronos_embeddings    = ch_kronos_embeddings               // channel: [ val(meta), *.csv ] OPTIONAL
     kronos_marker_report = ch_kronos_marker_report            // channel: [ val(meta), *.txt ] OPTIONAL
     kronos_merged_geojson = ch_kronos_merged_geojson           // channel: [ val(meta), *.geojson ] OPTIONAL
