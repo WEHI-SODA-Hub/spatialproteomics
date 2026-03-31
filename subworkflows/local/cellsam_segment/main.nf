@@ -1,7 +1,6 @@
 include { CELLSAMSEGMENT as CELLSAMWC  } from '../../../modules/local/cellsamsegment/main.nf'
 include { CELLSAMSEGMENT as CELLSAMNUC } from '../../../modules/local/cellsamsegment/main.nf'
 include { CELLMEASUREMENT               } from '../../../modules/local/cellmeasurement/main.nf'
-include { UNIFORMNORMALIZE              } from '../../../modules/local/uniformnormalize/main.nf'
 include { SMOOTHMASKS as SMOOTHMASKS_NUC } from '../../../modules/local/smoothmasks/main.nf'
 include { SMOOTHMASKS as SMOOTHMASKS_WC  } from '../../../modules/local/smoothmasks/main.nf'
 include { KRONOSEMBEDDINGS               } from '../../../modules/local/kronosembeddings/main.nf'
@@ -103,25 +102,6 @@ workflow CELLSAM_SEGMENT {
     ch_versions = ch_versions.mix(CELLMEASUREMENT.out.versions.first())
 
     ch_annotations = CELLMEASUREMENT.out.annotations
-    if (params.run_uniform) {
-        UNIFORMNORMALIZE(
-            CELLMEASUREMENT.out.annotations.map { meta, geojson -> geojson }.collect()
-        )
-        ch_versions = ch_versions.mix(UNIFORMNORMALIZE.out.versions.first())
-
-        CELLMEASUREMENT.out.annotations
-            .map { meta, geojson -> [meta.id.toString(), meta, geojson] }
-            .join(
-                UNIFORMNORMALIZE.out.normalized_annotations.map { geojson ->
-                    [geojson.getBaseName().replaceAll(/_uniform$/, ''), geojson]
-                },
-                by: 0
-            )
-            .map { sample_id, meta, original_geojson, uniform_geojson ->
-                [meta, uniform_geojson]
-            }
-            .set { ch_annotations }
-    }
 
     //
     // Optional KRONOS embedding extraction
