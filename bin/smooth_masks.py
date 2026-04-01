@@ -196,14 +196,14 @@ def _process_label_shapely(args):
 
         poly = poly.simplify(tolerance, preserve_topology=True)
 
-        if poly.is_empty or poly.area < min_area:
+        if poly.is_empty:
             return label_id, None, None
 
         # If simplification produced a MultiPolygon, keep the largest part
         if poly.geom_type == 'MultiPolygon':
             poly = max(poly.geoms, key=lambda p: p.area)
 
-        if poly.is_empty:
+        if poly.is_empty or poly.area < min_area:
             return label_id, None, None
 
         # Rasterize simplified polygon in crop-local space
@@ -227,6 +227,11 @@ def _process_label_shapely(args):
         )
 
         if not np.any(valid):
+            return label_id, None, None
+
+        # Enforce threshold on final rasterized pixel area so behavior matches
+        # downstream measured mask areas.
+        if np.count_nonzero(valid) < min_area:
             return label_id, None, None
 
         return label_id, rr[valid], cc[valid]
@@ -350,8 +355,9 @@ def main():
     )
     parser.add_argument(
         "--min-area", type=float, default=0.0,
-        help="[shapely] Minimum polygon area in pixels\u00b2 to retain after "
-             "simplification; smaller regions are dropped (default: 0)."
+           help="[shapely] Minimum area threshold in pixels\u00b2. Labels are dropped "
+               "if the simplified polygon area or final rasterized pixel area "
+               "falls below this value (default: 0)."
     )
 
     # --- shared options ---
