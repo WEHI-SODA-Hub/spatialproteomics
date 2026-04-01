@@ -430,17 +430,19 @@
                 },
                 "erosion_steps": {
                     "type": "string",
-                    "description": "Comma-separated erosion steps in pixels to calculate (e.g. 0,1,2,3).",
+                    "default": "4,7,11,14,18",
+                    "description": "Comma-separated erosion steps in pixels (~1,2,3,4,5 µm inward from boundary).",
                     "fa_icon": "fas fa-ruler-combined",
                     "pattern": "^([0-9]*)(,[0-9]*)*$",
-                    "help_text": "A comma-separated list of erosion steps in pixels to calculate. Each value must be a positive integer. For MIBI (pixel size 0.390625 microns), use 3,5,8,10,13 as a recommended starting point. Skip measurements must be set to `false` to use this parameter."
+                    "help_text": "A comma-separated list of erosion steps in pixels. Targets ~1,2,3,4,5 µm inward from the cell/nucleus boundary. Recommended values: COMET (0.28 µm/px): 4,7,11,14,18; MIBI (0.390625 µm/px): 3,5,8,10,13; OPAL (0.4964 µm/px): 2,4,6,8,10. Skip measurements must be set to `false` to use this parameter."
                 },
                 "expansion_steps": {
                     "type": "string",
-                    "description": "Comma-separated expansion steps in pixels for pericellular neighbourhood profiling.",
+                    "default": "7,14,21,29,36",
+                    "description": "Comma-separated expansion steps in pixels (~2,4,6,8,10 µm outward from cell boundary).",
                     "fa_icon": "fas fa-expand-arrows-alt",
                     "pattern": "^([0-9]*)(,[0-9]*)*$",
-                    "help_text": "A comma-separated list of dilation steps in pixels. Measures mean/median intensity in annular rings outside the cell boundary at each step distance. Useful for capturing nearest-neighbour microenvironment features that may improve downstream model predictions."
+                    "help_text": "Measures mean/median intensity in annular rings dilated outward from the cell boundary to profile the pericellular neighbourhood. Targets ~2,4,6,8,10 µm. Recommended values: COMET (0.28 µm/px): 7,14,21,29,36; MIBI (0.390625 µm/px): 5,10,15,20,26; OPAL (0.4964 µm/px): 4,8,12,16,20. Set to empty string to disable. Skip measurements must be set to `false` to use this parameter."
                 },
                 "pixel_size_microns": {
                     "type": "number",
@@ -448,7 +450,7 @@
                     "minimum": 0.1,
                     "maximum": 10.0,
                     "fa_icon": "fas fa-ruler-combined",
-                    "help_text": "For COMET use 0.28 and for MIBI use 0.390625."
+                    "help_text": "COMET: 0.28 µm/px, MIBI: 0.390625 µm/px, OPAL: 0.4964 µm/px."
                 },
                 "estimate_cell_boundary_dist": {
                     "type": "integer",

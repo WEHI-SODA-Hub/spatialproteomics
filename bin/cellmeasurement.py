@@ -84,24 +84,50 @@ def load_image(path: str) -> Tuple[np.ndarray, List[str]]:
     ch_names: List[str] = []
 
     with tifffile.TiffFile(path) as tf:
+        # Strategy 1: OME-XML Channel/@Name (covers OME-TIFF, OPAL QPTIFF, COMET)
         try:
-            ome = tf.ome_metadata
-            if ome:
-                import xml.etree.ElementTree as ET
+            import xml.etree.ElementTree as ET
 
+            ome = tf.ome_metadata
+            # Fallback: OPAL QPTIFF stores OME-XML in first page ImageDescription
+            if not ome and tf.pages:
+                first_desc = tf.pages[0].description
+                if isinstance(first_desc, str) and first_desc.strip().startswith("<"):
+                    ome = first_desc
+            if ome:
                 root = ET.fromstring(ome)
-                pixels = None
-                for e in root.iter():
-                    if e.tag.split("}", 1)[-1] == "Pixels":
-                        pixels = e
-                        break
-                if pixels is not None:
-                    for e in list(pixels):
-                        if e.tag.split("}", 1)[-1] == "Channel":
-                            ch_names.append(e.get("Name") or e.get("ID") or "")
+                ns = {"ome": "http://www.openmicroscopy.org/Schemas/OME/2016-06"}
+                channels = root.findall(".//ome:Channel", ns)
+                if channels:
+                    ch_names = [
+                        ch.get("Name") or ch.get("ID") or ""
+                        for ch in channels
+                    ]
         except Exception as e:
-            print(f"Warning: failed to parse OME metadata for channel names ({e}); using fallback channel names")
+            print(f"Warning: failed to parse OME metadata for channel names ({e})")
             ch_names = []
+
+        # Strategy 2: MIBI JSON metadata in per-page ImageDescription
+        if not ch_names:
+            try:
+                import json as _json
+                first_desc = tf.pages[0].description if tf.pages else ""
+                _json.loads(first_desc)  # probe for JSON
+                ch_names = [
+                    str(_json.loads(p.description).get("channel.target", ""))
+                    for p in tf.pages
+                ]
+            except (ValueError, TypeError, KeyError, AttributeError):
+                pass
+
+        # Strategy 3: ImageJ metadata Labels
+        if not ch_names:
+            try:
+                ij = tf.imagej_metadata
+                if ij and "Labels" in ij:
+                    ch_names = [str(lbl) for lbl in ij["Labels"]]
+            except Exception:
+                pass
 
     if img.ndim == 2:
         img = img[np.newaxis, ...]
@@ -117,7 +143,10 @@ def load_image(path: str) -> Tuple[np.ndarray, List[str]]:
         raise ValueError(f"Unsupported image dimensions: {img.shape}")
 
     if not ch_names or len(ch_names) != img.shape[0]:
+        print(f"Warning: found {len(ch_names)} channel names but image has {img.shape[0]} channels; using fallback names")
         ch_names = [f"Channel {i + 1}" for i in range(img.shape[0])]
+    else:
+        print(f"Detected channel names: {ch_names}")
 
     return img.astype(np.float32, copy=False), ch_names
 
