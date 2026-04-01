@@ -30,6 +30,21 @@ from skimage.draw import polygon as draw_polygon
 from shapely.geometry import Polygon
 
 
+def enforce_min_area(mask, min_area):
+    """Remove labels whose final pixel area is below min_area."""
+    if min_area <= 0:
+        return mask
+
+    labels, counts = np.unique(mask, return_counts=True)
+    small = labels[(labels != 0) & (counts < min_area)]
+    if small.size == 0:
+        return mask
+
+    out = mask.copy()
+    out[np.isin(out, small)] = 0
+    return out
+
+
 # ── Worker (must be module-level for pickling) ────────────────────────────────
 
 def _process_label(args):
@@ -82,6 +97,8 @@ def _process_label(args):
         print(f"  [warn] label {label_id} failed: {e}", flush=True)
         # Fallback: return original pixels unchanged
         orig_rr, orig_cc = np.where(label_mask == label_id)
+        if len(orig_rr) < min_area:
+            return label_id, None, None
         return label_id, orig_rr, orig_cc
 
     finally:
@@ -157,6 +174,8 @@ def smooth_label_morphological_parallel(
 
     if warned > 0:
         print(f"  [warn] {warned} labels produced no output pixels (removed by morphological op or too small)")
+
+    smoothed = enforce_min_area(smoothed, min_area)
 
     return smoothed
 
@@ -247,6 +266,8 @@ def _process_label_shapely(args):
         print(f"  [warn] label {label_id} failed: {e}", flush=True)
         # Fallback: return original pixels unchanged
         orig_rr, orig_cc = np.where(label_mask == label_id)
+        if len(orig_rr) < min_area:
+            return label_id, None, None
         return label_id, orig_rr, orig_cc
 
     finally:
@@ -326,6 +347,8 @@ def smooth_label_shapely_parallel(
 
     if warned > 0:
         print(f"  [warn] {warned} labels produced no output pixels (removed by simplification or too small)")
+
+    smoothed = enforce_min_area(smoothed, min_area)
 
     return smoothed
 
