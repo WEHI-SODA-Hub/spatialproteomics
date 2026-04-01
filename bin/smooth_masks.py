@@ -38,7 +38,7 @@ def _process_label(args):
     Operates in crop-local space then offsets to global coordinates.
     """
     (label_id, slc_starts, slc_stops, shm_name,
-     mask_shape, mask_dtype, kernel_size) = args
+     mask_shape, mask_dtype, kernel_size, min_area) = args
 
     shm = shared_memory.SharedMemory(name=shm_name)
     label_mask = np.ndarray(mask_shape, dtype=mask_dtype, buffer=shm.buf)
@@ -72,6 +72,10 @@ def _process_label(args):
             (cc >= 0) & (cc < mask_shape[1])
         )
 
+        # Enforce minimum area on final rasterized pixels.
+        if np.count_nonzero(valid) < min_area:
+            return label_id, None, None
+
         return label_id, rr[valid], cc[valid]
 
     except Exception as e:
@@ -87,7 +91,7 @@ def _process_label(args):
 # ── Main smoothing function ───────────────────────────────────────────────────
 
 def smooth_label_morphological_parallel(
-    label_mask, kernel_size=2, n_workers=8, chunksize=200
+    label_mask, kernel_size=2, min_area=0, n_workers=8, chunksize=200
 ):
     """
     Parallelised morphological label smoothing using shared memory.
@@ -98,6 +102,9 @@ def smooth_label_morphological_parallel(
         Integer label image where 0 is background.
     kernel_size : int
         Radius of the disk structuring element (default: 2).
+    min_area : float
+        Minimum area in pixels^2 to retain after smoothing.
+        Labels with fewer pixels than this threshold are removed.
     n_workers : int
         Number of parallel worker processes.
     chunksize : int
@@ -123,7 +130,7 @@ def smooth_label_morphological_parallel(
         work.append((
             label_id, slc_starts, slc_stops,
             shm.name, label_mask.shape, label_mask.dtype,
-            kernel_size
+            kernel_size, min_area
         ))
 
     smoothed = np.zeros_like(label_mask)
@@ -355,9 +362,9 @@ def main():
     )
     parser.add_argument(
         "--min-area", type=float, default=0.0,
-           help="[shapely] Minimum area threshold in pixels\u00b2. Labels are dropped "
-               "if the simplified polygon area or final rasterized pixel area "
-               "falls below this value (default: 0)."
+           help="Minimum area threshold in pixels\u00b2. Labels are dropped if the "
+               "final rasterized pixel area falls below this value. In shapely "
+               "mode, simplified polygon area is also checked (default: 0)."
     )
 
     # --- shared options ---
@@ -391,6 +398,7 @@ def main():
         smoothed = smooth_label_morphological_parallel(
             mask,
             kernel_size=args.kernel_size,
+            min_area=args.min_area,
             n_workers=args.n_workers,
             chunksize=args.chunksize,
         )
