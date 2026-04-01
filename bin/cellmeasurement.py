@@ -115,7 +115,7 @@ def load_image(path: str) -> Tuple[np.ndarray, List[str]]:
         raise ValueError(f"Unsupported image dimensions: {img.shape}")
 
     if not ch_names or len(ch_names) != img.shape[0]:
-        ch_names = [f"Channel_{i}" for i in range(img.shape[0])]
+        ch_names = [f"Channel {i + 1}" for i in range(img.shape[0])]
 
     return img.astype(np.float32, copy=False), ch_names
 
@@ -314,11 +314,11 @@ def basic_shape_metrics(cell_mask: np.ndarray, nuc_mask: Optional[np.ndarray], p
     solidity = float(r.solidity) if r.solidity is not None else 0.0
 
     out = {
-        "Cell: Area um^2": area_um2,
+        "Cell: Area µm^2": area_um2,
         "Cell: Circularity": circularity,
-        "Cell: Length um": perimeter_um,
-        "Cell: Max diameter um": maj,
-        "Cell: Min diameter um": mino,
+        "Cell: Length µm": perimeter_um,
+        "Cell: Max diameter µm": maj,
+        "Cell: Min diameter µm": mino,
         "Cell: Solidity": solidity,
     }
 
@@ -327,13 +327,13 @@ def basic_shape_metrics(cell_mask: np.ndarray, nuc_mask: Optional[np.ndarray], p
         if nrp:
             nr = nrp[0]
             n_area = float(nr.area) * (px_um ** 2)
-            out["Nucleus: Area um^2"] = n_area
+            out["Nucleus: Area µm^2"] = n_area
             out["Nucleus: Circularity"] = float(4 * math.pi * nr.area / (nr.perimeter ** 2)) if nr.perimeter > 0 else 0.0
-            out["Nucleus: Length um"] = float(nr.perimeter) * px_um if nr.perimeter > 0 else 0.0
-            out["Nucleus: Max diameter um"] = float(nr.major_axis_length) * px_um
-            out["Nucleus: Min diameter um"] = float(nr.minor_axis_length) * px_um
+            out["Nucleus: Length µm"] = float(nr.perimeter) * px_um if nr.perimeter > 0 else 0.0
+            out["Nucleus: Max diameter µm"] = float(nr.major_axis_length) * px_um
+            out["Nucleus: Min diameter µm"] = float(nr.minor_axis_length) * px_um
             out["Nucleus: Solidity"] = float(nr.solidity) if nr.solidity is not None else 0.0
-            out["Nucleus: Cell ratio"] = float(n_area / area_um2) if area_um2 > 0 else 0.0
+            out["Nucleus/Cell area ratio"] = float(n_area / area_um2) if area_um2 > 0 else 0.0
 
     return out
 
@@ -372,7 +372,7 @@ def add_intensity_measurements(props: Dict[str, Any], image_cyx: np.ndarray, ch_
             if vals.size == 0:
                 continue
             for k, v in stat_values(vals).items():
-                props[f"{labels[comp]}: {ch}: {k}"] = v
+                props[f"{ch}: {labels[comp]}: {k}"] = v
 
 
 def add_percentiles(props: Dict[str, Any], image_cyx: np.ndarray, ch_names: Sequence[str], comp_masks: Dict[str, np.ndarray], percentiles: Sequence[float]):
@@ -462,27 +462,39 @@ def feature_for_cell(
     geom = mask_to_geometry(cmask, simplify_rois, tolerance, row_offset=row_offset, col_offset=col_offset)
     if geom is None:
         return None
+    nuc_geom = mask_to_geometry(nmask, simplify_rois, tolerance, row_offset=row_offset, col_offset=col_offset)
 
-    props: Dict[str, Any] = {
+    measurements: Dict[str, Any] = {
         "id": int(cell_id),
         "cell_label": int(rec_cell_label) if rec_cell_label is not None else None,
         "nucleus_label": int(rec_nucleus_label) if rec_nucleus_label is not None else None,
     }
-    props.update(basic_shape_metrics(cmask, nmask, pixel_size_microns))
+    measurements.update(basic_shape_metrics(cmask, nmask, pixel_size_microns))
 
     if not skip_measurements:
         comps = compartment_masks(cmask, nmask)
-        add_intensity_measurements(props, image_crop, ch_names, comps)
+        add_intensity_measurements(measurements, image_crop, ch_names, comps)
         if percentiles:
-            add_percentiles(props, image_crop, ch_names, comps, percentiles)
+            add_percentiles(measurements, image_crop, ch_names, comps, percentiles)
         if erosion_steps:
-            add_erosion_measurements(props, image_crop, ch_names, comps, erosion_steps)
+            add_erosion_measurements(measurements, image_crop, ch_names, comps, erosion_steps)
 
-    return {
+    feature: Dict[str, Any] = {
         "type": "Feature",
+        "id": f"cell-{cell_id}",
         "geometry": mapping(geom),
-        "properties": props,
+        "properties": {
+            "objectType": "cell",
+            "id": int(cell_id),
+            "cell_label": int(rec_cell_label) if rec_cell_label is not None else None,
+            "nucleus_label": int(rec_nucleus_label) if rec_nucleus_label is not None else None,
+            "measurements": measurements,
+        },
     }
+    if nuc_geom is not None:
+        feature["nucleusGeometry"] = mapping(nuc_geom)
+
+    return feature
 
 
 def iter_tasks(
@@ -650,8 +662,13 @@ def main() -> int:
     h, w = whole.shape
     annotation = {
         "type": "Feature",
+        "id": "annotation-whole-image",
         "geometry": mapping(Polygon([(0, 0), (w, 0), (w, h), (0, h), (0, 0)])),
-        "properties": {"type": "annotation", "name": "whole_image"},
+        "properties": {
+            "objectType": "annotation",
+            "type": "annotation",
+            "name": "whole_image",
+        },
     }
 
     out = {
