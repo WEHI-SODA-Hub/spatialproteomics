@@ -435,6 +435,13 @@
                     "pattern": "^([0-9]*)(,[0-9]*)*$",
                     "help_text": "A comma-separated list of erosion steps in pixels to calculate. Each value must be a positive integer. For MIBI (pixel size 0.390625 microns), use 3,5,8,10,13 as a recommended starting point. Skip measurements must be set to `false` to use this parameter."
                 },
+                "expansion_steps": {
+                    "type": "string",
+                    "description": "Comma-separated expansion steps in pixels for pericellular neighbourhood profiling.",
+                    "fa_icon": "fas fa-expand-arrows-alt",
+                    "pattern": "^([0-9]*)(,[0-9]*)*$",
+                    "help_text": "A comma-separated list of dilation steps in pixels. Measures mean/median intensity in annular rings outside the cell boundary at each step distance. Useful for capturing nearest-neighbour microenvironment features that may improve downstream model predictions."
+                },
                 "pixel_size_microns": {
                     "type": "number",
                     "description": "Pixel size in microns.",

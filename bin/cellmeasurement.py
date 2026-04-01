@@ -50,6 +50,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--tolerance", type=float, default=0.5)
     p.add_argument("--percentiles", default="")
     p.add_argument("--erosion-steps", default="")
+    p.add_argument("--expansion-steps", default="",
+                   help="CSV of positive ints: measure intensity in annular rings dilated outward from cell boundary")
     p.add_argument("-i", "--dist-threshold", type=float, default=10.0)
     p.add_argument("-e", "--estimate-cell-boundary-dist", type=float, default=3.0)
     p.add_argument("-t", "--threads", type=int, default=1)
@@ -422,6 +424,48 @@ def add_erosion_measurements(props: Dict[str, Any], image_cyx: np.ndarray, ch_na
                 props[f"{ch}: {comp_name}: Eroded_{s}px: Median"] = float(np.median(vals))
 
 
+def add_expansion_measurements(
+    props: Dict[str, Any],
+    image_cyx: np.ndarray,
+    ch_names: Sequence[str],
+    cell_mask: np.ndarray,
+    steps: Sequence[int],
+):
+    """Measure intensity in annular rings dilated outward from the cell boundary.
+
+    Each ring at step *s* covers the zone [dilated_{s-1}, dilated_s) so that
+    rings are mutually exclusive and together form a radial profile of the
+    pericellular neighbourhood.
+    """
+    ordered_steps = sorted(set(int(s) for s in steps if int(s) > 0))
+    if not ordered_steps:
+        return
+
+    base_area = int(np.count_nonzero(cell_mask))
+    if base_area == 0:
+        return
+
+    prev_dilated = cell_mask.astype(bool)
+    prev_step = 0
+    for s in ordered_steps:
+        extra = s - prev_step
+        cur_dilated = ndi.binary_dilation(prev_dilated, structure=_DISK_1, iterations=extra)
+        ring = cur_dilated & ~prev_dilated
+        ring_area = int(np.count_nonzero(ring))
+        props[f"Cell: Expanded_{s}px: Area_Fraction"] = float(ring_area / base_area)
+
+        if ring_area > 0:
+            for ci, ch in enumerate(ch_names):
+                vals = image_cyx[ci][ring]
+                if vals.size == 0:
+                    continue
+                props[f"{ch}: Cell: Expanded_{s}px: Mean"] = float(np.mean(vals))
+                props[f"{ch}: Cell: Expanded_{s}px: Median"] = float(np.median(vals))
+
+        prev_dilated = cur_dilated
+        prev_step = s
+
+
 def parse_csv_numbers(s: str, cast=float, positive_only=False) -> List:
     if not s or not s.strip():
         return []
@@ -456,6 +500,7 @@ def feature_for_cell(
     ch_names: Sequence[str],
     percentiles: Sequence[float],
     erosion_steps: Sequence[int],
+    expansion_steps: Sequence[int] = (),
 ):
     cmask = cell_crop == cell_id
     nmask = nuc_crop == cell_id
@@ -478,6 +523,8 @@ def feature_for_cell(
             add_percentiles(measurements, image_crop, ch_names, comps, percentiles)
         if erosion_steps:
             add_erosion_measurements(measurements, image_crop, ch_names, comps, erosion_steps)
+        if expansion_steps:
+            add_expansion_measurements(measurements, image_crop, ch_names, cmask, expansion_steps)
 
     feature: Dict[str, Any] = {
         "type": "Feature",
@@ -508,18 +555,30 @@ def iter_tasks(
     ch_names: Sequence[str],
     percentiles: Sequence[float],
     erosion_steps: Sequence[int],
+    expansion_steps: Sequence[int] = (),
 ):
+    max_expand = max(expansion_steps) if expansion_steps else 0
+    h, w = cell_labels.shape[:2]
     for cid in unique_cells:
         rs, cs = bbox_map[cid]
+        if max_expand > 0:
+            r0 = max(rs.start - max_expand, 0)
+            r1 = min(rs.stop + max_expand, h)
+            c0 = max(cs.start - max_expand, 0)
+            c1 = min(cs.stop + max_expand, w)
+            rs_pad = slice(r0, r1)
+            cs_pad = slice(c0, c1)
+        else:
+            rs_pad, cs_pad = rs, cs
         rec = records_by_id.get(cid)
         # Copy in parent process to keep each task payload self-contained for worker pickling.
         yield (
             cid,
-            cell_labels[rs, cs].copy(),
-            nuc_labels[rs, cs].copy(),
-            img_cyx[:, rs, cs].copy(),
-            rs.start,
-            cs.start,
+            cell_labels[rs_pad, cs_pad].copy(),
+            nuc_labels[rs_pad, cs_pad].copy(),
+            img_cyx[:, rs_pad, cs_pad].copy(),
+            rs_pad.start,
+            cs_pad.start,
             rec.cell_label if rec else None,
             rec.nucleus_label if rec else None,
             args.simplify_rois,
@@ -529,6 +588,7 @@ def iter_tasks(
             tuple(ch_names),
             tuple(percentiles),
             tuple(erosion_steps),
+            tuple(expansion_steps),
         )
 
 
@@ -593,10 +653,17 @@ def main() -> int:
     if erosion_steps_raw and erosion_steps_raw != erosion_steps:
         print(f"Warning: normalized erosion steps from {erosion_steps_raw} to {erosion_steps}")
 
+    expansion_steps_raw = parse_csv_numbers(args.expansion_steps, cast=int, positive_only=True)
+    expansion_steps = sorted(set(expansion_steps_raw))
+    if expansion_steps_raw and expansion_steps_raw != expansion_steps:
+        print(f"Warning: normalized expansion steps from {expansion_steps_raw} to {expansion_steps}")
+
     if percentiles:
         print(f"Will add intensity percentiles: {percentiles}")
     if erosion_steps:
         print(f"Will add erosion measurements at steps: {erosion_steps}")
+    if expansion_steps:
+        print(f"Will add expansion measurements at steps: {expansion_steps}")
 
     features = []
     total = len(unique_cells)
@@ -611,6 +678,7 @@ def main() -> int:
         ch_names,
         percentiles,
         erosion_steps,
+        expansion_steps,
     )
 
     if args.threads > 1:
