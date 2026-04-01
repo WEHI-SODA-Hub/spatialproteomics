@@ -3,7 +3,7 @@ process CELLMEASUREMENT {
     label 'process_multi'
 
     conda "${moduleDir}/environment.yml"
-    container "ghcr.io/wehi-soda-hub/cellmeasurement:0.2.6"
+    container "community.wave.seqera.io/library/python_tifffile_numpy_scipy_pruned:e54488103afb8110"
 
     input:
     tuple val(meta),
@@ -22,19 +22,21 @@ process CELLMEASUREMENT {
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
-    export GRADLE_USER_HOME=\$PWD/.gradle
-
-    /cellmeasurement.sh \\
-        --args="${args} \\
-            --nuclear-mask=\$PWD/${nuclear_mask} \\
-            --whole-cell-mask=\$PWD/${whole_cell_mask} \\
-            --tiff-file=\$PWD/${tiff} \\
-            --output-file=\$PWD/${prefix}.geojson \\
-            --threads=${task.cpus}"
+    python3 ${projectDir}/bin/cellmeasurement.py \\
+        --nuclear-mask ${nuclear_mask} \\
+        --whole-cell-mask ${whole_cell_mask} \\
+        --tiff-file ${tiff} \\
+        --output-file ${prefix}.geojson \\
+        --threads ${task.cpus} \\
+        ${args}
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        cellmeasurement: \$(/cellmeasurement.sh --version)
+        python: \$(python3 --version | sed 's/Python //')
+        scipy: \$(python3 -c "import scipy; print(scipy.__version__)")
+        scikit-image: \$(python3 -c "import skimage; print(skimage.__version__)")
+        shapely: \$(python3 -c "import shapely; print(shapely.__version__)")
+        tifffile: \$(python3 -c "import tifffile; print(tifffile.__version__)")
     END_VERSIONS
     """
 
@@ -45,7 +47,11 @@ process CELLMEASUREMENT {
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        cellmeasurement: \$(/cellmeasurement.sh --version)
+        python: \$(python3 --version | sed 's/Python //')
+        scipy: \$(python3 -c "import scipy; print(scipy.__version__)")
+        scikit-image: \$(python3 -c "import skimage; print(skimage.__version__)")
+        shapely: \$(python3 -c "import shapely; print(shapely.__version__)")
+        tifffile: \$(python3 -c "import tifffile; print(tifffile.__version__)")
     END_VERSIONS
     """
 }

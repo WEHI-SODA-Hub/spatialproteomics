@@ -72,8 +72,8 @@ The pipeline uses the following tools:
 - [CellSAM](https://github.com/vanvalenlab/cellSAM) -- a foundation model for
   cell segmentation across diverse imaging modalities.
 - [cellmeasurement](https://github.com/WEHI-SODA-Hub/cellmeasurement) -- a
-  Groovy app that matches whole-cell segmentations with nuclei, and uses the
-  QuPath API to calculate compartment measurements and intensities.
+  Python app that matches whole-cell segmentations with nuclei and calculates
+  compartment measurements and intensities.
 - [KRONOS](https://github.com/mahmoodlab/KRONOS) -- a foundation model for
   multiplex spatial proteomics that extracts rich embeddings for each cell.
 - [sopa](https://github.com/gustaveroussy/sopa) -- we use the sopa CLI tool to
@@ -89,9 +89,6 @@ Please see the [docs for more detailed information on pipeline usage and output]
 > If you are new to Nextflow and nf-core, please refer to [this page](https://nf-co.re/docs/usage/installation) on how to set-up Nextflow. Make sure to [test your setup](https://nf-co.re/docs/usage/introduction#how-to-run-a-pipeline) with `-profile test` (to test cellpose segmentation) or `-profile test_mesmer` to test mesmer segmentation before running the workflow on actual data.
 
 If you are running this pipeline from WEHI, it has been set up to run on [Seqera Platform](https://seqera.services.biocommons.org.au/).
-
-> [!NOTE]
-> If you don't have a .gradle directory in your home, make sure you create it with `mkdir $HOME/.gradle` before running the pipeline. You don't need to do this if you are running via WEHI's Seqera Platform mentioned above.
 
 Usage will depend on your desired steps. See [usage docs](docs/usage.md) for more detailed information.
 
