@@ -9,8 +9,10 @@ multi-channel TIFF image, then exports a GeoJSON FeatureCollection.
 from __future__ import annotations
 
 import argparse
+import gc
 import json
 import math
+import os
 import sys
 from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
 from dataclasses import dataclass
@@ -625,17 +627,22 @@ def add_neighborhood_features(features: List[Dict[str, Any]], k: int) -> None:
 
     # -- pre-extract measurement vectors for speed --------------------------
     n = len(features)
+    print(f"  Extracting {len(numeric_keys)} measurement vectors for {n} cells...")
     meas_vectors: Dict[str, np.ndarray] = {}
-    for key in numeric_keys:
+    for ki, key in enumerate(numeric_keys):
         arr = np.full(n, np.nan, dtype=np.float64)
         for i, feat in enumerate(features):
             v = feat["properties"].get("measurements", {}).get(key)
             if v is not None:
                 arr[i] = v
         meas_vectors[key] = arr
+        if (ki + 1) % 100 == 0 or (ki + 1) == len(numeric_keys):
+            print(f"  Extracted {ki + 1}/{len(numeric_keys)} measurement vectors")
 
     # -- compute neighborhood aggregations ----------------------------------
     for i, feat in enumerate(features):
+        if (i + 1) % 10000 == 0 or (i + 1) == n:
+            print(f"  Neighborhood aggregation: {i + 1}/{n} cells ({int((i + 1) * 100.0 / max(n, 1))}%)")
         # exclude self (index 0 in the sorted neighbour list)
         if actual_k <= 1:
             continue
@@ -835,6 +842,7 @@ def constrain_cell_overlaps(features: List[Dict[str, Any]]) -> List[Dict[str, An
     # Target ~sqrt(n) cells so each cell has ~1 geometry on average
     grid_size = max(span / max(int(n ** 0.5), 1), 1.0)
 
+    print(f"  Building spatial grid (grid_size={grid_size:.1f})...")
     grid: Dict[Tuple[int, int], List[int]] = {}
     for i, (minx, miny, maxx, maxy) in enumerate(bounds):
         gx0 = int((minx - all_minx) / grid_size)
@@ -848,7 +856,13 @@ def constrain_cell_overlaps(features: List[Dict[str, Any]]) -> List[Dict[str, An
     # -- narrow-phase: pairwise intersection test and clipping --
     checked: set = set()
     clipped = 0
+    _grid_total = len(grid)
+    _grid_done = 0
     for cell_list in grid.values():
+        _grid_done += 1
+        if _grid_done % 5000 == 0 or _grid_done == _grid_total:
+            print(f"  Overlap constraint progress: {_grid_done}/{_grid_total} grid cells, "
+                  f"{len(checked)} pairs checked, {clipped} clipped")
         for ii in range(len(cell_list)):
             i = cell_list[ii]
             for jj in range(ii + 1, len(cell_list)):
@@ -883,6 +897,7 @@ def constrain_cell_overlaps(features: List[Dict[str, Any]]) -> List[Dict[str, An
                     areas[j] = gj.area if gj is not None and not gj.is_empty else 0
                 clipped += 1
 
+    print(f"  Narrow phase complete: {len(checked)} pairs checked, {clipped} clipped. Building output...")
     out = []
     for f, g in zip(features, geoms):
         if g is None or g.is_empty:
@@ -1015,24 +1030,32 @@ def main() -> int:
         print("Warning: --tile-size/--tile-overlap are parsed for compatibility but not used in this Python implementation")
 
     whole = load_label_mask(args.whole_cell_mask)
-    nuc = load_label_mask(args.nuclear_mask)
+    if args.skip_nuclear_mask:
+        nuc = None
+    else:
+        nuc = load_label_mask(args.nuclear_mask)
     img_cyx, ch_names = load_image(args.tiff_file)
 
-    img_cyx, nuc, whole = maybe_downsample(img_cyx, nuc, whole, args.downsample_factor)
-
-    if whole.shape != nuc.shape:
-        raise ValueError(f"Mask shapes differ: whole={whole.shape}, nuclear={nuc.shape}")
+    if nuc is not None:
+        img_cyx, nuc, whole = maybe_downsample(img_cyx, nuc, whole, args.downsample_factor)
+        if whole.shape != nuc.shape:
+            raise ValueError(f"Mask shapes differ: whole={whole.shape}, nuclear={nuc.shape}")
+    else:
+        img_cyx, _, whole = maybe_downsample(img_cyx, whole, whole, args.downsample_factor)
     if img_cyx.shape[1:] != whole.shape:
         raise ValueError(f"Image shape {img_cyx.shape[1:]} does not match mask shape {whole.shape}")
 
     print(f"Loaded whole cell mask: {whole.shape}")
-    print(f"Loaded nuclear mask: {nuc.shape}")
+    if nuc is not None:
+        print(f"Loaded nuclear mask: {nuc.shape}")
+    else:
+        print("Nuclear mask: skipped (--skip-nuclear-mask)")
 
     if args.skip_nuclear_mask:
         print("--skip-nuclear-mask: using whole-cell mask only (no compartmental measurements)")
-        # Use whole-cell labels directly; create an empty nuclear mask.
+        # Use whole-cell labels directly; broadcast stub avoids allocating a full-size zeros array (~6 GiB).
         cell_labels = whole
-        nuc_labels = np.zeros_like(whole)
+        nuc_labels = np.broadcast_to(np.int64(0), whole.shape)
         unique_cells = [int(x) for x in np.unique(cell_labels) if x > 0]
         # Build bbox map from the whole-cell label mask
         from skimage.measure import regionprops as _rp
@@ -1045,11 +1068,15 @@ def main() -> int:
             'matched_cells': 0, 'unmatched_whole_cells': len(unique_cells),
             'dropped_synth_cells': 0,
         }
+        image_shape = whole.shape
     else:
         cell_labels, nuc_labels, records, match_stats, bbox_map = match_cells(
             nuc, whole, args.dist_threshold, args.estimate_cell_boundary_dist
         )
         records_by_id = {r.cell_id: r for r in records}
+        image_shape = whole.shape
+        del nuc, whole
+        gc.collect()
 
     unique_cells = [int(x) for x in np.unique(cell_labels) if x > 0]
     bbox_ids = set(bbox_map.keys())
@@ -1086,7 +1113,11 @@ def main() -> int:
     if args.environment_expansion > 0:
         print(f"Will add environment measurements ({args.environment_expansion}px dilation)")
 
-    features = []
+    out_path = Path(args.output_file)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    _tmp_path = str(out_path) + '.features.jsonl.tmp'
+    _tmp_f = open(_tmp_path, 'w', encoding='utf-8')
+    feature_count = 0
     total = len(unique_cells)
     task_iter = iter_tasks(
         unique_cells,
@@ -1126,7 +1157,9 @@ def main() -> int:
                         feat = None
 
                     if feat is not None:
-                        features.append(feat)
+                        json.dump(feat, _tmp_f, separators=(',', ':'))
+                        _tmp_f.write('\n')
+                        feature_count += 1
                     done += 1
                     if done % 1000 == 0 or done == total:
                         print(f"Progress: {done}/{total} cells ({int(done * 100.0 / max(total, 1))}%)")
@@ -1141,9 +1174,29 @@ def main() -> int:
         for i, t in enumerate(task_iter, 1):
             feat = feature_for_cell(*t)
             if feat is not None:
-                features.append(feat)
+                json.dump(feat, _tmp_f, separators=(',', ':'))
+                _tmp_f.write('\n')
+                feature_count += 1
             if i % 1000 == 0 or i == total:
                 print(f"Progress: {i}/{total} cells ({int(i * 100.0 / max(total, 1))}%)")
+
+    _tmp_f.close()
+
+    # --- Free large arrays to reclaim memory for post-processing ---
+    del task_iter, img_cyx, cell_labels, nuc_labels, bbox_map, records_by_id
+    gc.collect()
+    print(f"Wrote {feature_count} features to temp file; freed image/mask arrays for post-processing")
+
+    # --- Load features from temp file ---
+    print("Loading features from temp file...")
+    features = []
+    with open(_tmp_path, 'r', encoding='utf-8') as _tmp_r:
+        for line in _tmp_r:
+            line = line.strip()
+            if line:
+                features.append(json.loads(line))
+    os.unlink(_tmp_path)
+    print(f"Loaded {len(features)} features")
 
     # Keep output deterministic regardless of parallel execution completion order.
     features.sort(key=lambda f: f["properties"].get("id", -1))
@@ -1158,7 +1211,7 @@ def main() -> int:
         print(f"Neighborhood features added for {len(features)} cells")
 
     # Top-level annotation feature for whole image extent.
-    h, w = whole.shape
+    h, w = image_shape
     annotation = {
         "type": "Feature",
         "id": "annotation-whole-image",
@@ -1175,8 +1228,6 @@ def main() -> int:
         "features": [annotation] + features,
     }
 
-    out_path = Path(args.output_file)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
     with out_path.open("w", encoding="utf-8") as f:
         if args.pretty_json:
             json.dump(out, f, indent=2)
