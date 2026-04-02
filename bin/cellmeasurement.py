@@ -59,6 +59,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--tile-size", type=int, default=2048)
     p.add_argument("--tile-overlap", type=int, default=200)
     p.add_argument("--pretty-json", action="store_true", help="Write indented GeoJSON output")
+    p.add_argument("--output-mask", default="",
+                   help="Write a rasterized label mask TIFF from the final cell geometries")
     return p.parse_args()
 
 
@@ -763,6 +765,49 @@ def constrain_cell_overlaps(features: List[Dict[str, Any]]) -> List[Dict[str, An
     return out
 
 
+def rasterize_features_to_mask(
+    features: List[Dict[str, Any]], height: int, width: int
+) -> np.ndarray:
+    """Rasterize cell feature polygons back to an integer label mask TIFF.
+
+    Each cell is rasterized with its ``properties.id`` as the label value.
+    Produces the same format as smooth_masks output — a 2-D integer label
+    image where 0 is background.
+    """
+    from skimage.draw import polygon as draw_polygon
+
+    max_id = max(
+        (f["properties"].get("id", 0) for f in features if f["properties"].get("objectType") == "cell"),
+        default=0,
+    )
+    dtype = np.int32 if max_id < 2**31 else np.int64
+    mask = np.zeros((height, width), dtype=dtype)
+
+    for feat in features:
+        if feat["properties"].get("objectType") != "cell":
+            continue
+        cell_id = feat["properties"].get("id", 0)
+        if cell_id <= 0:
+            continue
+
+        geom = shape(feat["geometry"])
+        if geom.is_empty:
+            continue
+
+        polys = []
+        if geom.geom_type == "Polygon":
+            polys = [geom]
+        elif geom.geom_type == "MultiPolygon":
+            polys = list(geom.geoms)
+
+        for poly in polys:
+            ext = np.array(poly.exterior.coords)
+            rr, cc = draw_polygon(ext[:, 1], ext[:, 0], shape=(height, width))
+            mask[rr, cc] = cell_id
+
+    return mask
+
+
 def regularize_mask(mask: np.ndarray) -> np.ndarray:
     """Re-partition a label mask using watershed from each label's centroid.
 
@@ -967,6 +1012,14 @@ def main() -> int:
             json.dump(out, f, separators=(",", ":"))
 
     print(f"Exported to GeoJSON: {out_path}")
+
+    if args.output_mask:
+        mask_out = rasterize_features_to_mask(features, h, w)
+        mask_path = Path(args.output_mask)
+        mask_path.parent.mkdir(parents=True, exist_ok=True)
+        tifffile.imwrite(str(mask_path), mask_out)
+        print(f"Exported label mask: {mask_path} ({mask_out.dtype}, {len(np.unique(mask_out)) - 1} labels)")
+
     return 0
 
 

@@ -13,6 +13,7 @@ process CELLMEASUREMENT {
 
     output:
     tuple val(meta), path("*.geojson"), emit: annotations
+    tuple val(meta), path("*_mask.tiff"), emit: masks
     path "versions.yml"               , emit: versions
 
     when:
@@ -27,6 +28,7 @@ process CELLMEASUREMENT {
         --whole-cell-mask ${whole_cell_mask} \\
         --tiff-file ${tiff} \\
         --output-file ${prefix}.geojson \\
+        --output-mask ${prefix}_mask.tiff \\
         --threads ${task.cpus} \\
         ${args}
 
@@ -44,6 +46,7 @@ process CELLMEASUREMENT {
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
     touch ${prefix}.geojson
+    touch ${prefix}_mask.tiff
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
