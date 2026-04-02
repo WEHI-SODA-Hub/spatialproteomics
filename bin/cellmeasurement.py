@@ -25,6 +25,7 @@ from shapely.geometry import Polygon, mapping
 from shapely.ops import unary_union
 from skimage.measure import block_reduce, find_contours, regionprops
 from skimage.morphology import binary_erosion, disk
+from skimage.segmentation import watershed
 
 _DISK_1 = disk(1)
 _DISK_1.flags.writeable = False
@@ -205,7 +206,10 @@ def match_cells(
     used_whole: set[int] = set()
     dropped_synth_cells = 0
 
-    # Deterministic but arbitrary tie-breaking by label order.
+    # Track which nuclei need synthesized boundaries for the watershed pass.
+    unmatched_nuclei: List[Tuple[int, int]] = []  # (nuc_label, assigned_cell_id)
+
+    # --- Pass 1: match nuclei to whole-cell masks; defer unmatched nuclei ---
     for nlab in sorted(nuc_props.keys()):
         nr, nc = nuc_props[nlab]["centroid"]
         nminr, nminc, nmaxr, nmaxc = nuc_props[nlab]["bbox"]
@@ -225,55 +229,82 @@ def match_cells(
             maxr = max(nmaxr, cmaxr)
             maxc = max(nmaxc, cmaxc)
             used_whole.add(matched_whole)
-        else:
-            pad = max(1, int(round(estimate_dist)))
-            # Add one extra pixel of context so dilation with radius=pad is not clipped at patch edges.
-            pad_for_patch = pad + 1
-            minr = max(0, nminr - pad_for_patch)
-            minc = max(0, nminc - pad_for_patch)
-            maxr = min(nuc.shape[0], nmaxr + pad_for_patch)
-            maxc = min(nuc.shape[1], nmaxc + pad_for_patch)
 
-        rs = slice(minr, maxr)
-        cs = slice(minc, maxc)
-        npatch = nuc[rs, cs] == nlab
-
-        if matched_whole is not None:
+            rs = slice(minr, maxr)
+            cs = slice(minc, maxc)
+            npatch = nuc[rs, cs] == nlab
             cpatch = whole[rs, cs] == matched_whole
+
+            # Avoid overlaps in synthesized output labels.
+            available = out_cell[rs, cs] == 0
+            cpatch = cpatch & available
+            npatch = npatch & cpatch
+
+            if not np.any(cpatch):
+                dropped_synth_cells += 1
+                continue
+
+            out_cell[rs, cs][cpatch] = next_id
+            out_nuc[rs, cs][npatch] = next_id
+
+            cell_rows, cell_cols = np.nonzero(cpatch)
+            cell_minr = minr + int(cell_rows.min())
+            cell_minc = minc + int(cell_cols.min())
+            cell_maxr = minr + int(cell_rows.max()) + 1
+            cell_maxc = minc + int(cell_cols.max()) + 1
+            bbox_map[next_id] = (
+                slice(max(0, cell_minr - 1), min(nuc.shape[0], cell_maxr + 1)),
+                slice(max(0, cell_minc - 1), min(nuc.shape[1], cell_maxc + 1)),
+            )
+            records.append(CellRecord(next_id, matched_whole, int(nlab)))
+            next_id += 1
         else:
-            # Estimate a cell boundary from nucleus when no nearby whole-cell match exists.
-            cpatch = ndi.binary_dilation(npatch, structure=disk(max(1, int(round(estimate_dist)))))
+            # Reserve an id and record it; actual pixels assigned in pass 2.
+            unmatched_nuclei.append((nlab, next_id))
+            next_id += 1
 
-        # Avoid overlaps in synthesized output labels.
-        available = out_cell[rs, cs] == 0
-        cpatch = cpatch & available
-        npatch = npatch & cpatch
+    # --- Pass 2: watershed-partition unmatched nuclei so they don't overlap ---
+    if unmatched_nuclei:
+        # Build a seed image: each unmatched nucleus gets its reserved cell id.
+        seeds = np.zeros_like(out_cell)
+        for nlab, cid in unmatched_nuclei:
+            seeds[nuc == nlab] = cid
 
-        if not np.any(cpatch):
-            dropped_synth_cells += 1
-            continue
-
-        out_cell_patch = out_cell[rs, cs]
-        out_nuc_patch = out_nuc[rs, cs]
-        # Basic slicing returns a view, so these writes update out_cell/out_nuc directly.
-        out_cell_patch[cpatch] = next_id
-        out_nuc_patch[npatch] = next_id
-
-        # Derive bbox from the final assigned footprint (after overlap masking), then add 1px margin for erosion.
-        # Safe because empty cpatch cases are handled by the np.any(cpatch) guard above.
-        cell_rows, cell_cols = np.nonzero(cpatch)
-        cell_minr = minr + int(cell_rows.min())
-        cell_minc = minc + int(cell_cols.min())
-        cell_maxr = minr + int(cell_rows.max()) + 1
-        cell_maxc = minc + int(cell_cols.max()) + 1
-
-        bbox_map[next_id] = (
-            slice(max(0, cell_minr - 1), min(nuc.shape[0], cell_maxr + 1)),
-            slice(max(0, cell_minc - 1), min(nuc.shape[1], cell_maxc + 1)),
+        # Restrict growth to pixels within estimate_dist of any unmatched nucleus
+        # and not already claimed by pass-1 cells.
+        any_unmatched_nuc = seeds > 0
+        growth_zone = ndi.binary_dilation(
+            any_unmatched_nuc,
+            structure=disk(max(1, int(round(estimate_dist)))),
         )
+        growth_zone = growth_zone & (out_cell == 0)
 
-        records.append(CellRecord(next_id, matched_whole, int(nlab)))
-        next_id += 1
+        # Euclidean distance from each background pixel to the nearest seed;
+        # watershed floods lowest-distance pixels first → Voronoi-like partition.
+        dist_map = ndi.distance_transform_edt(seeds == 0)
+        ws = watershed(dist_map, markers=seeds, mask=growth_zone)
+
+        for nlab, cid in unmatched_nuclei:
+            cpatch_full = ws == cid
+            npatch_full = (nuc == nlab) & cpatch_full
+
+            if not np.any(cpatch_full):
+                dropped_synth_cells += 1
+                continue
+
+            out_cell[cpatch_full] = cid
+            out_nuc[npatch_full] = cid
+
+            cell_rows, cell_cols = np.nonzero(cpatch_full)
+            cell_minr = int(cell_rows.min())
+            cell_minc = int(cell_cols.min())
+            cell_maxr = int(cell_rows.max()) + 1
+            cell_maxc = int(cell_cols.max()) + 1
+            bbox_map[cid] = (
+                slice(max(0, cell_minr - 1), min(nuc.shape[0], cell_maxr + 1)),
+                slice(max(0, cell_minc - 1), min(nuc.shape[1], cell_maxc + 1)),
+            )
+            records.append(CellRecord(cid, None, int(nlab)))
 
     unmatched_whole = len(set(whole_labels) - used_whole)
     stats = {
