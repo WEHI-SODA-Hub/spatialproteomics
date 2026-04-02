@@ -21,8 +21,9 @@ import numpy as np
 import tifffile
 from scipy import ndimage as ndi
 from scipy.spatial import cKDTree
-from shapely.geometry import Polygon, mapping
+from shapely.geometry import Polygon, mapping, shape
 from shapely.ops import unary_union
+from shapely.strtree import STRtree
 from skimage.measure import block_reduce, find_contours, regionprops
 from skimage.morphology import binary_erosion, disk
 from skimage.segmentation import watershed
@@ -652,6 +653,68 @@ def iter_tasks(
         )
 
 
+def constrain_cell_overlaps(features: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Clip overlapping cell geometries so no two cells share area.
+
+    Equivalent to QuPath's ``CellTools.constrainCellOverlaps()``.
+    For each pair of overlapping cells the overlap is assigned to the cell
+    with the **smaller** area (the larger cell is trimmed), which preserves
+    small cells and matches QuPath's heuristic.
+    """
+    if not features:
+        return features
+
+    geoms = [shape(f["geometry"]) for f in features]
+    tree = STRtree(geoms)
+
+    clipped = 0
+    for i in range(len(geoms)):
+        gi = geoms[i]
+        if gi.is_empty:
+            continue
+        candidates = tree.query(gi)
+        for j in candidates:
+            if j <= i:
+                continue
+            gj = geoms[j]
+            if gj.is_empty or not gi.intersects(gj):
+                continue
+            intersection = gi.intersection(gj)
+            if intersection.is_empty:
+                continue
+            # Trim the larger cell; keep the smaller cell intact.
+            if gi.area >= gj.area:
+                gi = gi.difference(intersection)
+                if not gi.is_valid:
+                    gi = gi.buffer(0)
+                geoms[i] = gi
+            else:
+                gj = gj.difference(intersection)
+                if not gj.is_valid:
+                    gj = gj.buffer(0)
+                geoms[j] = gj
+            clipped += 1
+
+    out = []
+    for f, g in zip(features, geoms):
+        if g.is_empty:
+            continue
+        f["geometry"] = mapping(g)
+        # Also clip nucleusGeometry if it extends beyond the trimmed cell
+        if "nucleusGeometry" in f:
+            ng = shape(f["nucleusGeometry"])
+            ng = ng.intersection(g)
+            if not ng.is_empty:
+                f["nucleusGeometry"] = mapping(ng)
+            else:
+                del f["nucleusGeometry"]
+        out.append(f)
+
+    if clipped:
+        print(f"Constrained {clipped} overlapping cell pairs; {len(features) - len(out)} cells removed")
+    return out
+
+
 def main() -> int:
     args = parse_args()
     if args.tile_size <= 0:
@@ -785,6 +848,9 @@ def main() -> int:
 
     # Keep output deterministic regardless of parallel execution completion order.
     features.sort(key=lambda f: f["properties"].get("id", -1))
+
+    # Resolve overlapping cell geometries (equivalent to QuPath CellTools.constrainCellOverlaps)
+    features = constrain_cell_overlaps(features)
 
     # Top-level annotation feature for whole image extent.
     h, w = whole.shape
