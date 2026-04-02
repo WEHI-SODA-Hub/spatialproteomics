@@ -463,13 +463,6 @@
                     "description": "Where no matching membrane ROI exists, expand the nucleus by this many pixels (default = 3.0).",
                     "fa_icon": "fas fa-expand-arrows-alt",
                     "minimum": 0
-                },
-                "smooth_sigma": {
-                    "type": "number",
-                    "default": 1.0,
-                    "description": "Gaussian sigma for smoothing cell/nucleus boundaries before contouring. Reduces pixel-staircase artifacts. Set to 0 to disable.",
-                    "fa_icon": "fas fa-wave-square",
-                    "minimum": 0
                 }
             }
         },

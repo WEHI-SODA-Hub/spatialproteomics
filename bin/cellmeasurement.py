@@ -61,9 +61,6 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--pretty-json", action="store_true", help="Write indented GeoJSON output")
     p.add_argument("--output-mask", default="",
                    help="Write a rasterized label mask TIFF from the final cell geometries")
-    p.add_argument("--smooth-sigma", type=float, default=1.0,
-                   help="Gaussian sigma for smoothing binary masks before contouring. "
-                        "Set to 0 to disable. Default 1.0.")
     return p.parse_args()
 
 
@@ -328,7 +325,6 @@ def mask_to_geometry(
     tolerance: float,
     row_offset: int = 0,
     col_offset: int = 0,
-    smooth_sigma: float = 0.0,
 ):
     if not np.any(mask):
         return None
@@ -366,17 +362,6 @@ def mask_to_geometry(
         g = g.buffer(0)
     if g.is_empty:
         return None
-
-    # Smooth pixel-staircase boundaries using morphological buffer close/open.
-    # buffer(+r) then buffer(-r) rounds off convex staircase corners and fills
-    # tiny concavities, producing clean curved boundaries without expanding the
-    # geometry or merging nearby cells (unlike raster-domain Gaussian blur).
-    if smooth_sigma > 0:
-        g = g.buffer(smooth_sigma).buffer(-smooth_sigma)
-        if g.is_empty:
-            return None
-        if not g.is_valid:
-            g = g.buffer(0)
 
     # Inset by 0.25 px so adjacent cells no longer share the 0.5-isocontour edge.
     # This prevents visual overlap artifacts when rendering in QuPath.
@@ -587,14 +572,13 @@ def feature_for_cell(
     percentiles: Sequence[float],
     erosion_steps: Sequence[int],
     expansion_steps: Sequence[int] = (),
-    smooth_sigma: float = 0.0,
 ):
     cmask = cell_crop == cell_id
     nmask = nuc_crop == cell_id
-    geom = mask_to_geometry(cmask, simplify_rois, tolerance, row_offset=row_offset, col_offset=col_offset, smooth_sigma=smooth_sigma)
+    geom = mask_to_geometry(cmask, simplify_rois, tolerance, row_offset=row_offset, col_offset=col_offset)
     if geom is None:
         return None
-    nuc_geom = mask_to_geometry(nmask, simplify_rois, tolerance, row_offset=row_offset, col_offset=col_offset, smooth_sigma=smooth_sigma)
+    nuc_geom = mask_to_geometry(nmask, simplify_rois, tolerance, row_offset=row_offset, col_offset=col_offset)
 
     measurements: Dict[str, Any] = {
         "id": int(cell_id),
@@ -676,7 +660,6 @@ def iter_tasks(
             tuple(percentiles),
             tuple(erosion_steps),
             tuple(expansion_steps),
-            args.smooth_sigma,
         )
 
 
