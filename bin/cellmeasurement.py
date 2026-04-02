@@ -72,6 +72,10 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--neighbors", type=int, default=0,
                    help="Number of nearest neighbors for neighborhood feature aggregation (0 = disabled). "
                         "Computes max and mean of every numeric measurement across each cell's k closest neighbours.")
+    p.add_argument("--environment-expansion", type=int, default=0,
+                   help="Dilate cell mask by this many pixels and measure the entire zone as a single "
+                        "'Environment' compartment (like CellTune). 0 = disabled. "
+                        "For ~20 µm: COMET=71, MIBI=51, OPAL=40.")
     return p.parse_args()
 
 
@@ -545,6 +549,44 @@ def add_expansion_measurements(
         prev_step = s
 
 
+def add_environment_measurements(
+    props: Dict[str, Any],
+    image_cyx: np.ndarray,
+    ch_names: Sequence[str],
+    cell_mask: np.ndarray,
+    expansion_px: int,
+):
+    """Measure intensity in the full pericellular environment zone.
+
+    Unlike `add_expansion_measurements` which splits into annular rings, this
+    computes a single dilation of *expansion_px* pixels and measures the
+    **entire** zone between the cell boundary and the outer ring.  This matches
+    CellTune's "Environment" compartment.
+    """
+    if expansion_px <= 0:
+        return
+    cm = cell_mask.astype(bool)
+    if not np.any(cm):
+        return
+    dilated = ndi.binary_dilation(cm, structure=_DISK_1, iterations=expansion_px)
+    env_mask = dilated & ~cm
+    env_area = int(np.count_nonzero(env_mask))
+    if env_area == 0:
+        return
+    base_area = int(np.count_nonzero(cm))
+    props[f"Cell: Environment_{expansion_px}px: Pixel_Count"] = env_area
+    props[f"Cell: Environment_{expansion_px}px: Area_Fraction"] = float(env_area / base_area) if base_area > 0 else 0.0
+    for ci, ch in enumerate(ch_names):
+        vals = image_cyx[ci][env_mask]
+        if vals.size == 0:
+            continue
+        props[f"{ch}: Cell: Environment_{expansion_px}px: Mean"] = float(np.mean(vals))
+        props[f"{ch}: Cell: Environment_{expansion_px}px: Median"] = float(np.median(vals))
+        props[f"{ch}: Cell: Environment_{expansion_px}px: Min"] = float(np.min(vals))
+        props[f"{ch}: Cell: Environment_{expansion_px}px: Max"] = float(np.max(vals))
+        props[f"{ch}: Cell: Environment_{expansion_px}px: Std.Dev."] = float(np.std(vals))
+
+
 def add_neighborhood_features(features: List[Dict[str, Any]], k: int) -> None:
     """Aggregate each cell's numeric measurements across its *k* nearest neighbours.
 
@@ -643,6 +685,7 @@ def feature_for_cell(
     percentiles: Sequence[float],
     erosion_steps: Sequence[int],
     expansion_steps: Sequence[int] = (),
+    environment_expansion: int = 0,
 ):
     cmask = cell_crop == cell_id
     nmask = nuc_crop == cell_id
@@ -667,6 +710,8 @@ def feature_for_cell(
             add_erosion_measurements(measurements, image_crop, ch_names, comps, erosion_steps)
         if expansion_steps:
             add_expansion_measurements(measurements, image_crop, ch_names, cmask, expansion_steps)
+        if environment_expansion > 0:
+            add_environment_measurements(measurements, image_crop, ch_names, cmask, environment_expansion)
 
     feature: Dict[str, Any] = {
         "type": "Feature",
@@ -698,8 +743,12 @@ def iter_tasks(
     percentiles: Sequence[float],
     erosion_steps: Sequence[int],
     expansion_steps: Sequence[int] = (),
+    environment_expansion: int = 0,
 ):
-    max_expand = max(expansion_steps) if expansion_steps else 0
+    max_expand = max(
+        max(expansion_steps) if expansion_steps else 0,
+        environment_expansion,
+    )
     h, w = cell_labels.shape[:2]
     for cid in unique_cells:
         rs, cs = bbox_map[cid]
@@ -731,6 +780,7 @@ def iter_tasks(
             tuple(percentiles),
             tuple(erosion_steps),
             tuple(expansion_steps),
+            environment_expansion,
         )
 
 
@@ -1037,6 +1087,8 @@ def main() -> int:
         print(f"Will add erosion measurements at steps: {erosion_steps}")
     if expansion_steps:
         print(f"Will add expansion measurements at steps: {expansion_steps}")
+    if args.environment_expansion > 0:
+        print(f"Will add environment measurements ({args.environment_expansion}px dilation)")
 
     features = []
     total = len(unique_cells)
@@ -1052,6 +1104,7 @@ def main() -> int:
         percentiles,
         erosion_steps,
         expansion_steps,
+        args.environment_expansion,
     )
 
     if args.threads > 1:
