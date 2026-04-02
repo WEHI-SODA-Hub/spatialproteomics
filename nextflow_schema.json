@@ -258,6 +258,12 @@
                     "description": "Path to custom CellSAM model weights. If not specified, uses latest generalist model (v1.2 with DEEPCELL_ACCESS_TOKEN).",
                     "fa_icon": "fas fa-file-medical",
                     "format": "file-path"
+                },
+                "cellsam_min_area": {
+                    "type": "integer",
+                    "default": 0,
+                    "description": "Minimum area in pixels for cells/nuclei. Segmented objects smaller than this are removed. Set to 0 to disable.",
+                    "fa_icon": "fas fa-compress-arrows-alt"
                 }
             }
         },
@@ -456,6 +462,13 @@
                     "type": "integer",
                     "description": "Where no matching membrane ROI exists, expand the nucleus by this many pixels (default = 3.0).",
                     "fa_icon": "fas fa-expand-arrows-alt",
+                    "minimum": 0
+                },
+                "smooth_sigma": {
+                    "type": "number",
+                    "default": 1.0,
+                    "description": "Gaussian sigma for smoothing cell/nucleus boundaries before contouring. Reduces pixel-staircase artifacts. Set to 0 to disable.",
+                    "fa_icon": "fas fa-wave-square",
                     "minimum": 0
                 }
             }

@@ -61,6 +61,9 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--pretty-json", action="store_true", help="Write indented GeoJSON output")
     p.add_argument("--output-mask", default="",
                    help="Write a rasterized label mask TIFF from the final cell geometries")
+    p.add_argument("--smooth-sigma", type=float, default=1.0,
+                   help="Gaussian sigma for smoothing binary masks before contouring. "
+                        "Set to 0 to disable. Default 1.0.")
     return p.parse_args()
 
 
@@ -325,11 +328,16 @@ def mask_to_geometry(
     tolerance: float,
     row_offset: int = 0,
     col_offset: int = 0,
+    smooth_sigma: float = 0.0,
 ):
     if not np.any(mask):
         return None
 
-    contours = find_contours(mask.astype(np.uint8), level=0.5)
+    if smooth_sigma > 0:
+        blurred = ndi.gaussian_filter(mask.astype(np.float32), sigma=smooth_sigma)
+        contours = find_contours(blurred, level=0.5)
+    else:
+        contours = find_contours(mask.astype(np.uint8), level=0.5)
     if not contours:
         return None
 
@@ -572,13 +580,14 @@ def feature_for_cell(
     percentiles: Sequence[float],
     erosion_steps: Sequence[int],
     expansion_steps: Sequence[int] = (),
+    smooth_sigma: float = 0.0,
 ):
     cmask = cell_crop == cell_id
     nmask = nuc_crop == cell_id
-    geom = mask_to_geometry(cmask, simplify_rois, tolerance, row_offset=row_offset, col_offset=col_offset)
+    geom = mask_to_geometry(cmask, simplify_rois, tolerance, row_offset=row_offset, col_offset=col_offset, smooth_sigma=smooth_sigma)
     if geom is None:
         return None
-    nuc_geom = mask_to_geometry(nmask, simplify_rois, tolerance, row_offset=row_offset, col_offset=col_offset)
+    nuc_geom = mask_to_geometry(nmask, simplify_rois, tolerance, row_offset=row_offset, col_offset=col_offset, smooth_sigma=smooth_sigma)
 
     measurements: Dict[str, Any] = {
         "id": int(cell_id),
@@ -660,6 +669,7 @@ def iter_tasks(
             tuple(percentiles),
             tuple(erosion_steps),
             tuple(expansion_steps),
+            args.smooth_sigma,
         )
 
 
@@ -808,26 +818,39 @@ def rasterize_features_to_mask(
     return mask
 
 
-def regularize_mask(mask: np.ndarray) -> np.ndarray:
-    """Re-partition a label mask using watershed from each label's centroid.
+def regularize_mask(
+    mask: np.ndarray,
+    seed_centroids: Optional[Dict[int, Tuple[float, float]]] = None,
+) -> np.ndarray:
+    """Re-partition a label mask using watershed from seed points.
 
     When overlapping instance masks (e.g. from CellSAM) are flattened to a
     single label plane, the last-written label 'wins' overlap pixels, creating
-    irregular boundaries.  Watershed from centroids redistributes those pixels
-    so boundaries between adjacent cells are equidistant — producing clean,
-    convex-ish shapes instead of jagged artifacts.
+    irregular boundaries.  Watershed from seed points redistributes those
+    pixels so boundaries between adjacent cells are equidistant.
+
+    Parameters
+    ----------
+    mask : np.ndarray
+        Integer label image where 0 is background.
+    seed_centroids : dict, optional
+        Mapping of label -> (row, col) centroid to use as seeds. If None,
+        centroids are computed from the mask itself. Providing external
+        centroids (e.g. from the nuclear mask) avoids using corrupted
+        centroids from a flattened overlapping mask.
     """
     props = label_props_dict(mask)
     if not props:
         return mask
 
     seeds = np.zeros_like(mask, dtype=mask.dtype)
-    for lab, p in props.items():
-        r = int(round(p["centroid"][0]))
-        c = int(round(p["centroid"][1]))
-        # Clamp to valid coords (centroid may round outside bbox for tiny labels)
-        r = max(0, min(r, mask.shape[0] - 1))
-        c = max(0, min(c, mask.shape[1] - 1))
+    for lab in props:
+        if seed_centroids and lab in seed_centroids:
+            r, c = seed_centroids[lab]
+        else:
+            r, c = props[lab]["centroid"]
+        r = max(0, min(int(round(r)), mask.shape[0] - 1))
+        c = max(0, min(int(round(c)), mask.shape[1] - 1))
         seeds[r, c] = lab
 
     occupied = mask > 0
@@ -870,17 +893,17 @@ def main() -> int:
     print(f"Loaded whole cell mask: {whole.shape}")
     print(f"Loaded nuclear mask: {nuc.shape}")
 
-    # Re-partition masks so boundaries between adjacent labels are equidistant.
-    # Fixes irregular shapes caused by flattening CellSAM overlapping instances.
-    n_whole_before = len(np.unique(whole)) - 1  # exclude background
-    whole = regularize_mask(whole)
+    # Use nuclear centroids as seeds for whole-cell watershed regularization.
+    # Nuclear centroids are more reliable than whole-cell centroids because
+    # nuclei rarely overlap, whereas whole-cell overlaps from CellSAM cause
+    # corrupted centroids after flattening.
+    nuc_props = label_props_dict(nuc)
+    nuc_centroids = {lab: p["centroid"] for lab, p in nuc_props.items()}
+
+    n_whole_before = len(np.unique(whole)) - 1
+    whole = regularize_mask(whole, seed_centroids=nuc_centroids)
     n_whole_after = len(np.unique(whole)) - 1
     print(f"Regularized whole-cell mask: {n_whole_before} -> {n_whole_after} labels")
-
-    n_nuc_before = len(np.unique(nuc)) - 1
-    nuc = regularize_mask(nuc)
-    n_nuc_after = len(np.unique(nuc)) - 1
-    print(f"Regularized nuclear mask: {n_nuc_before} -> {n_nuc_after} labels")
 
     cell_labels, nuc_labels, records, match_stats, bbox_map = match_cells(
         nuc, whole, args.dist_threshold, args.estimate_cell_boundary_dist

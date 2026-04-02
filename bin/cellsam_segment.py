@@ -171,6 +171,35 @@ def remove_border_cells(mask):
     return filtered_mask
 
 
+def remove_small_cells(mask, min_area):
+    '''
+    Remove cells smaller than a minimum pixel area.
+
+    Args:
+        mask: 2D numpy array with cell labels
+        min_area: Minimum number of pixels for a cell to be retained
+
+    Returns:
+        Filtered mask with small cells removed (set to 0)
+    '''
+    if min_area <= 0:
+        return mask
+
+    labels, counts = np.unique(mask, return_counts=True)
+    small = labels[(labels != 0) & (counts < min_area)]
+
+    if small.size == 0:
+        print(f"No cells below min-area {min_area}px")
+        return mask
+
+    filtered = mask.copy()
+    filtered[np.isin(filtered, small)] = 0
+
+    n_total = int((labels != 0).sum())
+    print(f"Removed {len(small)} cells below {min_area}px (kept {n_total - len(small)}/{n_total})")
+    return filtered
+
+
 def extract_channels(tiff_path, nuclear_channel, membrane_channels, compartment):
     '''
     Extract and format channels from a multi-channel TIFF for CellSAM.
@@ -268,6 +297,8 @@ def parse_arguments():
                       help='Custom model path (optional)')
     parser.add_argument('--remove-border-cells', action='store_true',
                       help='Remove cells touching image borders')
+    parser.add_argument('--min-area', type=int, default=0,
+                      help='Minimum cell area in pixels. Cells smaller than this are removed (default: 0 = disabled)')
 
     return parser.parse_args()
 
@@ -321,6 +352,10 @@ def main():
 
     # Always remove border-touching cells
     mask = remove_border_cells(mask)
+
+    # Remove small cells if threshold set
+    if args.min_area > 0:
+        mask = remove_small_cells(mask, args.min_area)
 
     # Save segmentation mask
     tifffile.imwrite(args.output, mask.astype(np.uint32))
