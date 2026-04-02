@@ -694,11 +694,7 @@ def feature_for_cell(
         return None
     nuc_geom = mask_to_geometry(nmask, simplify_rois, tolerance, row_offset=row_offset, col_offset=col_offset)
 
-    measurements: Dict[str, Any] = {
-        "id": int(cell_id),
-        "cell_label": int(rec_cell_label) if rec_cell_label is not None else None,
-        "nucleus_label": int(rec_nucleus_label) if rec_nucleus_label is not None else None,
-    }
+    measurements: Dict[str, Any] = {}
     measurements.update(basic_shape_metrics(cmask, nmask, pixel_size_microns))
 
     if not skip_measurements:

@@ -444,11 +444,11 @@
                 },
                 "expansion_steps": {
                     "type": "string",
-                    "default": "7,14,21,29,36,43,50,57,64,71",
-                    "description": "Comma-separated expansion steps in pixels (~2,4,6,8,10,12,14,16,18,20 µm outward from cell boundary).",
+                    "default": "14,29,43,57,71",
+                    "description": "Comma-separated expansion steps in pixels (~4,8,12,16,20 µm outward from cell boundary).",
                     "fa_icon": "fas fa-expand-arrows-alt",
                     "pattern": "^([0-9]*)(,[0-9]*)*$",
-                    "help_text": "Measures mean/median intensity in annular rings dilated outward from the cell boundary to profile the pericellular neighbourhood. Targets ~2–20 µm. Recommended values: COMET (0.28 µm/px): 7,14,21,29,36,43,50,57,64,71; MIBI (0.390625 µm/px): 5,10,15,20,26,31,36,41,46,51; OPAL (0.4964 µm/px): 4,8,12,16,20,24,28,32,36,40. Set to empty string to disable. Skip measurements must be set to `false` to use this parameter."
+                    "help_text": "Measures mean/median intensity in annular rings dilated outward from the cell boundary to profile the pericellular neighbourhood. Targets ~4,8,12,16,20 µm. Recommended values: COMET (0.28 µm/px): 14,29,43,57,71; MIBI (0.390625 µm/px): 10,20,31,41,51; OPAL (0.4964 µm/px): 8,16,24,32,40. Set to empty string to disable. Skip measurements must be set to `false` to use this parameter."
                 },
                 "environment_expansion": {
                     "type": "integer",
