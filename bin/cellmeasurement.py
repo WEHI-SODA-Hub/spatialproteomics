@@ -333,11 +333,7 @@ def mask_to_geometry(
     if not np.any(mask):
         return None
 
-    if smooth_sigma > 0:
-        blurred = ndi.gaussian_filter(mask.astype(np.float32), sigma=smooth_sigma)
-        contours = find_contours(blurred, level=0.5)
-    else:
-        contours = find_contours(mask.astype(np.uint8), level=0.5)
+    contours = find_contours(mask.astype(np.uint8), level=0.5)
     if not contours:
         return None
 
@@ -370,6 +366,17 @@ def mask_to_geometry(
         g = g.buffer(0)
     if g.is_empty:
         return None
+
+    # Smooth pixel-staircase boundaries using morphological buffer close/open.
+    # buffer(+r) then buffer(-r) rounds off convex staircase corners and fills
+    # tiny concavities, producing clean curved boundaries without expanding the
+    # geometry or merging nearby cells (unlike raster-domain Gaussian blur).
+    if smooth_sigma > 0:
+        g = g.buffer(smooth_sigma).buffer(-smooth_sigma)
+        if g.is_empty:
+            return None
+        if not g.is_valid:
+            g = g.buffer(0)
 
     # Inset by 0.25 px so adjacent cells no longer share the 0.5-isocontour edge.
     # This prevents visual overlap artifacts when rendering in QuPath.
