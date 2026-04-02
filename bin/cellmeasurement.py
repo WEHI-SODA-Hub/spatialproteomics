@@ -23,7 +23,6 @@ from scipy import ndimage as ndi
 from scipy.spatial import cKDTree
 from shapely.geometry import Polygon, mapping, shape
 from shapely.ops import unary_union
-from shapely.strtree import STRtree
 from skimage.measure import block_reduce, find_contours, regionprops
 from skimage.morphology import binary_erosion, disk
 from skimage.segmentation import watershed
@@ -660,40 +659,78 @@ def constrain_cell_overlaps(features: List[Dict[str, Any]]) -> List[Dict[str, An
     For each pair of overlapping cells the overlap is assigned to the cell
     with the **smaller** area (the larger cell is trimmed), which preserves
     small cells and matches QuPath's heuristic.
+
+    Uses a grid-based spatial hash for broad-phase collision detection,
+    avoiding any Shapely STRtree version-dependent behaviour.
     """
     if not features:
         return features
 
+    n = len(features)
     geoms = [shape(f["geometry"]) for f in features]
-    tree = STRtree(geoms)
+    areas = [g.area for g in geoms]
 
+    # -- broad-phase: grid spatial hash based on geometry bounding boxes --
+    bounds = [g.bounds for g in geoms]  # (minx, miny, maxx, maxy)
+    all_minx = min(b[0] for b in bounds)
+    all_miny = min(b[1] for b in bounds)
+    all_maxx = max(b[2] for b in bounds)
+    all_maxy = max(b[3] for b in bounds)
+    span = max(all_maxx - all_minx, all_maxy - all_miny, 1.0)
+    # Target ~sqrt(n) cells so each cell has ~1 geometry on average
+    grid_size = max(span / max(int(n ** 0.5), 1), 1.0)
+
+    grid: Dict[Tuple[int, int], List[int]] = {}
+    for i, (minx, miny, maxx, maxy) in enumerate(bounds):
+        gx0 = int((minx - all_minx) / grid_size)
+        gy0 = int((miny - all_miny) / grid_size)
+        gx1 = int((maxx - all_minx) / grid_size)
+        gy1 = int((maxy - all_miny) / grid_size)
+        for gx in range(gx0, gx1 + 1):
+            for gy in range(gy0, gy1 + 1):
+                grid.setdefault((gx, gy), []).append(i)
+
+    # -- narrow-phase: pairwise intersection test and clipping --
+    checked: set = set()
     clipped = 0
-    for i in range(len(geoms)):
-        gi = geoms[i]
-        if gi.is_empty:
-            continue
-        candidates = tree.query(gi)
-        for j in candidates:
-            if j <= i:
-                continue
-            gj = geoms[j]
-            if gj.is_empty or not gi.intersects(gj):
-                continue
-            intersection = gi.intersection(gj)
-            if intersection.is_empty:
-                continue
-            # Trim the larger cell; keep the smaller cell intact.
-            if gi.area >= gj.area:
-                gi = gi.difference(intersection)
-                if not gi.is_valid:
-                    gi = gi.buffer(0)
-                geoms[i] = gi
-            else:
-                gj = gj.difference(intersection)
-                if not gj.is_valid:
-                    gj = gj.buffer(0)
-                geoms[j] = gj
-            clipped += 1
+    for cell_list in grid.values():
+        for ii in range(len(cell_list)):
+            i = cell_list[ii]
+            for jj in range(ii + 1, len(cell_list)):
+                j = cell_list[jj]
+                pair = (min(i, j), max(i, j))
+                if pair in checked:
+                    continue
+                checked.add(pair)
+
+                gi = geoms[i]
+                gj = geoms[j]
+                if gi.is_empty or gj.is_empty:
+                    continue
+
+                try:
+                    if not gi.intersects(gj):
+                        continue
+                    intersection = gi.intersection(gj)
+                    if intersection.is_empty or intersection.area < 1e-10:
+                        continue
+                except Exception:
+                    continue
+
+                # Trim the larger cell; keep the smaller cell intact.
+                if areas[i] >= areas[j]:
+                    gi = gi.difference(gj)
+                    if not gi.is_valid:
+                        gi = gi.buffer(0)
+                    geoms[i] = gi
+                    areas[i] = gi.area
+                else:
+                    gj = gj.difference(gi)
+                    if not gj.is_valid:
+                        gj = gj.buffer(0)
+                    geoms[j] = gj
+                    areas[j] = gj.area
+                clipped += 1
 
     out = []
     for f, g in zip(features, geoms):
@@ -702,16 +739,18 @@ def constrain_cell_overlaps(features: List[Dict[str, Any]]) -> List[Dict[str, An
         f["geometry"] = mapping(g)
         # Also clip nucleusGeometry if it extends beyond the trimmed cell
         if "nucleusGeometry" in f:
-            ng = shape(f["nucleusGeometry"])
-            ng = ng.intersection(g)
-            if not ng.is_empty:
-                f["nucleusGeometry"] = mapping(ng)
-            else:
+            try:
+                ng = shape(f["nucleusGeometry"])
+                ng = ng.intersection(g)
+                if not ng.is_empty:
+                    f["nucleusGeometry"] = mapping(ng)
+                else:
+                    del f["nucleusGeometry"]
+            except Exception:
                 del f["nucleusGeometry"]
         out.append(f)
 
-    if clipped:
-        print(f"Constrained {clipped} overlapping cell pairs; {len(features) - len(out)} cells removed")
+    print(f"Overlap constraint: checked {len(checked)} pairs, clipped {clipped}, removed {n - len(out)} empty cells")
     return out
 
 
