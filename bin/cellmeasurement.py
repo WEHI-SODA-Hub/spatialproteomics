@@ -47,8 +47,12 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("-d", "--downsample-factor", type=float, default=1.0)
     p.add_argument("-p", "--pixel-size-microns", type=float, default=0.5)
     p.add_argument("--skip-measurements", action="store_true")
-    p.add_argument("--simplify-rois", action="store_true")
-    p.add_argument("--tolerance", type=float, default=0.5)
+    p.add_argument("--simplify-rois", action="store_true",
+                   help="Simplify ROI geometry with Douglas-Peucker. Enabled by default; use --no-simplify-rois to disable.")
+    p.add_argument("--no-simplify-rois", dest="simplify_rois", action="store_false")
+    p.set_defaults(simplify_rois=True)
+    p.add_argument("--tolerance", type=float, default=1.4,
+                   help="Simplification tolerance in pixels (default 1.4, matching Cellpose extension VW distance)")
     p.add_argument("--percentiles", default="")
     p.add_argument("--erosion-steps", default="")
     p.add_argument("--expansion-steps", default="",
@@ -362,14 +366,6 @@ def mask_to_geometry(
         g = g.buffer(0)
     if g.is_empty:
         return None
-
-    # Inset by 0.25 px so adjacent cells no longer share the 0.5-isocontour edge.
-    # This prevents visual overlap artifacts when rendering in QuPath.
-    g = g.buffer(-0.25)
-    if g.is_empty:
-        return None
-    if not g.is_valid:
-        g = g.buffer(0)
 
     return g
 
@@ -882,18 +878,6 @@ def main() -> int:
 
     print(f"Loaded whole cell mask: {whole.shape}")
     print(f"Loaded nuclear mask: {nuc.shape}")
-
-    # Use nuclear centroids as seeds for whole-cell watershed regularization.
-    # Nuclear centroids are more reliable than whole-cell centroids because
-    # nuclei rarely overlap, whereas whole-cell overlaps from CellSAM cause
-    # corrupted centroids after flattening.
-    nuc_props = label_props_dict(nuc)
-    nuc_centroids = {lab: p["centroid"] for lab, p in nuc_props.items()}
-
-    n_whole_before = len(np.unique(whole)) - 1
-    whole = regularize_mask(whole, seed_centroids=nuc_centroids)
-    n_whole_after = len(np.unique(whole)) - 1
-    print(f"Regularized whole-cell mask: {n_whole_before} -> {n_whole_after} labels")
 
     cell_labels, nuc_labels, records, match_stats, bbox_map = match_cells(
         nuc, whole, args.dist_threshold, args.estimate_cell_boundary_dist
