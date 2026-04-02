@@ -360,6 +360,15 @@ def mask_to_geometry(
         g = g.buffer(0)
     if g.is_empty:
         return None
+
+    # Inset by 0.25 px so adjacent cells no longer share the 0.5-isocontour edge.
+    # This prevents visual overlap artifacts when rendering in QuPath.
+    g = g.buffer(-0.25)
+    if g.is_empty:
+        return None
+    if not g.is_valid:
+        g = g.buffer(0)
+
     return g
 
 
