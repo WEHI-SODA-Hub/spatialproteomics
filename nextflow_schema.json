@@ -463,6 +463,20 @@
                     "description": "Where no matching membrane ROI exists, expand the nucleus by this many pixels (default = 3.0).",
                     "fa_icon": "fas fa-expand-arrows-alt",
                     "minimum": 0
+                },
+                "skip_nuclear_mask": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Ignore the nuclear mask and generate ROIs from the whole-cell mask only. Skips compartmental measurements (Nucleus, Cytoplasm, Membrane) but retains Cell, erosion, and expansion measurements.",
+                    "fa_icon": "fas fa-ban"
+                },
+                "neighbors": {
+                    "type": "integer",
+                    "default": 5,
+                    "minimum": 0,
+                    "description": "Number of nearest neighbors for neighborhood feature aggregation (0 = disabled).",
+                    "fa_icon": "fas fa-project-diagram",
+                    "help_text": "For each cell, the max and mean of every numeric measurement are computed across its k closest spatial neighbours (by centroid distance). This produces features like 'Neighbors: Max: CD3: Cell: Mean' and 'Neighbors: Mean: CD3: Cell: Mean'. Set to 0 to disable. Typical values: 5\u201310."
                 }
             }
         },

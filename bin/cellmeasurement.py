@@ -65,6 +65,13 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--pretty-json", action="store_true", help="Write indented GeoJSON output")
     p.add_argument("--output-mask", default="",
                    help="Write a rasterized label mask TIFF from the final cell geometries")
+    p.add_argument("--skip-nuclear-mask", action="store_true",
+                   help="Ignore the nuclear mask entirely. ROIs are generated from the whole-cell mask only. "
+                        "Compartmental measurements (Nucleus, Cytoplasm, Membrane) are skipped. "
+                        "Cell, erosion, and expansion measurements are still produced.")
+    p.add_argument("--neighbors", type=int, default=0,
+                   help="Number of nearest neighbors for neighborhood feature aggregation (0 = disabled). "
+                        "Computes max and mean of every numeric measurement across each cell's k closest neighbours.")
     return p.parse_args()
 
 
@@ -538,6 +545,69 @@ def add_expansion_measurements(
         prev_step = s
 
 
+def add_neighborhood_features(features: List[Dict[str, Any]], k: int) -> None:
+    """Aggregate each cell's numeric measurements across its *k* nearest neighbours.
+
+    For every numeric measurement key, two new properties are added:
+      * ``Neighbors: Max: <key>``  – maximum value among the *k* neighbours
+      * ``Neighbors: Mean: <key>`` – mean value among the *k* neighbours
+
+    Centroids are taken from each feature's geometry.  Uses
+    `scipy.spatial.cKDTree` for fast lookup — runtime is O(n log n) build
+    + O(nk) query, so it adds negligible time even for tens of thousands
+    of cells.
+    """
+    if k <= 0 or len(features) < 2:
+        return
+
+    # -- build centroid array ------------------------------------------------
+    centroids = np.empty((len(features), 2), dtype=np.float64)
+    for i, feat in enumerate(features):
+        geom = shape(feat["geometry"])
+        c = geom.centroid
+        centroids[i] = (c.x, c.y)
+
+    tree = cKDTree(centroids)
+    # query k+1 because the nearest neighbour of a point is itself
+    actual_k = min(k + 1, len(features))
+    _, indices = tree.query(centroids, k=actual_k)
+
+    # -- collect measurement keys that are numeric --------------------------
+    sample_meas = features[0]["properties"].get("measurements", {})
+    numeric_keys = [
+        key for key, val in sample_meas.items()
+        if isinstance(val, (int, float)) and key not in ("id", "cell_label", "nucleus_label")
+    ]
+    if not numeric_keys:
+        return
+
+    # -- pre-extract measurement vectors for speed --------------------------
+    n = len(features)
+    meas_vectors: Dict[str, np.ndarray] = {}
+    for key in numeric_keys:
+        arr = np.full(n, np.nan, dtype=np.float64)
+        for i, feat in enumerate(features):
+            v = feat["properties"].get("measurements", {}).get(key)
+            if v is not None:
+                arr[i] = v
+        meas_vectors[key] = arr
+
+    # -- compute neighborhood aggregations ----------------------------------
+    for i, feat in enumerate(features):
+        # exclude self (index 0 in the sorted neighbour list)
+        if actual_k <= 1:
+            continue
+        nbr_idx = indices[i, 1:actual_k]  # skip self
+        meas = feat["properties"].setdefault("measurements", {})
+        for key in numeric_keys:
+            vals = meas_vectors[key][nbr_idx]
+            valid = vals[~np.isnan(vals)]
+            if valid.size == 0:
+                continue
+            meas[f"Neighbors: Max: {key}"] = float(np.max(valid))
+            meas[f"Neighbors: Mean: {key}"] = float(np.mean(valid))
+
+
 def parse_csv_numbers(s: str, cast=float, positive_only=False) -> List:
     if not s or not s.strip():
         return []
@@ -912,9 +982,28 @@ def main() -> int:
     print(f"Loaded whole cell mask: {whole.shape}")
     print(f"Loaded nuclear mask: {nuc.shape}")
 
-    cell_labels, nuc_labels, records, match_stats, bbox_map = match_cells(
-        nuc, whole, args.dist_threshold, args.estimate_cell_boundary_dist
-    )
+    if args.skip_nuclear_mask:
+        print("--skip-nuclear-mask: using whole-cell mask only (no compartmental measurements)")
+        # Use whole-cell labels directly; create an empty nuclear mask.
+        cell_labels = whole
+        nuc_labels = np.zeros_like(whole)
+        unique_cells = [int(x) for x in np.unique(cell_labels) if x > 0]
+        # Build bbox map from the whole-cell label mask
+        from skimage.measure import regionprops as _rp
+        bbox_map = {}
+        for r in _rp(cell_labels):
+            bbox_map[r.label] = (slice(r.bbox[0], r.bbox[2]), slice(r.bbox[1], r.bbox[3]))
+        records_by_id = {cid: CellRecord(cell_id=cid, cell_label=cid, nucleus_label=None) for cid in unique_cells}
+        match_stats = {
+            'nucleus_count': 0, 'whole_cell_count': len(unique_cells),
+            'matched_cells': 0, 'unmatched_whole_cells': len(unique_cells),
+            'dropped_synth_cells': 0,
+        }
+    else:
+        cell_labels, nuc_labels, records, match_stats, bbox_map = match_cells(
+            nuc, whole, args.dist_threshold, args.estimate_cell_boundary_dist
+        )
+        records_by_id = {r.cell_id: r for r in records}
 
     unique_cells = [int(x) for x in np.unique(cell_labels) if x > 0]
     bbox_ids = set(bbox_map.keys())
@@ -930,8 +1019,6 @@ def main() -> int:
         f"matched={match_stats['matched_cells']}, unmatched_whole={match_stats['unmatched_whole_cells']}, "
         f"dropped_estimated={match_stats['dropped_synth_cells']}"
     )
-
-    records_by_id = {r.cell_id: r for r in records}
 
     percentiles = parse_csv_numbers(args.percentiles, cast=float)
     erosion_steps_raw = parse_csv_numbers(args.erosion_steps, cast=int, positive_only=True)
@@ -1014,6 +1101,12 @@ def main() -> int:
 
     # Resolve overlapping cell geometries (equivalent to QuPath CellTools.constrainCellOverlaps)
     features = constrain_cell_overlaps(features)
+
+    # Neighbourhood feature aggregation (k-nearest-neighbour max/mean)
+    if args.neighbors and args.neighbors > 0:
+        print(f"Computing neighborhood features (k={args.neighbors})...")
+        add_neighborhood_features(features, args.neighbors)
+        print(f"Neighborhood features added for {len(features)} cells")
 
     # Top-level annotation feature for whole image extent.
     h, w = whole.shape
