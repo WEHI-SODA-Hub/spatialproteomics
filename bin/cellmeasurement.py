@@ -763,6 +763,34 @@ def constrain_cell_overlaps(features: List[Dict[str, Any]]) -> List[Dict[str, An
     return out
 
 
+def regularize_mask(mask: np.ndarray) -> np.ndarray:
+    """Re-partition a label mask using watershed from each label's centroid.
+
+    When overlapping instance masks (e.g. from CellSAM) are flattened to a
+    single label plane, the last-written label 'wins' overlap pixels, creating
+    irregular boundaries.  Watershed from centroids redistributes those pixels
+    so boundaries between adjacent cells are equidistant — producing clean,
+    convex-ish shapes instead of jagged artifacts.
+    """
+    props = label_props_dict(mask)
+    if not props:
+        return mask
+
+    seeds = np.zeros_like(mask, dtype=mask.dtype)
+    for lab, p in props.items():
+        r = int(round(p["centroid"][0]))
+        c = int(round(p["centroid"][1]))
+        # Clamp to valid coords (centroid may round outside bbox for tiny labels)
+        r = max(0, min(r, mask.shape[0] - 1))
+        c = max(0, min(c, mask.shape[1] - 1))
+        seeds[r, c] = lab
+
+    occupied = mask > 0
+    dist = ndi.distance_transform_edt(seeds == 0)
+    result = watershed(dist, markers=seeds, mask=occupied).astype(mask.dtype)
+    return result
+
+
 def main() -> int:
     args = parse_args()
     if args.tile_size <= 0:
@@ -796,6 +824,18 @@ def main() -> int:
 
     print(f"Loaded whole cell mask: {whole.shape}")
     print(f"Loaded nuclear mask: {nuc.shape}")
+
+    # Re-partition masks so boundaries between adjacent labels are equidistant.
+    # Fixes irregular shapes caused by flattening CellSAM overlapping instances.
+    n_whole_before = len(np.unique(whole)) - 1  # exclude background
+    whole = regularize_mask(whole)
+    n_whole_after = len(np.unique(whole)) - 1
+    print(f"Regularized whole-cell mask: {n_whole_before} -> {n_whole_after} labels")
+
+    n_nuc_before = len(np.unique(nuc)) - 1
+    nuc = regularize_mask(nuc)
+    n_nuc_after = len(np.unique(nuc)) - 1
+    print(f"Regularized nuclear mask: {n_nuc_before} -> {n_nuc_after} labels")
 
     cell_labels, nuc_labels, records, match_stats, bbox_map = match_cells(
         nuc, whole, args.dist_threshold, args.estimate_cell_boundary_dist
