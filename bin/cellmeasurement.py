@@ -51,8 +51,8 @@ def parse_args() -> argparse.Namespace:
                    help="Simplify ROI geometry with Douglas-Peucker. Enabled by default; use --no-simplify-rois to disable.")
     p.add_argument("--no-simplify-rois", dest="simplify_rois", action="store_false")
     p.set_defaults(simplify_rois=True)
-    p.add_argument("--tolerance", type=float, default=1.4,
-                   help="Simplification tolerance in pixels (default 1.4, matching Cellpose extension VW distance)")
+    p.add_argument("--tolerance", type=float, default=0.5,
+                   help="Simplification tolerance in pixels (default 0.5). Lower values preserve more shape detail.")
     p.add_argument("--percentiles", default="")
     p.add_argument("--erosion-steps", default="")
     p.add_argument("--expansion-steps", default="",
@@ -367,6 +367,11 @@ def mask_to_geometry(
     if g.is_empty:
         return None
 
+    # Ensure we only return Polygon (not GeometryCollection, MultiPolygon, etc.)
+    g = _ensure_largest_polygon(g)
+    if g is None or g.is_empty:
+        return None
+
     return g
 
 
@@ -659,6 +664,33 @@ def iter_tasks(
         )
 
 
+def _ensure_largest_polygon(geom):
+    """Extract the largest Polygon from any geometry, discarding non-polygon parts.
+
+    After boolean operations like ``.difference()``, a geometry may become a
+    GeometryCollection containing Polygons, LineStrings, and Points.  QuPath
+    requires pure Polygon or MultiPolygon geometry.  This mirrors the Cellpose
+    extension's ``GeometryTools.ensurePolygonal()`` + keep-largest logic.
+    """
+    if geom is None or geom.is_empty:
+        return geom
+    if not geom.is_valid:
+        geom = geom.buffer(0)
+    if geom.geom_type == "Polygon":
+        return geom
+    if geom.geom_type == "MultiPolygon":
+        # Keep only the largest polygon
+        largest = max(geom.geoms, key=lambda g: g.area)
+        return largest
+    if geom.geom_type == "GeometryCollection":
+        polys = [g for g in geom.geoms if g.geom_type == "Polygon" and not g.is_empty and g.area > 0]
+        if not polys:
+            return Polygon()  # empty
+        return max(polys, key=lambda g: g.area)
+    # LineString, Point, etc. — not usable
+    return Polygon()
+
+
 def constrain_cell_overlaps(features: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Clip overlapping cell geometries so no two cells share area.
 
@@ -726,22 +758,22 @@ def constrain_cell_overlaps(features: List[Dict[str, Any]]) -> List[Dict[str, An
 
                 # Trim the larger cell; keep the smaller cell intact.
                 if areas[i] >= areas[j]:
-                    gi = gi.difference(gj)
-                    if not gi.is_valid:
-                        gi = gi.buffer(0)
+                    gi = _ensure_largest_polygon(gi.difference(gj))
                     geoms[i] = gi
-                    areas[i] = gi.area
+                    areas[i] = gi.area if gi is not None and not gi.is_empty else 0
                 else:
-                    gj = gj.difference(gi)
-                    if not gj.is_valid:
-                        gj = gj.buffer(0)
+                    gj = _ensure_largest_polygon(gj.difference(gi))
                     geoms[j] = gj
-                    areas[j] = gj.area
+                    areas[j] = gj.area if gj is not None and not gj.is_empty else 0
                 clipped += 1
 
     out = []
     for f, g in zip(features, geoms):
-        if g.is_empty:
+        if g is None or g.is_empty:
+            continue
+        # Final safety: ensure only Polygon/MultiPolygon in output
+        g = _ensure_largest_polygon(g)
+        if g is None or g.is_empty:
             continue
         f["geometry"] = mapping(g)
         # Also clip nucleusGeometry if it extends beyond the trimmed cell
@@ -749,7 +781,8 @@ def constrain_cell_overlaps(features: List[Dict[str, Any]]) -> List[Dict[str, An
             try:
                 ng = shape(f["nucleusGeometry"])
                 ng = ng.intersection(g)
-                if not ng.is_empty:
+                ng = _ensure_largest_polygon(ng)
+                if ng is not None and not ng.is_empty:
                     f["nucleusGeometry"] = mapping(ng)
                 else:
                     del f["nucleusGeometry"]
