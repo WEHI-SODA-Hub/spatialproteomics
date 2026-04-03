@@ -29,18 +29,47 @@ from skimage.measure import block_reduce, find_contours, regionprops
 from skimage.morphology import binary_erosion, disk
 from skimage.segmentation import watershed
 
+# Pre-computed 3x3 disk structuring element used throughout for single-pixel
+# morphological erosion/dilation operations.  Frozen to prevent accidental mutation.
 _DISK_1 = disk(1)
 _DISK_1.flags.writeable = False
 
 
 @dataclass
 class CellRecord:
+    """Association record linking a unified cell ID to its source mask labels.
+
+    After ``match_cells()`` pairs nuclear and whole-cell segmentation labels,
+    each matched (or synthesized) cell gets a unique ``cell_id`` used in the
+    output label arrays.  ``cell_label`` and ``nucleus_label`` refer back to
+    the *original* label values in the input whole-cell and nuclear masks
+    respectively, allowing provenance tracking.  Either may be ``None`` when
+    the cell was synthesized from only one mask.
+    """
     cell_id: int
     cell_label: Optional[int]
     nucleus_label: Optional[int]
 
 
 def parse_args() -> argparse.Namespace:
+    """Define and parse all command-line arguments.
+
+    Returns a namespace with validated arguments controlling:
+
+    * **Input/output paths** — nuclear mask, whole-cell mask, multi-channel
+      TIFF image, and GeoJSON output file.
+    * **Spatial parameters** — pixel size, downsample factor, distance
+      thresholds for nucleus-to-cell matching and synthetic boundary
+      estimation.
+    * **Measurement options** — percentile computation, erosion/expansion
+      ring steps, environment dilation distance, and neighbourhood
+      aggregation (k-nearest neighbours).
+    * **Geometry options** — ROI simplification toggle and Douglas-Peucker
+      tolerance.
+    * **Performance** — thread count, tile size/overlap (compatibility only).
+    * **Output variants** — pretty-printed JSON, optional rasterized label
+      mask TIFF, and ``--skip-nuclear-mask`` mode.
+    """
     p = argparse.ArgumentParser(description="Extract cell measurements from masks and image TIFF.")
     p.add_argument("-n", "--nuclear-mask", required=True, help="Nuclear segmentation mask TIFF")
     p.add_argument("-w", "--whole-cell-mask", required=True, help="Whole-cell segmentation mask TIFF")
@@ -82,6 +111,22 @@ def parse_args() -> argparse.Namespace:
 
 
 def tile_flags_explicit(argv: Sequence[str]) -> bool:
+    """Check whether the user explicitly passed ``--tile-size`` or ``--tile-overlap``.
+
+    These flags are accepted for CLI compatibility with the original Groovy
+    implementation but are **not used** in this Python version.  When detected
+    a warning is printed so the user knows the flags are no-ops.
+
+    Parameters
+    ----------
+    argv : Sequence[str]
+        The raw command-line arguments (typically ``sys.argv[1:]``).
+
+    Returns
+    -------
+    bool
+        True if either flag appears in *argv*.
+    """
     return any(
         a == "--tile-size"
         or a.startswith("--tile-size=")
@@ -92,6 +137,29 @@ def tile_flags_explicit(argv: Sequence[str]) -> bool:
 
 
 def load_label_mask(path: str) -> np.ndarray:
+    """Read a 2-D integer label mask from a TIFF file.
+
+    The mask is expected to be a single-plane image where each pixel's value
+    is the integer label of the segmented object (0 = background).  The array
+    is cast to ``int64`` so that downstream arithmetic (differences, products)
+    never overflows, regardless of the original bit depth (commonly uint16 or
+    uint32 from segmentation tools).
+
+    Parameters
+    ----------
+    path : str
+        Filesystem path to the TIFF label mask.
+
+    Returns
+    -------
+    np.ndarray
+        2-D ``int64`` array of shape (H, W).
+
+    Raises
+    ------
+    ValueError
+        If the image is not exactly 2-D.
+    """
     arr = tifffile.imread(path)
     if arr.ndim != 2:
         raise ValueError(f"Mask must be 2D label image, got shape={arr.shape} for {path}")
@@ -100,6 +168,35 @@ def load_label_mask(path: str) -> np.ndarray:
 
 
 def load_image(path: str) -> Tuple[np.ndarray, List[str]]:
+    """Load a multi-channel TIFF image and extract per-channel names.
+
+    Supports several multiplexed imaging metadata conventions:
+
+    1. **OME-XML** ``Channel/@Name`` — standard for OME-TIFF; also works for
+       OPAL QPTIFF and COMET images that embed OME-XML in the first page's
+       ``ImageDescription`` tag.
+    2. **MIBI JSON** — per-page ``ImageDescription`` containing JSON with a
+       ``channel.target`` field (IONpath MIBIscope convention).
+    3. **ImageJ Labels** — ``imagej_metadata['Labels']`` list.
+
+    If none of these strategies yield the correct number of names, fallback
+    names ``"Channel 1"``, ``"Channel 2"``, … are generated.
+
+    The returned array is always shaped ``(C, H, W)`` and cast to
+    ``float32`` for downstream intensity arithmetic.
+
+    Parameters
+    ----------
+    path : str
+        Filesystem path to the multi-channel TIFF.
+
+    Returns
+    -------
+    image : np.ndarray
+        ``float32`` array of shape ``(C, H, W)``.
+    ch_names : list of str
+        Human-readable channel names, length ``C``.
+    """
     img = tifffile.imread(path)
     ch_names: List[str] = []
 
@@ -149,14 +246,17 @@ def load_image(path: str) -> Tuple[np.ndarray, List[str]]:
             except Exception:
                 pass
 
+    # --- Normalize image shape to (C, H, W) regardless of input layout ---
     if img.ndim == 2:
+        # Single-channel greyscale: promote to (1, H, W)
         img = img[np.newaxis, ...]
     elif img.ndim == 3:
-        # Accept C,Y,X or Y,X,C. Heuristic: if first dim is small, treat as channels.
+        # Accept C,Y,X or Y,X,C. Heuristic: if first dim is small (<= 64),
+        # assume it's already C,Y,X.  If last dim is small, it's Y,X,C.
         if img.shape[0] <= 64:
-            pass
+            pass  # already (C, H, W)
         elif img.shape[2] <= 64:
-            img = np.transpose(img, (2, 0, 1))
+            img = np.transpose(img, (2, 0, 1))  # convert (H, W, C) -> (C, H, W)
         else:
             raise ValueError(f"Unsupported 3D image layout: {img.shape}")
     else:
@@ -172,6 +272,31 @@ def load_image(path: str) -> Tuple[np.ndarray, List[str]]:
 
 
 def maybe_downsample(image_cyx: np.ndarray, nuc: np.ndarray, whole: np.ndarray, ds: float) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Optionally downsample the image and label masks by an integer factor.
+
+    When ``ds > 1``, the image intensities are reduced using **block mean**
+    (to preserve average signal) while label masks use **block max** (to
+    avoid creating spurious zero-gaps between adjacent labels).  The arrays
+    are first cropped to dimensions divisible by the step so that
+    ``block_reduce`` does not zero-pad edge blocks and introduce bias.
+
+    Parameters
+    ----------
+    image_cyx : np.ndarray
+        Multi-channel image, shape ``(C, H, W)``.
+    nuc : np.ndarray
+        Nuclear label mask, shape ``(H, W)``.
+    whole : np.ndarray
+        Whole-cell label mask, shape ``(H, W)``.
+    ds : float
+        Downsample factor.  Rounded to the nearest integer; values < 2
+        result in no downsampling.
+
+    Returns
+    -------
+    tuple of (image_ds, nuc_ds, whole_ds)
+        Downsampled arrays.  ``image_ds`` is ``float32``; masks are ``int64``.
+    """
     if ds <= 1.0:
         return image_cyx, nuc, whole
     step = int(round(ds))
@@ -197,6 +322,24 @@ def maybe_downsample(image_cyx: np.ndarray, nuc: np.ndarray, whole: np.ndarray, 
 
 
 def label_props_dict(label_img: np.ndarray) -> Dict[int, Dict[str, Any]]:
+    """Build a dictionary of region properties keyed by label value.
+
+    Uses ``skimage.measure.regionprops`` to extract the centroid (row, col)
+    and bounding box (minr, minc, maxr, maxc) of each labelled region.
+    These are the only properties needed by the matching and task-generation
+    stages, so we extract them once upfront rather than calling
+    ``regionprops`` repeatedly.
+
+    Parameters
+    ----------
+    label_img : np.ndarray
+        2-D integer label image (0 = background).
+
+    Returns
+    -------
+    dict
+        ``{label: {"centroid": (row, col), "bbox": (minr, minc, maxr, maxc)}}``
+    """
     out: Dict[int, Dict[str, Any]] = {}
     for r in regionprops(label_img):
         out[int(r.label)] = {
@@ -209,6 +352,54 @@ def label_props_dict(label_img: np.ndarray) -> Dict[int, Dict[str, Any]]:
 def match_cells(
     nuc: np.ndarray, whole: np.ndarray, dist_threshold: float, estimate_dist: float
 ) -> Tuple[np.ndarray, np.ndarray, List[CellRecord], Dict[str, int], Dict[int, Tuple[slice, slice]]]:
+    """Match nuclear labels to whole-cell labels and produce unified cell arrays.
+
+    This is the core cell-association step that links nuclei to their
+    enclosing cytoplasm.  It runs in two passes:
+
+    **Pass 1 — centroid matching:**
+    For each nucleus, find the nearest whole-cell centroid within
+    ``dist_threshold`` pixels using a ``cKDTree``.  If a unique match is
+    found, the nucleus and whole-cell pixels are painted into the output
+    arrays with a shared ``cell_id``.  Pixels already claimed by an
+    earlier cell are excluded (first-come-first-served) to avoid label
+    collisions in the output.
+
+    **Pass 2 — watershed synthesis:**
+    Nuclei that did not match any whole-cell label get synthetic cell
+    boundaries via watershed expansion.  Each unmatched nucleus is used
+    as a seed; the watershed floods outward up to ``estimate_dist``
+    pixels into unclaimed territory, producing Voronoi-like partitions
+    that prevent adjacent unmatched nuclei from overlapping.
+
+    Parameters
+    ----------
+    nuc : np.ndarray
+        Nuclear label mask (H, W), int64.
+    whole : np.ndarray
+        Whole-cell label mask (H, W), int64.
+    dist_threshold : float
+        Maximum centroid distance (pixels) for a nucleus–cell match.
+    estimate_dist : float
+        Dilation radius (pixels) for synthesizing cell boundaries around
+        unmatched nuclei.
+
+    Returns
+    -------
+    out_cell : np.ndarray
+        Unified cell label mask (H, W) with sequential ``cell_id`` values.
+    out_nuc : np.ndarray
+        Corresponding nuclear label mask (H, W), using the same
+        ``cell_id`` values as ``out_cell``.
+    records : list of CellRecord
+        One record per cell, linking ``cell_id`` to the original mask labels.
+    stats : dict
+        Matching summary counts (nuclei, whole cells, matched, unmatched,
+        dropped).
+    bbox_map : dict
+        ``{cell_id: (row_slice, col_slice)}`` tight bounding box for each
+        cell, padded by 1 pixel on each side for safe contour extraction.
+    """
     whole_props = label_props_dict(whole)
     nuc_props = label_props_dict(nuc)
 
@@ -217,13 +408,15 @@ def match_cells(
     out_cell = np.zeros_like(whole, dtype=np.int64)
     out_nuc = np.zeros_like(nuc, dtype=np.int64)
 
+    # Build cKDTree from whole-cell centroids for fast nearest-neighbour lookup
+    # when matching each nucleus to its enclosing cell body.
     whole_labels = sorted(whole_props.keys())
     whole_pts = np.array([whole_props[l]["centroid"] for l in whole_labels], dtype=np.float64)
     tree = cKDTree(whole_pts) if len(whole_pts) else None
 
-    next_id = 1
-    used_whole: set[int] = set()
-    dropped_synth_cells = 0
+    next_id = 1  # sequential cell ID counter for the output arrays
+    used_whole: set[int] = set()  # whole-cell labels already claimed by a nucleus
+    dropped_synth_cells = 0  # count of cells dropped due to complete occlusion
 
     # Track which nuclei need synthesized boundaries for the watershed pass.
     unmatched_nuclei: List[Tuple[int, int]] = []  # (nuc_label, assigned_cell_id)
@@ -251,21 +444,26 @@ def match_cells(
 
             rs = slice(minr, maxr)
             cs = slice(minc, maxc)
-            npatch = nuc[rs, cs] == nlab
-            cpatch = whole[rs, cs] == matched_whole
+            npatch = nuc[rs, cs] == nlab    # nucleus pixels in the crop
+            cpatch = whole[rs, cs] == matched_whole  # cell pixels in the crop
 
-            # Avoid overlaps in synthesized output labels.
+            # Avoid overlaps in synthesized output labels: only paint into
+            # pixels not yet claimed by an earlier cell (first-come priority).
             available = out_cell[rs, cs] == 0
             cpatch = cpatch & available
-            npatch = npatch & cpatch
+            npatch = npatch & cpatch  # nucleus must also be within available cell pixels
 
             if not np.any(cpatch):
                 dropped_synth_cells += 1
                 continue
 
+            # Paint the matched cell and its nucleus into the output arrays
+            # with a shared cell_id so they can be cross-referenced later.
             out_cell[rs, cs][cpatch] = next_id
             out_nuc[rs, cs][npatch] = next_id
 
+            # Compute tight bounding box (with 1px padding for contour safety)
+            # from the actual painted pixels, not from the input region props.
             cell_rows, cell_cols = np.nonzero(cpatch)
             cell_minr = minr + int(cell_rows.min())
             cell_minc = minc + int(cell_cols.min())
@@ -343,6 +541,40 @@ def mask_to_geometry(
     row_offset: int = 0,
     col_offset: int = 0,
 ):
+    """Convert a binary mask to a Shapely Polygon via marching-squares contours.
+
+    Extracts sub-pixel contours from ``mask`` using ``skimage.find_contours``
+    at the 0.5 iso-level (the midpoint between 0 and 1), converts them to
+    Shapely Polygons, merges any disjoint pieces via ``unary_union``, and
+    optionally simplifies the result with Douglas-Peucker.
+
+    Contour coordinates are shifted by ``(row_offset, col_offset)`` so that
+    geometries from local bounding-box crops map back to global image
+    coordinates.
+
+    Non-polygon geometry artefacts (LineStrings, Points) that can arise from
+    degenerate contours or boolean operations are discarded; only the single
+    largest Polygon is returned, matching QuPath's convention of one polygon
+    per cell detection.
+
+    Parameters
+    ----------
+    mask : np.ndarray
+        2-D binary mask (truthy = foreground).
+    simplify : bool
+        Whether to apply Douglas-Peucker simplification.
+    tolerance : float
+        Simplification tolerance in pixels.  Lower values preserve more shape
+        detail at the cost of larger GeoJSON output.
+    row_offset, col_offset : int
+        Global pixel offsets added to contour coordinates.
+
+    Returns
+    -------
+    shapely.geometry.Polygon or None
+        The cell polygon in global image coordinates, or ``None`` if the
+        mask is empty or produces no valid geometry.
+    """
     if not np.any(mask):
         return None
 
@@ -389,6 +621,43 @@ def mask_to_geometry(
 
 
 def basic_shape_metrics(cell_mask: np.ndarray, nuc_mask: Optional[np.ndarray], px_um: float) -> Dict[str, float]:
+    """Compute morphological shape descriptors for a single cell and its nucleus.
+
+    Uses ``skimage.measure.regionprops`` on the binary mask to extract:
+
+    * **Area** — pixel count converted to µm² via ``(pixel_size)²``.
+    * **Circularity** — ``4π · area / perimeter²``; equals 1.0 for a
+      perfect circle, <1 for elongated or irregular shapes.
+    * **Length** — perimeter in µm.
+    * **Max / Min diameter** — major and minor axis lengths of the
+      best-fit ellipse.
+    * **Solidity** — ``area / convex_hull_area``; how 'filled' the shape
+      is (1.0 = fully convex).
+
+    If a nuclear mask is provided and non-empty, the same metrics are
+    computed for the nucleus, plus a **Nucleus/Cell area ratio**.
+
+    .. note::
+
+       These measurements are computed from the **raw segmentation mask**
+       before any polygon overlap clipping.  They reflect the segmentation
+       model's output, not the final QuPath-compatible geometry.
+
+    Parameters
+    ----------
+    cell_mask : np.ndarray
+        Boolean or binary mask of the cell body.
+    nuc_mask : np.ndarray or None
+        Boolean or binary mask of the nucleus (same shape as *cell_mask*).
+    px_um : float
+        Pixel size in micrometres.
+
+    Returns
+    -------
+    dict
+        Measurement name → float value, keyed like
+        ``"Cell: Area µm^2"``, ``"Nucleus: Circularity"``, etc.
+    """
     rp = regionprops(cell_mask.astype(np.uint8))
     if not rp:
         return {}
@@ -426,6 +695,31 @@ def basic_shape_metrics(cell_mask: np.ndarray, nuc_mask: Optional[np.ndarray], p
 
 
 def compartment_masks(cell_mask: np.ndarray, nuc_mask: np.ndarray) -> Dict[str, np.ndarray]:
+    """Derive the four sub-cellular compartment masks from cell and nucleus masks.
+
+    Compartments follow QuPath's cell measurement model:
+
+    * **CELL** — the entire cell body (boolean of *cell_mask*).
+    * **NUCLEUS** — the nuclear region (boolean of *nuc_mask*).
+    * **CYTOPLASM** — cell minus nucleus: ``cell & ~nucleus``.
+    * **MEMBRANE** — 1-pixel-wide outer ring of the cell, obtained by
+      subtracting the eroded cell from the original:
+      ``cell & ~erode(cell, disk(1))``.  This is a morphological
+      approximation of the plasma membrane.
+
+    Parameters
+    ----------
+    cell_mask : np.ndarray
+        Binary cell body mask.
+    nuc_mask : np.ndarray
+        Binary nucleus mask (same shape).
+
+    Returns
+    -------
+    dict
+        ``{"CELL": ..., "NUCLEUS": ..., "CYTOPLASM": ..., "MEMBRANE": ...}``
+        Each value is a boolean ``np.ndarray``.
+    """
     cm = cell_mask.astype(bool)
     nm = nuc_mask.astype(bool)
     cyto = cm & ~nm
@@ -439,6 +733,13 @@ def compartment_masks(cell_mask: np.ndarray, nuc_mask: np.ndarray) -> Dict[str, 
 
 
 def stat_values(vals: np.ndarray) -> Dict[str, float]:
+    """Compute summary statistics for a 1-D array of pixel intensity values.
+
+    Returns mean, median, min, max, and standard deviation.  These match
+    the summary statistics that QuPath reports per-channel per-compartment.
+    Returns an empty dict if *vals* is empty (e.g. the compartment mask
+    has zero pixels).
+    """
     if vals.size == 0:
         return {}
     return {
@@ -451,6 +752,26 @@ def stat_values(vals: np.ndarray) -> Dict[str, float]:
 
 
 def add_intensity_measurements(props: Dict[str, Any], image_cyx: np.ndarray, ch_names: Sequence[str], comp_masks: Dict[str, np.ndarray]):
+    """Add per-channel, per-compartment intensity summary statistics to *props*.
+
+    For every combination of image channel and compartment mask (Cell,
+    Nucleus, Cytoplasm, Membrane), extracts the pixel values under the
+    mask and computes Mean, Median, Min, Max, and Std.Dev.  Keys are
+    formatted as ``"<channel>: <compartment>: <stat>"`` to match QuPath's
+    measurement table convention.
+
+    Parameters
+    ----------
+    props : dict
+        Measurement dictionary to populate (mutated in place).
+    image_cyx : np.ndarray
+        Multi-channel image crop, shape ``(C, H, W)``.
+    ch_names : sequence of str
+        Channel names, length ``C``.
+    comp_masks : dict
+        Compartment name → boolean mask, as returned by
+        ``compartment_masks()``.
+    """
     labels = {"CELL": "Cell", "NUCLEUS": "Nucleus", "CYTOPLASM": "Cytoplasm", "MEMBRANE": "Membrane"}
     for ci, ch in enumerate(ch_names):
         ch_img = image_cyx[ci]
@@ -463,6 +784,28 @@ def add_intensity_measurements(props: Dict[str, Any], image_cyx: np.ndarray, ch_
 
 
 def add_percentiles(props: Dict[str, Any], image_cyx: np.ndarray, ch_names: Sequence[str], comp_masks: Dict[str, np.ndarray], percentiles: Sequence[float]):
+    """Add user-specified intensity percentiles per channel and compartment.
+
+    Similar to ``add_intensity_measurements`` but computes arbitrary
+    percentiles (e.g. 5th, 25th, 75th, 95th) instead of fixed summary
+    statistics.  Useful for robust central-tendency estimators or for
+    detecting bimodal intensity distributions within a compartment.
+
+    Keys are formatted as ``"<channel>: <compartment>: Percentile: <p>"``.
+
+    Parameters
+    ----------
+    props : dict
+        Measurement dictionary (mutated in place).
+    image_cyx : np.ndarray
+        Multi-channel image crop, shape ``(C, H, W)``.
+    ch_names : sequence of str
+        Channel names.
+    comp_masks : dict
+        Compartment → boolean mask.
+    percentiles : sequence of float
+        Percentile values to compute (0–100).
+    """
     labels = {"CELL": "Cell", "NUCLEUS": "Nucleus", "CYTOPLASM": "Cytoplasm", "MEMBRANE": "Membrane"}
     for ci, ch in enumerate(ch_names):
         ch_img = image_cyx[ci]
@@ -475,12 +818,52 @@ def add_percentiles(props: Dict[str, Any], image_cyx: np.ndarray, ch_names: Sequ
 
 
 def erode_steps(mask: np.ndarray, step: int) -> np.ndarray:
+    """Iteratively erode a binary mask by *step* pixels using a disk(1) element.
+
+    Each iteration peels one pixel from the boundary.  Used by
+    ``add_erosion_measurements`` to progressively shrink the cell or nucleus
+    mask and measure intensity at increasing depth from the boundary.
+
+    Returns the original mask unchanged if ``step <= 0``.
+    """
     if step <= 0:
         return mask
     return ndi.binary_erosion(mask, structure=_DISK_1, iterations=step)
 
 
 def add_erosion_measurements(props: Dict[str, Any], image_cyx: np.ndarray, ch_names: Sequence[str], comp_masks: Dict[str, np.ndarray], steps: Sequence[int]):
+    """Measure intensity at progressively eroded depths within Cell and Nucleus.
+
+    For each erosion step *s* (in pixels), the compartment mask is shrunk
+    inward by *s* pixels from the boundary.  This reveals how marker
+    expression varies with depth from the cell/nucleus edge — e.g.
+    membrane-localised markers will drop off quickly with erosion while
+    diffuse cytoplasmic markers remain stable.
+
+    Erosion steps are applied **cumulatively** (i.e. step 3 erodes 3
+    additional pixels beyond step 0, not 3 beyond step 2), and the
+    implementation tracks the previous erosion level to avoid redundant
+    work.
+
+    Produces for each step:
+      * ``<Compartment>: Eroded_<s>px: Area_Fraction`` — fraction of the
+        original compartment area remaining after erosion.
+      * ``<channel>: <Compartment>: Eroded_<s>px: Mean/Median`` —
+        intensity statistics within the eroded mask.
+
+    Parameters
+    ----------
+    props : dict
+        Measurement dictionary (mutated in place).
+    image_cyx : np.ndarray
+        Multi-channel image crop.
+    ch_names : sequence of str
+        Channel names.
+    comp_masks : dict
+        Compartment → boolean mask.
+    steps : sequence of int
+        Erosion distances in pixels (de-duplicated and sorted internally).
+    """
     ordered_steps = sorted(set(int(s) for s in steps if int(s) > 0))
     if not ordered_steps:
         return
@@ -520,7 +903,35 @@ def add_expansion_measurements(
 
     Each ring at step *s* covers the zone [dilated_{s-1}, dilated_s) so that
     rings are mutually exclusive and together form a radial profile of the
-    pericellular neighbourhood.
+    pericellular neighbourhood.  This is analogous to measuring at increasing
+    distances *outside* the cell, complementing the erosion measurements
+    that probe *inside* the cell.
+
+    Produces for each step:
+      * ``Cell: Expanded_<s>px: Area_Fraction`` — ring area as a fraction
+        of the original cell area.  Useful for normalisation.
+      * ``<channel>: Cell: Expanded_<s>px: Mean/Median`` — intensity
+        statistics within the annular ring.
+
+    .. note::
+
+       Expansion is performed on the **raw raster mask** before overlap
+       clipping, so annular rings may extend into territory that is later
+       assigned to a neighbouring cell.  The measurements therefore reflect
+       the unmodified pericellular microenvironment.
+
+    Parameters
+    ----------
+    props : dict
+        Measurement dictionary (mutated in place).
+    image_cyx : np.ndarray
+        Multi-channel image crop.
+    ch_names : sequence of str
+        Channel names.
+    cell_mask : np.ndarray
+        Binary cell body mask.
+    steps : sequence of int
+        Expansion distances in pixels (de-duplicated and sorted internally).
     """
     ordered_steps = sorted(set(int(s) for s in steps if int(s) > 0))
     if not ordered_steps:
@@ -560,10 +971,34 @@ def add_environment_measurements(
 ):
     """Measure intensity in the full pericellular environment zone.
 
-    Unlike `add_expansion_measurements` which splits into annular rings, this
-    computes a single dilation of *expansion_px* pixels and measures the
-    **entire** zone between the cell boundary and the outer ring.  This matches
-    CellTune's "Environment" compartment.
+    Unlike ``add_expansion_measurements`` which splits the dilated zone into
+    mutually exclusive annular rings, this function computes a single
+    dilation of *expansion_px* pixels and measures the **entire** zone
+    between the cell boundary and the outer ring as one compartment.  This
+    matches CellTune's "Environment" compartment for characterising the
+    local tissue microenvironment around each cell.
+
+    Typical dilation distances for ~20 µm coverage:
+      * COMET images (≈0.28 µm/px): ~71 px
+      * MIBI images (≈0.39 µm/px): ~51 px
+      * OPAL images (≈0.50 µm/px): ~40 px
+
+    Produces:
+      * ``Cell: Environment_<N>px: Pixel_Count`` and ``Area_Fraction``
+      * ``<channel>: Cell: Environment_<N>px: Mean/Median/Min/Max/Std.Dev.``
+
+    Parameters
+    ----------
+    props : dict
+        Measurement dictionary (mutated in place).
+    image_cyx : np.ndarray
+        Multi-channel image crop.
+    ch_names : sequence of str
+        Channel names.
+    cell_mask : np.ndarray
+        Binary cell body mask.
+    expansion_px : int
+        Dilation radius in pixels.  0 disables this measurement.
     """
     if expansion_px <= 0:
         return
@@ -592,14 +1027,42 @@ def add_environment_measurements(
 def add_neighborhood_features(features: List[Dict[str, Any]], k: int) -> None:
     """Aggregate each cell's numeric measurements across its *k* nearest neighbours.
 
-    For every numeric measurement key, two new properties are added:
-      * ``Neighbors: Max: <key>``  – maximum value among the *k* neighbours
-      * ``Neighbors: Mean: <key>`` – mean value among the *k* neighbours
+    For every numeric measurement key already present in the features (from
+    shape, intensity, erosion, expansion, and environment measurements), two
+    new properties are added per cell:
 
-    Centroids are taken from each feature's geometry.  Uses
-    `scipy.spatial.cKDTree` for fast lookup — runtime is O(n log n) build
-    + O(nk) query, so it adds negligible time even for tens of thousands
-    of cells.
+      * ``Neighbors: Max: <key>``  — maximum value among the *k* neighbours
+      * ``Neighbors: Mean: <key>`` — mean value among the *k* neighbours
+
+    This enables spatial analyses such as identifying cells in high-expression
+    neighbourhoods or detecting local heterogeneity.
+
+    **Implementation details:**
+
+    1. Centroids are computed from each feature's (post-clipping) polygon
+       geometry, so spatial proximity reflects the final exported positions.
+    2. A ``scipy.spatial.cKDTree`` is built for O(n log n) nearest-neighbour
+       lookup.  The query requests k+1 neighbours because the closest
+       neighbour of each point is itself.
+    3. Measurement values are pre-extracted into contiguous NumPy arrays
+       (one per measurement key) for vectorised slicing, avoiding repeated
+       dict lookups in the inner loop.
+
+    .. note::
+
+       The input measurement values were computed from the **raw raster
+       masks** before polygon overlap clipping (see ``feature_for_cell``).
+       Neighbourhood aggregation therefore propagates these pre-clipping
+       values.  This is intentional: the raw-mask measurements are
+       considered the more biologically faithful signal source.
+
+    Parameters
+    ----------
+    features : list of dict
+        GeoJSON Feature dicts, each with ``properties.measurements``.
+        Mutated in place to add neighbourhood keys.
+    k : int
+        Number of nearest neighbours.  0 or negative disables the feature.
     """
     if k <= 0 or len(features) < 2:
         return
@@ -658,6 +1121,26 @@ def add_neighborhood_features(features: List[Dict[str, Any]], k: int) -> None:
 
 
 def parse_csv_numbers(s: str, cast=float, positive_only=False) -> List:
+    """Parse a comma-separated string of numbers into a typed list.
+
+    Used to parse ``--percentiles``, ``--erosion-steps``, and
+    ``--expansion-steps`` CLI arguments.  Empty or whitespace-only strings
+    return an empty list.  Invalid tokens raise ``ValueError``.
+
+    Parameters
+    ----------
+    s : str
+        Comma-separated numeric string, e.g. ``"5,25,75,95"``.
+    cast : callable
+        Type constructor (``float`` or ``int``).
+    positive_only : bool
+        If True, silently drop values ≤ 0.
+
+    Returns
+    -------
+    list
+        Parsed and optionally filtered numeric values.
+    """
     if not s or not s.strip():
         return []
     out = []
@@ -694,17 +1177,82 @@ def feature_for_cell(
     expansion_steps: Sequence[int] = (),
     environment_expansion: int = 0,
 ):
+    """Build a complete GeoJSON Feature dict for a single cell.
+
+    This is the per-cell workhorse called once per cell (possibly in a
+    worker process when ``--threads > 1``).  It receives a small crop of
+    the label masks and image around the cell's bounding box and:
+
+    1. Extracts the binary cell mask (``cell_crop == cell_id``) and
+       nuclear mask from the label crops.
+    2. Converts the cell mask to a Shapely Polygon via ``mask_to_geometry``.
+    3. Computes all requested measurements from the **raw raster mask**:
+       shape metrics, per-channel per-compartment intensity statistics,
+       optional percentiles, erosion profiles, expansion rings, and
+       environment zone.
+    4. Packages everything into a GeoJSON Feature with ``geometry``,
+       ``nucleusGeometry``, and ``properties.measurements``.
+
+    .. note::
+
+       Measurements are computed from the original segmentation mask,
+       *before* any polygon overlap clipping in ``constrain_cell_overlaps``.
+       This means the measurement values reflect the segmentation model's
+       raw output rather than the final display geometry.
+
+    Parameters
+    ----------
+    cell_id : int
+        Unified cell ID (label value in the output mask arrays).
+    cell_crop, nuc_crop : np.ndarray
+        Label mask crops around this cell's bounding box.
+    image_crop : np.ndarray
+        Multi-channel image crop, shape ``(C, h, w)``.
+    row_offset, col_offset : int
+        Global offsets to translate crop coordinates back to full-image
+        coordinates for the output geometry.
+    rec_cell_label, rec_nucleus_label : int or None
+        Original label values from the input masks (for provenance).
+    simplify_rois : bool
+        Whether to apply Douglas-Peucker simplification to the polygon.
+    tolerance : float
+        Simplification tolerance in pixels.
+    pixel_size_microns : float
+        Pixel size for converting area/length to physical units.
+    skip_measurements : bool
+        If True, only shape metrics are computed (no intensity stats).
+    ch_names : sequence of str
+        Channel names.
+    percentiles, erosion_steps, expansion_steps : sequences
+        Optional measurement parameters.
+    environment_expansion : int
+        Pericellular environment dilation radius (0 = disabled).
+
+    Returns
+    -------
+    dict or None
+        GeoJSON Feature dict, or ``None`` if the cell mask produces no
+        valid geometry (e.g. entirely occluded by prior cells).
+    """
+    # --- Step 1: Extract binary masks from the label crop ---
     cmask = cell_crop == cell_id
     nmask = nuc_crop == cell_id
+
+    # --- Step 2: Convert raster mask to vector polygon (global coords) ---
     geom = mask_to_geometry(cmask, simplify_rois, tolerance, row_offset=row_offset, col_offset=col_offset)
     if geom is None:
         return None
     nuc_geom = mask_to_geometry(nmask, simplify_rois, tolerance, row_offset=row_offset, col_offset=col_offset)
 
+    # --- Step 3: Compute measurements from the RAW raster mask ---
+    # Note: these are intentionally computed before overlap clipping so they
+    # reflect the segmentation model's original output, not the QuPath-
+    # compatible trimmed polygons.
     measurements: Dict[str, Any] = {}
     measurements.update(basic_shape_metrics(cmask, nmask, pixel_size_microns))
 
     if not skip_measurements:
+        # Derive sub-cellular compartment masks (cell, nucleus, cytoplasm, membrane)
         comps = compartment_masks(cmask, nmask)
         add_intensity_measurements(measurements, image_crop, ch_names, comps)
         if percentiles:
@@ -716,6 +1264,7 @@ def feature_for_cell(
         if environment_expansion > 0:
             add_environment_measurements(measurements, image_crop, ch_names, cmask, environment_expansion)
 
+    # --- Step 4: Package into GeoJSON Feature ---
     feature: Dict[str, Any] = {
         "type": "Feature",
         "id": f"cell-{cell_id}",
@@ -748,6 +1297,44 @@ def iter_tasks(
     expansion_steps: Sequence[int] = (),
     environment_expansion: int = 0,
 ):
+    """Lazily yield per-cell task tuples for ``feature_for_cell``.
+
+    Each yielded tuple contains all the data a worker process needs to
+    compute one cell's feature independently: a crop of the label masks
+    and image around the cell's bounding box, plus all scalar parameters.
+
+    Crops are **copied** from the parent arrays before yielding so that
+    each task is self-contained and safely picklable for
+    ``ProcessPoolExecutor``.  The generator is consumed lazily to avoid
+    materialising all crops in memory simultaneously.
+
+    The bounding box is padded outward by ``max(expansion_steps,
+    environment_expansion)`` pixels when expansion or environment
+    measurements are requested, so that dilation in the worker doesn't
+    run past the crop boundary.
+
+    Parameters
+    ----------
+    unique_cells : sequence of int
+        Sorted list of cell IDs to process.
+    bbox_map : dict
+        ``{cell_id: (row_slice, col_slice)}`` from ``match_cells``.
+    records_by_id : dict
+        ``{cell_id: CellRecord}`` for provenance labels.
+    cell_labels, nuc_labels : np.ndarray
+        Full-image label masks.
+    img_cyx : np.ndarray
+        Full multi-channel image.
+    args : argparse.Namespace
+        Parsed CLI arguments.
+    ch_names, percentiles, erosion_steps, expansion_steps, environment_expansion
+        Measurement configuration.
+
+    Yields
+    ------
+    tuple
+        Positional arguments for ``feature_for_cell(*)``.
+    """
     max_expand = max(
         max(expansion_steps) if expansion_steps else 0,
         environment_expansion,
@@ -790,10 +1377,21 @@ def iter_tasks(
 def _ensure_largest_polygon(geom):
     """Extract the largest Polygon from any geometry, discarding non-polygon parts.
 
-    After boolean operations like ``.difference()``, a geometry may become a
-    GeometryCollection containing Polygons, LineStrings, and Points.  QuPath
-    requires pure Polygon or MultiPolygon geometry.  This mirrors the Cellpose
-    extension's ``GeometryTools.ensurePolygonal()`` + keep-largest logic.
+    After boolean operations like ``.difference()`` or ``.intersection()``,
+    a Shapely geometry may degenerate into a *GeometryCollection*
+    containing a mix of Polygons, LineStrings, and Points.  QuPath's
+    GeoJSON import requires pure Polygon or MultiPolygon geometry, so
+    this function cleans up the result by:
+
+    * Returning *geom* unchanged if it is already a Polygon.
+    * Extracting the **largest** Polygon (by area) from a MultiPolygon
+      or GeometryCollection.
+    * Returning an empty Polygon for any geometry type that is not
+      area-bearing (LineString, Point, etc.).
+    * Repairing invalid geometries via ``buffer(0)``.
+
+    This mirrors the Cellpose QuPath extension's
+    ``GeometryTools.ensurePolygonal()`` + keep-largest logic.
     """
     if geom is None or geom.is_empty:
         return geom
@@ -817,32 +1415,75 @@ def _ensure_largest_polygon(geom):
 def constrain_cell_overlaps(features: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Clip overlapping cell geometries so no two cells share area.
 
-    Equivalent to QuPath's ``CellTools.constrainCellOverlaps()``.
-    For each pair of overlapping cells the overlap is assigned to the cell
-    with the **smaller** area (the larger cell is trimmed), which preserves
-    small cells and matches QuPath's heuristic.
+    Equivalent to QuPath's ``CellTools.constrainCellOverlaps()``.  When two
+    cell polygons overlap, the **larger** cell is trimmed via
+    ``Polygon.difference()`` so the overlap region is assigned to the
+    **smaller** cell.  This heuristic preserves small cells (which are
+    more likely to be fully enclosed) and matches QuPath's behaviour.
 
-    Uses a grid-based spatial hash for broad-phase collision detection,
-    avoiding any Shapely STRtree version-dependent behaviour.
+    **Algorithm:**
+
+    1. **Broad phase — grid spatial hash.**  Each polygon's bounding box is
+       inserted into a uniform grid whose cell size targets ~√n grid cells
+       (so each bucket has O(1) polygons on average).  Only pairs sharing
+       at least one grid bucket are tested for intersection.
+    2. **Narrow phase — pairwise Shapely intersection test.**  For each
+       candidate pair, ``intersects()`` and ``intersection()`` determine
+       whether they genuinely overlap (area > 1e-10 px²).  If so, the
+       larger cell's geometry is replaced with
+       ``larger.difference(smaller)``, and cleaned up via
+       ``_ensure_largest_polygon()``.
+    3. **Output assembly.**  Cells whose geometry was reduced to empty by
+       successive clipping are dropped.  Nucleus geometries that now
+       extend beyond the trimmed cell polygon are intersected down.
+
+    The ``checked`` set ensures each pair is tested at most once even if
+    both polygons span multiple grid buckets.
+
+    .. note::
+
+       This function modifies **geometry only**; the ``measurements`` dict
+       on each feature is *not* recalculated.  Measurements were computed
+       from the raw raster mask in ``feature_for_cell`` and reflect the
+       segmentation model's output, not the clipped display polygon.
+
+    Parameters
+    ----------
+    features : list of dict
+        GeoJSON Feature dicts with ``geometry`` and optionally
+        ``nucleusGeometry``.
+
+    Returns
+    -------
+    list of dict
+        Features with non-overlapping cell geometries.  Empty cells are
+        removed; the list may be shorter than the input.
     """
     if not features:
         return features
 
     n = len(features)
+    # Deserialize GeoJSON geometries into Shapely objects for spatial ops
     geoms = [shape(f["geometry"]) for f in features]
     areas = [g.area for g in geoms]
 
     # -- broad-phase: grid spatial hash based on geometry bounding boxes --
+    # Instead of testing all n*(n-1)/2 pairs, we partition space into a
+    # uniform grid and only test pairs that share at least one grid cell.
     bounds = [g.bounds for g in geoms]  # (minx, miny, maxx, maxy)
     all_minx = min(b[0] for b in bounds)
     all_miny = min(b[1] for b in bounds)
     all_maxx = max(b[2] for b in bounds)
     all_maxy = max(b[3] for b in bounds)
     span = max(all_maxx - all_minx, all_maxy - all_miny, 1.0)
-    # Target ~sqrt(n) cells so each cell has ~1 geometry on average
+    # Grid cell size is chosen so there are ~sqrt(n) buckets along each
+    # axis, meaning each bucket contains ~1 geometry on average for a
+    # uniform distribution.  Dense clusters will have more, but the
+    # 'checked' set prevents redundant pair tests.
     grid_size = max(span / max(int(n ** 0.5), 1), 1.0)
 
     print(f"  Building spatial grid (grid_size={grid_size:.1f})...")
+    # Insert each geometry into every grid bucket its bounding box overlaps
     grid: Dict[Tuple[int, int], List[int]] = {}
     for i, (minx, miny, maxx, maxy) in enumerate(bounds):
         gx0 = int((minx - all_minx) / grid_size)
@@ -854,6 +1495,8 @@ def constrain_cell_overlaps(features: List[Dict[str, Any]]) -> List[Dict[str, An
                 grid.setdefault((gx, gy), []).append(i)
 
     # -- narrow-phase: pairwise intersection test and clipping --
+    # For each grid bucket, test all pairs of geometries within it.
+    # The 'checked' set avoids re-testing pairs that appear in multiple buckets.
     checked: set = set()
     clipped = 0
     _grid_total = len(grid)
@@ -933,6 +1576,29 @@ def rasterize_features_to_mask(
     Each cell is rasterized with its ``properties.id`` as the label value.
     Produces the same format as smooth_masks output — a 2-D integer label
     image where 0 is background.
+
+    This is the inverse of the contour extraction in ``mask_to_geometry``:
+    it converts the final post-clipping vector polygons back to a raster
+    representation.  The resulting mask reflects the **clipped** geometries
+    (after ``constrain_cell_overlaps``), so it is suitable for use in
+    downstream raster-based analyses that need non-overlapping cell regions.
+
+    Rasterization uses ``skimage.draw.polygon`` (scan-line fill).  For
+    MultiPolygon cells, all component polygons are filled.  Interior holes
+    in polygons are **not** handled (they are filled), which matches the
+    typical cell segmentation use case where cells are simply-connected.
+
+    Parameters
+    ----------
+    features : list of dict
+        GeoJSON Feature dicts (only ``objectType == "cell"`` are used).
+    height, width : int
+        Output mask dimensions (should match the original image).
+
+    Returns
+    -------
+    np.ndarray
+        2-D int32 or int64 label mask of shape ``(height, width)``.
     """
     from skimage.draw import polygon as draw_polygon
 
@@ -976,18 +1642,33 @@ def regularize_mask(
 
     When overlapping instance masks (e.g. from CellSAM) are flattened to a
     single label plane, the last-written label 'wins' overlap pixels, creating
-    irregular boundaries.  Watershed from seed points redistributes those
-    pixels so boundaries between adjacent cells are equidistant.
+    irregular, jagged boundaries between adjacent cells.  This function
+    redistributes those pixels using watershed flooding from seed centroids,
+    producing smooth, equidistant (Voronoi-like) boundaries.
+
+    **How it works:**
+
+    1. Compute the Euclidean distance transform from each seed point.
+    2. Run watershed on this distance image, restricted to the occupied
+       (non-background) region of the original mask.
+    3. Each pixel is assigned to the label of the nearest seed, producing
+       equidistant boundaries.
 
     Parameters
     ----------
     mask : np.ndarray
         Integer label image where 0 is background.
     seed_centroids : dict, optional
-        Mapping of label -> (row, col) centroid to use as seeds. If None,
-        centroids are computed from the mask itself. Providing external
-        centroids (e.g. from the nuclear mask) avoids using corrupted
-        centroids from a flattened overlapping mask.
+        Mapping of ``label -> (row, col)`` centroid to use as watershed
+        seeds.  If ``None``, centroids are computed from ``mask`` itself
+        via ``regionprops``.  Providing external centroids (e.g. from the
+        nuclear mask) avoids using corrupted centroids from a flattened
+        overlapping mask where region shapes are already distorted.
+
+    Returns
+    -------
+    np.ndarray
+        Re-partitioned label mask with the same dtype as *mask*.
     """
     props = label_props_dict(mask)
     if not props:
@@ -1010,7 +1691,42 @@ def regularize_mask(
 
 
 def main() -> int:
+    """Entry point: orchestrate the full cell measurement pipeline.
+
+    **Pipeline stages:**
+
+    1. **Parse arguments** and validate constraints.
+    2. **Load inputs** — nuclear mask, whole-cell mask, multi-channel image.
+       Optionally downsample all three arrays by the same factor.
+    3. **Match cells** — pair nuclear and whole-cell labels via centroid
+       proximity (``match_cells``); synthesize boundaries for unmatched
+       nuclei via watershed.  In ``--skip-nuclear-mask`` mode, whole-cell
+       labels are used directly.
+    4. **Measure** — for each cell, extract a bounding-box crop and compute
+       shape metrics + intensity statistics from the **raw raster mask**
+       (``feature_for_cell``, possibly parallelised across
+       ``--threads`` workers).  Results are streamed to a temporary JSONL
+       file to limit peak memory.
+    5. **Free arrays** — release the large image and mask arrays to reclaim
+       memory before post-processing.
+    6. **Overlap clipping** — resolve overlapping cell polygons so no two
+       cells share area (``constrain_cell_overlaps``).  Measurements are
+       **not** recomputed; they reflect the raw segmentation masks.
+    7. **Neighbourhood features** — optionally aggregate each cell's
+       measurements across its k nearest neighbours.
+    8. **Export** — write the GeoJSON FeatureCollection (with an
+       annotation feature for the whole image extent) and optionally a
+       rasterized label mask TIFF from the clipped polygons.
+
+    Returns
+    -------
+    int
+        Exit code (0 on success).
+    """
     args = parse_args()
+    # ===================================================================
+    # Stage 1: Validate arguments
+    # ===================================================================
     if args.tile_size <= 0:
         raise ValueError("tile-size must be > 0")
     if args.tile_overlap < 0:
@@ -1029,6 +1745,9 @@ def main() -> int:
     if tile_flags_explicit(sys.argv[1:]):
         print("Warning: --tile-size/--tile-overlap are parsed for compatibility but not used in this Python implementation")
 
+    # ===================================================================
+    # Stage 2: Load inputs and optionally downsample
+    # ===================================================================
     whole = load_label_mask(args.whole_cell_mask)
     if args.skip_nuclear_mask:
         nuc = None
@@ -1113,6 +1832,10 @@ def main() -> int:
     if args.environment_expansion > 0:
         print(f"Will add environment measurements ({args.environment_expansion}px dilation)")
 
+    # ===================================================================
+    # Stage 4: Per-cell measurement (parallelisable)
+    # Stream features to a temp JSONL file to limit peak memory.
+    # ===================================================================
     out_path = Path(args.output_file)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     _tmp_path = str(out_path) + '.features.jsonl.tmp'
@@ -1135,6 +1858,7 @@ def main() -> int:
     )
 
     if args.threads > 1:
+        # --- Multi-process execution: bounded work queue to limit memory ---
         with ProcessPoolExecutor(max_workers=args.threads) as ex:
             max_inflight = max(1, args.threads * 4)
             future_map = {}
@@ -1171,6 +1895,7 @@ def main() -> int:
                         break
                     future_map[ex.submit(feature_for_cell, *task)] = task[0]
     else:
+        # --- Single-threaded execution: simpler, easier to debug ---
         for i, t in enumerate(task_iter, 1):
             feat = feature_for_cell(*t)
             if feat is not None:
@@ -1182,12 +1907,18 @@ def main() -> int:
 
     _tmp_f.close()
 
-    # --- Free large arrays to reclaim memory for post-processing ---
+    # ===================================================================
+    # Stage 5: Free large arrays to reclaim memory for post-processing
+    # ===================================================================
     del task_iter, img_cyx, cell_labels, nuc_labels, bbox_map, records_by_id
     gc.collect()
     print(f"Wrote {feature_count} features to temp file; freed image/mask arrays for post-processing")
 
-    # --- Load features from temp file ---
+    # ===================================================================
+    # Stage 6: Load features and resolve geometry overlaps
+    # Note: measurements are NOT recomputed after clipping — they reflect
+    # the raw segmentation masks, which is intentional (see docstrings).
+    # ===================================================================
     print("Loading features from temp file...")
     features = []
     with open(_tmp_path, 'r', encoding='utf-8') as _tmp_r:
@@ -1204,13 +1935,21 @@ def main() -> int:
     # Resolve overlapping cell geometries (equivalent to QuPath CellTools.constrainCellOverlaps)
     features = constrain_cell_overlaps(features)
 
-    # Neighbourhood feature aggregation (k-nearest-neighbour max/mean)
+    # ===================================================================
+    # Stage 7: Neighbourhood feature aggregation (optional)
+    # Uses post-clipping centroids for spatial proximity but pre-clipping
+    # measurement values for the aggregated statistics.
+    # ===================================================================
     if args.neighbors and args.neighbors > 0:
         print(f"Computing neighborhood features (k={args.neighbors})...")
         add_neighborhood_features(features, args.neighbors)
         print(f"Neighborhood features added for {len(features)} cells")
 
-    # Top-level annotation feature for whole image extent.
+    # ===================================================================
+    # Stage 8: Assemble and export GeoJSON FeatureCollection
+    # ===================================================================
+    # Top-level annotation feature for whole image extent — acts as a
+    # bounding region when the GeoJSON is loaded into QuPath.
     h, w = image_shape
     annotation = {
         "type": "Feature",
@@ -1236,6 +1975,9 @@ def main() -> int:
 
     print(f"Exported to GeoJSON: {out_path}")
 
+    # Optionally rasterize the clipped polygons back to a label mask TIFF.
+    # This mask reflects the POST-clipping geometry (non-overlapping), unlike
+    # the measurements which reflect the pre-clipping raw segmentation masks.
     if args.output_mask:
         mask_out = rasterize_features_to_mask(features, h, w)
         mask_path = Path(args.output_mask)
