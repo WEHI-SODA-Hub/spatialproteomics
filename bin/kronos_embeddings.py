@@ -173,73 +173,32 @@ def match_markers(image_marker_names, kronos_metadata_df, user_mapping=None, top
     return matched_df, unmatched_report
 
 
-def extract_cell_patches(image, mask, patch_size=64):
+def find_cell_centroids(mask):
     """
-    Extract cell-centered patches from the multiplexed image using the segmentation mask.
-
-    For each unique cell ID in the mask, finds the centroid and extracts a
-    (num_channels, patch_size, patch_size) patch centered on it. Patches near
-    image boundaries are zero-padded.
+    Find cell IDs and centroids from a segmentation mask without extracting patches.
 
     Args:
-        image: numpy array of shape (C, H, W) - the multiplexed image.
         mask: numpy array of shape (H, W) - the whole-cell segmentation mask.
-        patch_size: Size of the square patch to extract around each cell centroid.
 
     Returns:
-        Tuple of (cell_ids, centroids, patches):
+        Tuple of (cell_ids, centroids):
             - cell_ids: list of integer cell IDs
             - centroids: list of (y_center, x_center) tuples
-            - patches: numpy array of shape (num_cells, C, patch_size, patch_size)
     """
     cell_ids_unique = np.unique(mask)
     cell_ids_unique = cell_ids_unique[cell_ids_unique > 0]  # skip background
 
-    C, H, W = image.shape
-    half = patch_size // 2
-
     cell_ids = []
     centroids = []
-    patches = []
 
     for cell_id in cell_ids_unique:
-        # Find centroid of cell
         ys, xs = np.where(mask == cell_id)
         y_center = int(np.mean(ys))
         x_center = int(np.mean(xs))
-
-        # Calculate patch bounds
-        y1 = y_center - half
-        y2 = y_center + half
-        x1 = x_center - half
-        x2 = x_center + half
-
-        # Create padded patch
-        patch = np.zeros((C, patch_size, patch_size), dtype=image.dtype)
-
-        # Calculate source and destination slices accounting for boundaries
-        src_y1 = max(0, y1)
-        src_y2 = min(H, y2)
-        src_x1 = max(0, x1)
-        src_x2 = min(W, x2)
-
-        dst_y1 = src_y1 - y1
-        dst_y2 = dst_y1 + (src_y2 - src_y1)
-        dst_x1 = src_x1 - x1
-        dst_x2 = dst_x1 + (src_x2 - src_x1)
-
-        patch[:, dst_y1:dst_y2, dst_x1:dst_x2] = image[:, src_y1:src_y2, src_x1:src_x2]
-
         cell_ids.append(int(cell_id))
         centroids.append((y_center, x_center))
-        patches.append(patch)
 
-    if len(patches) > 0:
-        patches = np.stack(patches, axis=0)
-    else:
-        patches = np.zeros((0, C, patch_size, patch_size), dtype=image.dtype)
-
-    return cell_ids, centroids, patches
+    return cell_ids, centroids
 
 
 def load_kronos_model(model_path, config_path=None, device="cpu"):
@@ -282,22 +241,23 @@ def load_kronos_model(model_path, config_path=None, device="cpu"):
     return model, precision, embedding_dim
 
 
-def extract_embeddings(model, patches, marker_ids, marker_means, marker_stds,
-                       max_value=65535.0, batch_size=32, num_workers=4,
+def extract_embeddings(model, image, centroids, marker_ids, marker_means, marker_stds,
+                       patch_size=64, max_value=65535.0, batch_size=32, num_workers=4,
                        device="cpu", precision=torch.float32):
     """
     Run KRONOS inference on cell patches to extract embeddings.
 
-    Uses a DataLoader with configurable num_workers for parallel data
-    loading and preprocessing, which significantly speeds up inference
-    on HPC systems with many CPU cores.
+    Patches are extracted lazily from the image on-demand to avoid
+    materializing all patches in memory at once.
 
     Args:
         model: Loaded KRONOS model.
-        patches: numpy array of shape (N, C, H, W) with raw intensity values.
+        image: numpy array of shape (C, H, W) with the matched channels.
+        centroids: list of (y_center, x_center) tuples for each cell.
         marker_ids: numpy array of marker IDs for each channel (length C).
         marker_means: numpy array of marker means for normalization (length C).
         marker_stds: numpy array of marker stds for normalization (length C).
+        patch_size: Size of the square patch to extract around each cell centroid.
         max_value: Maximum intensity value for initial normalization.
         batch_size: Batch size for inference.
         num_workers: Number of DataLoader workers for parallel data loading.
@@ -309,34 +269,59 @@ def extract_embeddings(model, patches, marker_ids, marker_means, marker_stds,
             - 'patch_embeddings': numpy array of shape (N, embedding_dim)
             - 'marker_embeddings': numpy array of shape (N, num_markers, embedding_dim) or None
     """
-    N = patches.shape[0]
+    N = len(centroids)
     if N == 0:
         return {"patch_embeddings": np.array([]), "marker_embeddings": None}
 
-    # Create a simple TensorDataset and DataLoader for parallel loading
     means = torch.tensor(marker_means, dtype=precision)
     stds = torch.tensor(marker_stds, dtype=precision)
     marker_ids_tensor = torch.tensor(marker_ids, dtype=torch.long)
 
-    class _PatchDataset(torch.utils.data.Dataset):
-        def __init__(self, patches_np, means, stds, max_value, precision):
-            self.patches_np = patches_np
+    class _LazyPatchDataset(torch.utils.data.Dataset):
+        """Extracts patches on-the-fly from the image to avoid storing all patches in RAM."""
+        def __init__(self, image, centroids, patch_size, means, stds, max_value, precision):
+            self.image = image  # (C, H, W) numpy array
+            self.centroids = centroids
+            self.patch_size = patch_size
             self.means = means
             self.stds = stds
             self.max_value = max_value
             self.precision = precision
+            self.C, self.H, self.W = image.shape
+            self.half = patch_size // 2
 
         def __len__(self):
-            return len(self.patches_np)
+            return len(self.centroids)
 
         def __getitem__(self, idx):
-            patch = torch.tensor(self.patches_np[idx], dtype=self.precision)
-            # Normalize: scale by max value, then standardize
+            y_center, x_center = self.centroids[idx]
+            half = self.half
+
+            y1 = y_center - half
+            y2 = y_center + half
+            x1 = x_center - half
+            x2 = x_center + half
+
+            patch = np.zeros((self.C, self.patch_size, self.patch_size), dtype=self.image.dtype)
+
+            src_y1 = max(0, y1)
+            src_y2 = min(self.H, y2)
+            src_x1 = max(0, x1)
+            src_x2 = min(self.W, x2)
+
+            dst_y1 = src_y1 - y1
+            dst_y2 = dst_y1 + (src_y2 - src_y1)
+            dst_x1 = src_x1 - x1
+            dst_x2 = dst_x1 + (src_x2 - src_x1)
+
+            patch[:, dst_y1:dst_y2, dst_x1:dst_x2] = self.image[:, src_y1:src_y2, src_x1:src_x2]
+
+            patch = torch.tensor(patch, dtype=self.precision)
             patch = patch / self.max_value
             patch = (patch - self.means[:, None, None]) / self.stds[:, None, None]
             return patch
 
-    dataset = _PatchDataset(patches, means, stds, max_value, precision)
+    dataset = _LazyPatchDataset(image, centroids, patch_size, means, stds, max_value, precision)
     dataloader = torch.utils.data.DataLoader(
         dataset,
         batch_size=batch_size,
@@ -797,6 +782,7 @@ def main():
     # Select only matched channels from the image
     matched_channels = matched_df["image_channel"].values
     image_matched = image[matched_channels]
+    del image  # free full image memory
     marker_ids = matched_df["marker_id"].values
     marker_means = matched_df["marker_mean"].values
     marker_stds = matched_df["marker_std"].values
@@ -826,10 +812,13 @@ def main():
         print(f"  Mask shape: {mask.shape}, unique cells: {len(np.unique(mask)) - 1}")
         uuid_to_label = None
 
-    # Extract cell-centered patches
-    print(f"Extracting cell patches (patch_size={args.patch_size})...")
-    cell_ids, centroids, patches = extract_cell_patches(image_matched, mask, args.patch_size)
-    print(f"  Extracted {len(cell_ids)} cell patches")
+    # Extract cell centroids from mask (no patches stored in memory)
+    print(f"Finding cell centroids (patch_size={args.patch_size})...")
+    cell_ids, centroids = find_cell_centroids(mask)
+    print(f"  Found {len(cell_ids)} cells")
+
+    # Free mask memory - no longer needed (geojson merge recreates it if needed)
+    del mask
 
     if len(cell_ids) == 0:
         print("WARNING: No cells found in segmentation mask.")
@@ -841,11 +830,11 @@ def main():
     model, precision, embedding_dim = load_kronos_model(args.model_path, args.config_path, device)
     print(f"  Model loaded: precision={precision}, embedding_dim={embedding_dim}")
 
-    # Extract embeddings
+    # Extract embeddings (patches extracted lazily to save memory)
     print(f"Extracting embeddings (batch_size={args.batch_size}, num_workers={args.num_workers})...")
     results = extract_embeddings(
-        model, patches, marker_ids, marker_means, marker_stds,
-        max_value=args.max_value, batch_size=args.batch_size,
+        model, image_matched, centroids, marker_ids, marker_means, marker_stds,
+        patch_size=args.patch_size, max_value=args.max_value, batch_size=args.batch_size,
         num_workers=args.num_workers, device=device, precision=precision,
     )
 
