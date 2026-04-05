@@ -24,9 +24,11 @@ Usage:
 """
 
 import argparse
+import gc
 import json
 import os
 import sys
+import time
 import warnings
 
 import numpy as np
@@ -36,6 +38,7 @@ import torch.utils.data
 import tifffile
 
 from difflib import SequenceMatcher
+from scipy.ndimage import center_of_mass
 
 try:
     from shapely.geometry import Polygon
@@ -45,6 +48,29 @@ except ImportError:
     GEOJSON_TO_MASK_AVAILABLE = False
 
 warnings.filterwarnings("ignore")
+
+
+def _mem_gb():
+    """Return current process RSS memory in GB (Linux/macOS)."""
+    try:
+        import resource
+        rss_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        # macOS returns bytes, Linux returns KB
+        if sys.platform == "darwin":
+            return rss_kb / (1024 ** 3)
+        return rss_kb / (1024 ** 2)
+    except Exception:
+        return -1.0
+
+
+def _log(msg):
+    """Print a timestamped debug message with memory usage."""
+    mem = _mem_gb()
+    ts = time.strftime("%H:%M:%S")
+    if mem >= 0:
+        print(f"[{ts}] [RSS {mem:.1f} GB] {msg}", flush=True)
+    else:
+        print(f"[{ts}] {msg}", flush=True)
 
 
 def get_channel_names(tif_path):
@@ -60,14 +86,15 @@ def get_channel_names(tif_path):
     Returns:
         List of channel name strings.
     """
+    _log(f"get_channel_names: opening {tif_path}")
     with tifffile.TiffFile(tif_path) as tif:
-        img = tif.asarray()
-        if img.ndim == 2:
-            n_channels = 1
-        elif img.ndim == 3:
-            n_channels = img.shape[0]
+        # Get channel count from metadata without loading pixel data
+        if tif.series:
+            shape = tif.series[0].shape
+            n_channels = shape[0] if len(shape) >= 3 else 1
         else:
-            n_channels = img.shape[0]
+            n_channels = len(tif.pages) if len(tif.pages) > 1 else 1
+        _log(f"  n_channels={n_channels}, n_pages={len(tif.pages)}, is_ome={tif.is_ome}")
 
         channel_names = []
 
@@ -95,6 +122,56 @@ def get_channel_names(tif_path):
             channel_names = [f"Channel_{i}" for i in range(n_channels)]
 
     return channel_names
+
+
+def read_matched_channels(tiff_path, matched_channels):
+    """
+    Read only the specified channels from a TIFF file to avoid loading the
+    entire image into memory. Falls back to full read + slice for single-page
+    multi-channel TIFFs.
+
+    Args:
+        tiff_path: Path to the TIFF file.
+        matched_channels: numpy array of channel indices to read.
+
+    Returns:
+        numpy array of shape (len(matched_channels), H, W).
+    """
+    t0 = time.time()
+    with tifffile.TiffFile(tiff_path) as tif:
+        n_pages = len(tif.pages)
+        max_ch = int(max(matched_channels))
+        _log(f"  TIFF has {n_pages} pages, need channels up to index {max_ch}")
+        if n_pages > 1 and n_pages > max_ch:
+            # Multi-page TIFF: read only needed pages (memory efficient)
+            _log(f"  Using per-page reading strategy ({len(matched_channels)} pages)")
+            first_page = tif.pages[int(matched_channels[0])].asarray()
+            page_shape = first_page.shape
+            page_dtype = first_page.dtype
+            est_gb = (len(matched_channels) * np.prod(page_shape) * first_page.itemsize) / (1024**3)
+            _log(f"  Page shape: {page_shape}, dtype: {page_dtype}, estimated total: {est_gb:.2f} GB")
+            result = np.empty(
+                (len(matched_channels), *page_shape),
+                dtype=page_dtype,
+            )
+            result[0] = first_page
+            del first_page
+            for i, ch in enumerate(matched_channels[1:], 1):
+                result[i] = tif.pages[int(ch)].asarray()
+            _log(f"  Read {len(matched_channels)} pages in {time.time() - t0:.1f}s")
+            return result
+        else:
+            # Single-page multi-channel or other layout: load full and slice
+            _log(f"  Using full-load + slice strategy (n_pages={n_pages})")
+            img = tif.asarray()
+            if img.ndim == 2:
+                img = img[np.newaxis, ...]
+            _log(f"  Full image shape: {img.shape}, dtype: {img.dtype}, size: {img.nbytes / (1024**3):.2f} GB")
+            result = img[matched_channels].copy()
+            del img
+            gc.collect()
+            _log(f"  Sliced to {result.shape} in {time.time() - t0:.1f}s")
+            return result
 
 
 def match_markers(image_marker_names, kronos_metadata_df, user_mapping=None, top_suggestions=5):
@@ -185,18 +262,21 @@ def find_cell_centroids(mask):
             - cell_ids: list of integer cell IDs
             - centroids: list of (y_center, x_center) tuples
     """
+    t0 = time.time()
+    _log(f"  Mask shape: {mask.shape}, dtype: {mask.dtype}, size: {mask.nbytes / (1024**3):.2f} GB")
     cell_ids_unique = np.unique(mask)
     cell_ids_unique = cell_ids_unique[cell_ids_unique > 0]  # skip background
+    _log(f"  Found {len(cell_ids_unique)} unique cell labels (range: {cell_ids_unique.min()}-{cell_ids_unique.max()})" if len(cell_ids_unique) > 0 else "  No cells found in mask")
 
-    cell_ids = []
-    centroids = []
+    if len(cell_ids_unique) == 0:
+        return [], []
 
-    for cell_id in cell_ids_unique:
-        ys, xs = np.where(mask == cell_id)
-        y_center = int(np.mean(ys))
-        x_center = int(np.mean(xs))
-        cell_ids.append(int(cell_id))
-        centroids.append((y_center, x_center))
+    # Use scipy for efficient vectorized centroid computation (single pass)
+    centroids_array = center_of_mass(mask, labels=mask, index=cell_ids_unique)
+
+    cell_ids = cell_ids_unique.tolist()
+    centroids = [(int(round(c[0])), int(round(c[1]))) for c in centroids_array]
+    _log(f"  Computed {len(cell_ids)} centroids in {time.time() - t0:.1f}s")
 
     return cell_ids, centroids
 
@@ -227,16 +307,22 @@ def load_kronos_model(model_path, config_path=None, device="cpu"):
         cfg = {"model_type": "vits16", "token_overlap": False}
 
     # Import kronos - it should be installed in the container/environment
+    _log(f"  Importing kronos and loading checkpoint: {model_path}")
+    _log(f"  Config path: {config_path}, config keys: {list(cfg.keys())}")
     from kronos import create_model_from_pretrained
 
+    t0 = time.time()
     model, precision, embedding_dim = create_model_from_pretrained(
         checkpoint_path=model_path,
         cfg_path=config_path,
         cfg=cfg,
     )
+    _log(f"  Model created in {time.time() - t0:.1f}s")
 
     model = model.to(device)
     model.eval()
+    param_count = sum(p.numel() for p in model.parameters())
+    _log(f"  Model on {device}: {param_count/1e6:.1f}M parameters, precision={precision}, embedding_dim={embedding_dim}")
 
     return model, precision, embedding_dim
 
@@ -270,9 +356,12 @@ def extract_embeddings(model, image, centroids, marker_ids, marker_means, marker
             - 'marker_embeddings': numpy array of shape (N, num_markers, embedding_dim) or None
     """
     N = len(centroids)
+    _log(f"extract_embeddings: N={N}, C={image.shape[0]}, patch_size={patch_size}, batch_size={batch_size}, num_workers={num_workers}")
     if N == 0:
+        _log("  No centroids to process, returning empty")
         return {"patch_embeddings": np.array([]), "marker_embeddings": None}
 
+    _log(f"  Image array: shape={image.shape}, dtype={image.dtype}, size={image.nbytes / (1024**3):.2f} GB")
     means = torch.tensor(marker_means, dtype=precision)
     stds = torch.tensor(marker_stds, dtype=precision)
     marker_ids_tensor = torch.tensor(marker_ids, dtype=torch.long)
@@ -322,6 +411,7 @@ def extract_embeddings(model, image, centroids, marker_ids, marker_means, marker
             return patch
 
     dataset = _LazyPatchDataset(image, centroids, patch_size, means, stds, max_value, precision)
+    _log(f"  DataLoader: batch_size={batch_size}, num_workers={num_workers}, pin_memory={device != 'cpu'}")
     dataloader = torch.utils.data.DataLoader(
         dataset,
         batch_size=batch_size,
@@ -335,6 +425,7 @@ def extract_embeddings(model, image, centroids, marker_ids, marker_means, marker
     all_marker_embeddings = []
     processed = 0
     total_batches = len(dataloader)
+    t_inference = time.time()
 
     for batch_idx, batch in enumerate(dataloader):
         batch = batch.to(device, non_blocking=True)
@@ -361,14 +452,19 @@ def extract_embeddings(model, image, centroids, marker_ids, marker_means, marker
             all_marker_embeddings.append(marker_emb)
 
         processed += batch.shape[0]
-        print(f"  Processed {processed}/{N} cells (batch {batch_idx+1}/{total_batches})", end="\r")
+        if batch_idx == 0 or (batch_idx + 1) % max(1, total_batches // 10) == 0 or batch_idx == total_batches - 1:
+            elapsed = time.time() - t_inference
+            cells_per_sec = processed / elapsed if elapsed > 0 else 0
+            _log(f"  Batch {batch_idx+1}/{total_batches}: {processed}/{N} cells ({cells_per_sec:.0f} cells/s)")
 
-    print()  # newline after progress
+    total_inference_time = time.time() - t_inference
+    _log(f"  Inference complete: {N} cells in {total_inference_time:.1f}s ({N/total_inference_time:.0f} cells/s)")
 
     result = {
         "patch_embeddings": np.concatenate(all_patch_embeddings, axis=0),
         "marker_embeddings": np.concatenate(all_marker_embeddings, axis=0) if all_marker_embeddings else None,
     }
+    _log(f"  Embedding result: patch={result['patch_embeddings'].shape}, marker={'None' if result['marker_embeddings'] is None else result['marker_embeddings'].shape}")
 
     return result
 
@@ -390,7 +486,7 @@ def save_embeddings(cell_ids, centroids, embeddings, output_path, sample_id=None
         # Write empty file with headers only
         with open(output_path, "w") as f:
             f.write("cell_id,y_center,x_center\n")
-        print(f"No cells found. Empty file written to {output_path}")
+        _log(f"No cells found. Empty file written to {output_path}")
         return
 
     embedding_dim = embeddings.shape[1]
@@ -410,7 +506,7 @@ def save_embeddings(cell_ids, centroids, embeddings, output_path, sample_id=None
 
     df = pd.DataFrame(data)
     df.to_csv(output_path, index=False)
-    print(f"Saved {len(cell_ids)} cell embeddings ({embedding_dim}D) to {output_path}")
+    _log(f"Saved {len(cell_ids)} cell embeddings ({embedding_dim}D) to {output_path}")
 
 
 def create_mask_from_geojson(geojson_path, width, height):
@@ -434,7 +530,7 @@ def create_mask_from_geojson(geojson_path, width, height):
         raise ImportError("shapely and rasterio are required for GeoJSON to mask conversion. "
                          "Install with: pip install shapely rasterio")
 
-    print(f"Creating mask from GeoJSON: {geojson_path}")
+    _log(f"Creating mask from GeoJSON: {geojson_path}")
 
     with open(geojson_path) as f:
         geojson = json.load(f)
@@ -450,7 +546,7 @@ def create_mask_from_geojson(geojson_path, width, height):
             uuid_to_label[feature['id']] = label
             label += 1
 
-    print(f"  Found {len(cell_features)} cells in GeoJSON")
+    _log(f"  Found {len(cell_features)} cells in GeoJSON")
 
     # Parse polygon coordinates
     def parse_polygon_coords(coords):
@@ -468,7 +564,7 @@ def create_mask_from_geojson(geojson_path, width, height):
         shapes.append((poly, label_val))
 
     # Rasterize polygons into mask
-    print(f"  Rasterizing {len(shapes)} cells into {width}x{height} mask...")
+    _log(f"  Rasterizing {len(shapes)} cells into {width}x{height} mask...")
     mask = features.rasterize(
         shapes,
         out_shape=(height, width),
@@ -478,7 +574,7 @@ def create_mask_from_geojson(geojson_path, width, height):
     )
 
     unique_labels = len(np.unique(mask)) - 1  # exclude background
-    print(f"  Created mask with {unique_labels} unique cell labels")
+    _log(f"  Created mask with {unique_labels} unique cell labels")
 
     return mask, uuid_to_label
 
@@ -512,30 +608,32 @@ def merge_embeddings_into_geojson(geojson_path, mask_path, cell_ids, centroids, 
         geojson = json.load(f)
 
     if use_geojson_mask:
-        # Create mask directly from GeoJSON for perfect matching
-        # First, get image dimensions from the original mask or from annotation
-        if mask_path and os.path.exists(mask_path):
-            orig_mask = tifffile.imread(mask_path)
-            if orig_mask.ndim == 3:
-                orig_mask = orig_mask[0]
-            mask_height, mask_width = orig_mask.shape
-        else:
-            # Get dimensions from annotation feature
-            for feature in geojson.get('features', []):
-                if feature.get('properties', {}).get('objectType') == 'annotation':
-                    coords = feature['geometry']['coordinates']
-                    while len(coords) > 0 and isinstance(coords[0], list) and isinstance(coords[0][0], list):
-                        coords = coords[0]
-                    xs = [pt[0] for pt in coords]
-                    ys = [pt[1] for pt in coords]
-                    mask_width = int(max(xs))
-                    mask_height = int(max(ys))
-                    break
+        if uuid_to_label is None:
+            # Create mask from GeoJSON when uuid_to_label was not pre-computed
+            # First, get image dimensions from the original mask or from annotation
+            if mask_path and os.path.exists(mask_path):
+                orig_mask = tifffile.imread(mask_path)
+                if orig_mask.ndim == 3:
+                    orig_mask = orig_mask[0]
+                mask_height, mask_width = orig_mask.shape
+                del orig_mask
+            else:
+                # Get dimensions from annotation feature
+                for feature in geojson.get('features', []):
+                    if feature.get('properties', {}).get('objectType') == 'annotation':
+                        coords = feature['geometry']['coordinates']
+                        while len(coords) > 0 and isinstance(coords[0], list) and isinstance(coords[0][0], list):
+                            coords = coords[0]
+                        xs = [pt[0] for pt in coords]
+                        ys = [pt[1] for pt in coords]
+                        mask_width = int(max(xs))
+                        mask_height = int(max(ys))
+                        break
 
-        # Create mask from GeoJSON
-        mask, uuid_to_label = create_mask_from_geojson(geojson_path, mask_width, mask_height)
+            # Create mask from GeoJSON
+            _mask, uuid_to_label = create_mask_from_geojson(geojson_path, mask_width, mask_height)
+            del _mask  # only need the uuid_to_label mapping
 
-        # For GeoJSON-derived mask, we have direct UUID to label mapping
         # Build mask_label to embedding index mapping
         mask_label_to_emb_idx = {label: idx for idx, label in enumerate(cell_ids)}
 
@@ -569,10 +667,10 @@ def merge_embeddings_into_geojson(geojson_path, mask_path, cell_ids, centroids, 
             json.dump(geojson, f)
 
         method_counts = {"by_label": num_matched, "by_distance": 0}
-        print(f"  GeoJSON-derived mask matching: {num_matched}/{len(cell_features)} cells matched")
+        _log(f"  GeoJSON-derived mask matching: {num_matched}/{len(cell_features)} cells matched")
 
         if num_unmatched > 0:
-            print(f"  Warning: {num_unmatched} cells could not be matched")
+            _log(f"  Warning: {num_unmatched} cells could not be matched")
 
         return num_matched, num_unmatched, len(cell_features), method_counts
 
@@ -643,9 +741,9 @@ def merge_embeddings_into_geojson(geojson_path, mask_path, cell_ids, centroids, 
             json.dump(geojson, f)
         return 0, 0, len(cell_features), {}
 
-    print(f"  Mapped {len(uuid_to_mask_label)}/{len(cell_features)} GeoJSON cells to mask labels")
+    _log(f"  Mapped {len(uuid_to_mask_label)}/{len(cell_features)} GeoJSON cells to mask labels")
     if unmapped_features:
-        print(f"  Warning: {len(unmapped_features)} cells could not be mapped (centroid outside mask or on background)")
+        _log(f"  Warning: {len(unmapped_features)} cells could not be mapped (centroid outside mask or on background)")
 
     # Build mask_label to embedding index mapping
     mask_label_to_emb_idx = {label: idx for idx, label in enumerate(cell_ids)}
@@ -692,14 +790,14 @@ def merge_embeddings_into_geojson(geojson_path, mask_path, cell_ids, centroids, 
         "by_distance": num_matched_by_distance
     }
 
-    print(f"  Matching statistics: {num_matched_by_label} by mask label, {num_matched_by_distance} by distance")
+    _log(f"  Matching statistics: {num_matched_by_label} by mask label, {num_matched_by_distance} by distance")
 
     # Report distance statistics for unmatched cells
     if unmatched_distances:
         unmatched_distances = np.array(unmatched_distances)
-        print(f"  Unmatched cell distance stats: min={unmatched_distances.min():.2f}, "
+        _log(f"  Unmatched cell distance stats: min={unmatched_distances.min():.2f}, "
               f"median={np.median(unmatched_distances):.2f}, max={unmatched_distances.max():.2f} pixels")
-        print(f"  Consider increasing --distance-threshold (current: {distance_threshold}) if needed")
+        _log(f"  Consider increasing --distance-threshold (current: {distance_threshold}) if needed")
 
     return num_matched, num_unmatched, len(cell_features), method_counts
 
@@ -733,18 +831,39 @@ def main():
     if args.merge_geojson and not GEOJSON_TO_MASK_AVAILABLE:
         parser.error("--merge-geojson requires shapely and rasterio for GeoJSON mask creation. Install with: pip install shapely rasterio")
 
+    # Print all arguments for reproducibility
+    _log("=" * 60)
+    _log("KRONOS Embedding Extraction - Starting")
+    _log("=" * 60)
+    _log(f"  Arguments:")
+    for k, v in vars(args).items():
+        _log(f"    {k}: {v}")
+
     # Determine device
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(f"Using device: {device}")
+    _log(f"Using device: {device}")
+    if device == "cuda":
+        _log(f"  CUDA device: {torch.cuda.get_device_name(0)}")
+        _log(f"  CUDA memory: {torch.cuda.get_device_properties(0).total_mem / (1024**3):.1f} GB total")
+    else:
+        _log("  WARNING: No GPU detected, running on CPU")
 
     # Disable multiprocessing workers on CPU to avoid cleanup issues
     if device == "cpu" and args.num_workers > 0:
-        print(f"  Warning: Disabling num_workers (was {args.num_workers}) on CPU to avoid NFS/multiprocessing issues")
+        _log(f"  Warning: Disabling num_workers (was {args.num_workers}) on CPU to avoid NFS/multiprocessing issues")
         args.num_workers = 0
 
+    # Log file sizes for debugging
+    for label, path in [("TIFF", args.tiff), ("Mask", args.mask), ("Marker metadata", args.marker_metadata),
+                         ("GeoJSON", args.geojson), ("Marker mapping", args.marker_mapping)]:
+        if path and os.path.isfile(path):
+            size_mb = os.path.getsize(path) / (1024**2)
+            _log(f"  File: {label} = {path} ({size_mb:.1f} MB)")
+
     # Load marker metadata
-    print(f"Loading KRONOS marker metadata from {args.marker_metadata}")
+    _log(f"Loading KRONOS marker metadata from {args.marker_metadata}")
     kronos_metadata = pd.read_csv(args.marker_metadata)
+    _log(f"  Metadata shape: {kronos_metadata.shape}, columns: {list(kronos_metadata.columns)}")
 
     # Parse user marker mapping
     user_mapping = None
@@ -756,82 +875,79 @@ def main():
             try:
                 user_mapping = json.loads(args.marker_mapping)
             except json.JSONDecodeError:
-                print(f"WARNING: Could not parse --marker-mapping as JSON: {args.marker_mapping}")
+                _log(f"WARNING: Could not parse --marker-mapping as JSON: {args.marker_mapping}")
 
-    # Read image
-    print(f"Reading image: {args.tiff}")
-    image = tifffile.imread(args.tiff)
-    if image.ndim == 2:
-        image = image[np.newaxis, ...]  # add channel dim
-    print(f"  Image shape: {image.shape} (C={image.shape[0]}, H={image.shape[1]}, W={image.shape[2]})")
-
-    # Get channel names from image metadata
+    # Get channel names from image metadata (reads metadata only, not pixel data)
     channel_names = get_channel_names(args.tiff)
-    print(f"  Found {len(channel_names)} channel names: {channel_names[:10]}{'...' if len(channel_names) > 10 else ''}")
+    _log(f"  Found {len(channel_names)} channel names: {channel_names[:10]}{'...' if len(channel_names) > 10 else ''}")
 
     # Match markers
     matched_df, unmatched_report = match_markers(channel_names, kronos_metadata, user_mapping)
     if unmatched_report:
-        print(unmatched_report)
-    print(f"  Matched {len(matched_df)} markers to KRONOS metadata")
+        _log(unmatched_report)
+    _log(f"  Matched {len(matched_df)} markers to KRONOS metadata")
 
     if len(matched_df) == 0:
-        print("ERROR: No markers could be matched to KRONOS metadata. Exiting.")
+        _log("ERROR: No markers could be matched to KRONOS metadata. Exiting.")
         sys.exit(1)
 
-    # Select only matched channels from the image
     matched_channels = matched_df["image_channel"].values
-    image_matched = image[matched_channels]
-    del image  # free full image memory
     marker_ids = matched_df["marker_id"].values
     marker_means = matched_df["marker_mean"].values
     marker_stds = matched_df["marker_std"].values
 
-    print(f"  Using {len(matched_channels)} channels for embedding extraction")
+    # Read only matched channels to avoid loading entire image into memory
+    _log(f"Reading {len(matched_channels)} matched channels from: {args.tiff}")
+    _log(f"  Channel indices: {matched_channels.tolist()}")
+    image_matched = read_matched_channels(args.tiff, matched_channels)
+    img_height, img_width = image_matched.shape[1], image_matched.shape[2]
+    _log(f"  Matched image shape: {image_matched.shape} (H={img_height}, W={img_width}), size: {image_matched.nbytes / (1024**3):.2f} GB")
 
     # Read or create segmentation mask
     if args.merge_geojson:
         # Create mask from GeoJSON for perfect matching when merging
-        print(f"Creating segmentation mask from GeoJSON: {args.geojson}")
-        # Get image dimensions
-        img_height, img_width = image.shape[1], image.shape[2]
+        _log(f"Creating segmentation mask from GeoJSON: {args.geojson}")
         mask, uuid_to_label = create_mask_from_geojson(args.geojson, img_width, img_height)
-        print(f"  Mask shape: {mask.shape}, unique cells: {len(uuid_to_label)}")
+        _log(f"  Mask shape: {mask.shape}, unique cells: {len(uuid_to_label)}, size: {mask.nbytes / (1024**3):.2f} GB")
 
         # Save the GeoJSON-derived mask for inspection/reuse
         prefix = args.sample_id if args.sample_id else "sample"
         geojson_mask_path = os.path.join(os.path.dirname(args.output), f"{prefix}_geojson_mask.tif")
         tifffile.imwrite(geojson_mask_path, mask.astype(np.uint16))
-        print(f"  Saved GeoJSON-derived mask to {geojson_mask_path}")
+        _log(f"  Saved GeoJSON-derived mask to {geojson_mask_path}")
     else:
         # Read segmentation mask from file
-        print(f"Reading segmentation mask: {args.mask}")
+        _log(f"Reading segmentation mask: {args.mask}")
         mask = tifffile.imread(args.mask)
         if mask.ndim == 3:
             mask = mask[0]  # take first channel if multi-channel
-        print(f"  Mask shape: {mask.shape}, unique cells: {len(np.unique(mask)) - 1}")
+        _log(f"  Mask shape: {mask.shape}, dtype: {mask.dtype}, unique cells: {len(np.unique(mask)) - 1}, size: {mask.nbytes / (1024**3):.2f} GB")
         uuid_to_label = None
 
     # Extract cell centroids from mask (no patches stored in memory)
-    print(f"Finding cell centroids (patch_size={args.patch_size})...")
+    _log(f"Finding cell centroids (patch_size={args.patch_size})...")
     cell_ids, centroids = find_cell_centroids(mask)
-    print(f"  Found {len(cell_ids)} cells")
+    _log(f"  Found {len(cell_ids)} cells")
 
     # Free mask memory - no longer needed (geojson merge recreates it if needed)
+    _log("  Freeing mask memory")
     del mask
+    gc.collect()
 
     if len(cell_ids) == 0:
-        print("WARNING: No cells found in segmentation mask.")
+        _log("WARNING: No cells found in segmentation mask.")
         save_embeddings([], [], np.array([]), args.output, args.sample_id)
         return
 
     # Load KRONOS model
-    print(f"Loading KRONOS model from {args.model_path}")
+    _log(f"Loading KRONOS model from {args.model_path}")
     model, precision, embedding_dim = load_kronos_model(args.model_path, args.config_path, device)
-    print(f"  Model loaded: precision={precision}, embedding_dim={embedding_dim}")
+    _log(f"  Model loaded: precision={precision}, embedding_dim={embedding_dim}")
+    if device == "cuda":
+        _log(f"  GPU memory after model load: {torch.cuda.memory_allocated() / (1024**3):.2f} GB allocated, {torch.cuda.memory_reserved() / (1024**3):.2f} GB reserved")
 
     # Extract embeddings (patches extracted lazily to save memory)
-    print(f"Extracting embeddings (batch_size={args.batch_size}, num_workers={args.num_workers})...")
+    _log(f"Extracting embeddings (batch_size={args.batch_size}, num_workers={args.num_workers})...")
     results = extract_embeddings(
         model, image_matched, centroids, marker_ids, marker_means, marker_stds,
         patch_size=args.patch_size, max_value=args.max_value, batch_size=args.batch_size,
@@ -839,9 +955,18 @@ def main():
     )
 
     patch_embeddings = results["patch_embeddings"]
-    print(f"  Patch embeddings shape: {patch_embeddings.shape}")
+    _log(f"  Patch embeddings shape: {patch_embeddings.shape}")
+
+    # Free model and image memory before GeoJSON merge
+    _log("  Freeing model and image memory")
+    del model, image_matched
+    if device == "cuda":
+        torch.cuda.empty_cache()
+    gc.collect()
+    _log(f"  Memory after cleanup")
 
     # Save embeddings
+    _log(f"Saving embeddings to {args.output}")
     save_embeddings(cell_ids, centroids, patch_embeddings, args.output, args.sample_id)
 
     # Save marker matching report
@@ -857,14 +982,14 @@ def main():
             f.write(f"  Ch {row['image_channel']}: {row['marker_name']} -> {row['kronos_marker_name']} (ID={row['marker_id']})\n")
         if unmatched_report:
             f.write(f"\n{unmatched_report}\n")
-    print(f"  Marker matching report saved to {report_path}")
+    _log(f"  Marker matching report saved to {report_path}")
 
     # Optionally merge embeddings into GeoJSON
     if args.merge_geojson:
         merged_geojson_path = args.output.replace("_kronos_embeddings.csv", "_kronos_merged.geojson")
         if not merged_geojson_path.endswith(".geojson"):
             merged_geojson_path = args.output.rsplit(".", 1)[0] + "_kronos_merged.geojson"
-        print(f"Merging embeddings into GeoJSON: {args.geojson}")
+        _log(f"Merging embeddings into GeoJSON: {args.geojson}")
 
         # Use GeoJSON-derived mask for perfect matching
         num_matched, num_unmatched, num_geo_cells, method_counts = merge_embeddings_into_geojson(
@@ -872,10 +997,12 @@ def main():
             merged_geojson_path, distance_threshold=args.distance_threshold,
             use_geojson_mask=True, uuid_to_label=uuid_to_label
         )
-        print(f"  GeoJSON merge: {num_matched}/{num_geo_cells} cells matched, {num_unmatched} unmatched")
-        print(f"  Merged GeoJSON saved to {merged_geojson_path}")
+        _log(f"  GeoJSON merge: {num_matched}/{num_geo_cells} cells matched, {num_unmatched} unmatched")
+        _log(f"  Merged GeoJSON saved to {merged_geojson_path}")
 
-    print("Done!")
+    _log("=" * 60)
+    _log("KRONOS Embedding Extraction - Done!")
+    _log("=" * 60)
 
 
 if __name__ == "__main__":
