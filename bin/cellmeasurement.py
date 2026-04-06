@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import gc
+import gzip
 import json
 import math
 import os
@@ -94,6 +95,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--tile-size", type=int, default=2048)
     p.add_argument("--tile-overlap", type=int, default=200)
     p.add_argument("--pretty-json", action="store_true", help="Write indented GeoJSON output")
+    p.add_argument("--gzip", action="store_true",
+                   help="Gzip-compress the output GeoJSON file (appends .gz to filename if needed)")
     p.add_argument("--output-mask", default="",
                    help="Write a rasterized label mask TIFF from the final cell geometries")
     p.add_argument("--skip-nuclear-mask", action="store_true",
@@ -1967,11 +1970,20 @@ def main() -> int:
         "features": [annotation] + features,
     }
 
-    with out_path.open("w", encoding="utf-8") as f:
-        if args.pretty_json:
-            json.dump(out, f, indent=2)
-        else:
-            json.dump(out, f, separators=(",", ":"))
+    if args.gzip:
+        if not str(out_path).endswith(".gz"):
+            out_path = Path(str(out_path) + ".gz")
+        with gzip.open(out_path, "wt", encoding="utf-8") as f:
+            if args.pretty_json:
+                json.dump(out, f, indent=2)
+            else:
+                json.dump(out, f, separators=(",", ":"))
+    else:
+        with out_path.open("w", encoding="utf-8") as f:
+            if args.pretty_json:
+                json.dump(out, f, indent=2)
+            else:
+                json.dump(out, f, separators=(",", ":"))
 
     print(f"Exported to GeoJSON: {out_path}")
 

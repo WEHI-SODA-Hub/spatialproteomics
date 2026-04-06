@@ -485,6 +485,13 @@
                     "description": "Number of nearest neighbors for neighborhood feature aggregation (0 = disabled).",
                     "fa_icon": "fas fa-project-diagram",
                     "help_text": "For each cell, the max and mean of every numeric measurement are computed across its k closest spatial neighbours (by centroid distance). This produces features like 'Neighbors: Max: CD3: Cell: Mean' and 'Neighbors: Mean: CD3: Cell: Mean'. Set to 0 to disable. Typical values: 5\u201310."
+                },
+                "gzip_geojson": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Gzip-compress the output GeoJSON files. Produces .geojson.gz instead of .geojson.",
+                    "fa_icon": "fas fa-file-archive",
+                    "help_text": "Enable this to gzip-compress the GeoJSON output from cellmeasurement. For large images with hundreds of thousands of cells, the GeoJSON can be 100+ GB uncompressed. Gzip typically achieves 10-20x compression on JSON with floating-point coordinates. The compressed files can be used directly with the import_large_geojson pipeline."
                 }
             }
         },

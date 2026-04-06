@@ -12,7 +12,7 @@ process CELLMEASUREMENT {
         path(whole_cell_mask)
 
     output:
-    tuple val(meta), path("*.geojson"), emit: annotations
+    tuple val(meta), path("*.geojson{,.gz}"), emit: annotations
     tuple val(meta), path("*_mask.tiff"), emit: masks
     path "versions.yml"               , emit: versions
 
