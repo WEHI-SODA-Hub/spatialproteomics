@@ -652,6 +652,18 @@ def merge_embeddings_into_geojson(geojson_path, mask_path, cell_ids, centroids, 
         cell_features = [f for f in geojson.get('features', [])
                         if f.get('properties', {}).get('objectType') == 'cell']
 
+        # Remove any existing KRONOS embeddings from a previous run
+        cleared = 0
+        for feature in cell_features:
+            measurements = feature.get("properties", {}).get("measurements", {})
+            old_keys = [k for k in measurements if k.startswith("kronos_")]
+            if old_keys:
+                for k in old_keys:
+                    del measurements[k]
+                cleared += 1
+        if cleared > 0:
+            _log(f"  Cleared existing KRONOS embeddings from {cleared} cells")
+
         for feature in cell_features:
             feature_id = feature["id"]
 
@@ -765,6 +777,18 @@ def merge_embeddings_into_geojson(geojson_path, mask_path, cell_ids, centroids, 
     num_matched_by_distance = 0
     num_unmatched = 0
     unmatched_distances = []
+
+    # Remove any existing KRONOS embeddings from a previous run
+    cleared = 0
+    for feature in cell_features:
+        measurements = feature.get("properties", {}).get("measurements", {})
+        old_keys = [k for k in measurements if k.startswith("kronos_")]
+        if old_keys:
+            for k in old_keys:
+                del measurements[k]
+            cleared += 1
+    if cleared > 0:
+        _log(f"  Cleared existing KRONOS embeddings from {cleared} cells")
 
     # For each GeoJSON cell, try to match by mask label first
     for feature in cell_features:
