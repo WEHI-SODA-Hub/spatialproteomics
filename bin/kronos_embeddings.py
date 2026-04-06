@@ -569,18 +569,19 @@ def create_mask_from_geojson(geojson_path, width, height):
         shapes,
         out_shape=(height, width),
         fill=0,
-        dtype=np.uint16,
+        dtype=np.uint32,
         all_touched=False
     )
 
     unique_labels = len(np.unique(mask)) - 1  # exclude background
     _log(f"  Created mask with {unique_labels} unique cell labels")
 
-    return mask, uuid_to_label
+    return mask, uuid_to_label, geojson
 
 
 def merge_embeddings_into_geojson(geojson_path, mask_path, cell_ids, centroids, embeddings, output_path,
-                                  distance_threshold=5.0, use_geojson_mask=False, uuid_to_label=None):
+                                  distance_threshold=5.0, use_geojson_mask=False, uuid_to_label=None,
+                                  geojson_data=None):
     """
     Merge KRONOS embeddings into a GeoJSON file by matching via mask labels.
 
@@ -600,12 +601,17 @@ def merge_embeddings_into_geojson(geojson_path, mask_path, cell_ids, centroids, 
         distance_threshold: Maximum distance (pixels) for centroid matching fallback.
         use_geojson_mask: If True, create mask from GeoJSON instead of loading from file.
         uuid_to_label: Dictionary mapping cell UUIDs to mask labels (used when use_geojson_mask=True).
+        geojson_data: Pre-parsed GeoJSON dict to avoid reloading from disk.
 
     Returns:
         Tuple of (num_matched, num_unmatched, num_geojson_cells, method_counts).
     """
-    with open(geojson_path) as f:
-        geojson = json.load(f)
+    if geojson_data is not None:
+        geojson = geojson_data
+        _log(f"  Using pre-parsed GeoJSON data (avoiding reload of {geojson_path})")
+    else:
+        with open(geojson_path) as f:
+            geojson = json.load(f)
 
     if use_geojson_mask:
         if uuid_to_label is None:
@@ -904,16 +910,17 @@ def main():
     _log(f"  Matched image shape: {image_matched.shape} (H={img_height}, W={img_width}), size: {image_matched.nbytes / (1024**3):.2f} GB")
 
     # Read or create segmentation mask
+    geojson_data = None  # keep parsed GeoJSON for merge step to avoid reloading
     if args.merge_geojson:
         # Create mask from GeoJSON for perfect matching when merging
         _log(f"Creating segmentation mask from GeoJSON: {args.geojson}")
-        mask, uuid_to_label = create_mask_from_geojson(args.geojson, img_width, img_height)
+        mask, uuid_to_label, geojson_data = create_mask_from_geojson(args.geojson, img_width, img_height)
         _log(f"  Mask shape: {mask.shape}, unique cells: {len(uuid_to_label)}, size: {mask.nbytes / (1024**3):.2f} GB")
 
         # Save the GeoJSON-derived mask for inspection/reuse
         prefix = args.sample_id if args.sample_id else "sample"
         geojson_mask_path = os.path.join(os.path.dirname(args.output), f"{prefix}_geojson_mask.tif")
-        tifffile.imwrite(geojson_mask_path, mask.astype(np.uint16))
+        tifffile.imwrite(geojson_mask_path, mask.astype(np.uint32))
         _log(f"  Saved GeoJSON-derived mask to {geojson_mask_path}")
     else:
         # Read segmentation mask from file
@@ -991,14 +998,17 @@ def main():
             merged_geojson_path = args.output.rsplit(".", 1)[0] + "_kronos_merged.geojson"
         _log(f"Merging embeddings into GeoJSON: {args.geojson}")
 
-        # Use GeoJSON-derived mask for perfect matching
+        # Use GeoJSON-derived mask for perfect matching (pass pre-parsed data to avoid reloading 124GB+ file)
         num_matched, num_unmatched, num_geo_cells, method_counts = merge_embeddings_into_geojson(
             args.geojson, None, cell_ids, centroids, patch_embeddings,
             merged_geojson_path, distance_threshold=args.distance_threshold,
-            use_geojson_mask=True, uuid_to_label=uuid_to_label
+            use_geojson_mask=True, uuid_to_label=uuid_to_label,
+            geojson_data=geojson_data
         )
         _log(f"  GeoJSON merge: {num_matched}/{num_geo_cells} cells matched, {num_unmatched} unmatched")
         _log(f"  Merged GeoJSON saved to {merged_geojson_path}")
+        del geojson_data
+        gc.collect()
 
     _log("=" * 60)
     _log("KRONOS Embedding Extraction - Done!")
