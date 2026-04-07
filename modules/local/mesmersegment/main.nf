@@ -25,6 +25,9 @@ process MESMERSEGMENT {
             "--membrane-channel \"${it}\""
         }.join(' ') : ''
     """
+    # Phase 0: Ensure TIFF has valid OME-XML metadata (handles ImageJ TIFFs)
+    ensure_ome_tiff.py "${tiff}" "ome_${tiff}"
+
     # Phase 1: Serialize model download — first task downloads, others wait
     REAL_HOME="\$HOME"
     mkdir -p "\$REAL_HOME/.deepcell/models"
@@ -44,12 +47,15 @@ process MESMERSEGMENT {
     done
 
     mesmer-segment \\
-        ${tiff} \\
+        "ome_${tiff}" \\
         --compartment ${compartment} \\
         --nuclear-channel ${nuclear_channel} \\
         ${membrane_channel_args} \\
         ${args} \\
         > "${prefix}_${compartment}.tiff"
+
+    # Clean up temp OME-converted file
+    rm -f "ome_${tiff}"
 
     # Restore HOME for post-processing
     export HOME="\$REAL_HOME"
