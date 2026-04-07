@@ -35,23 +35,25 @@ workflow SOPA_SEGMENT {
         }.set { ch_combined }
 
     //
-    // Run segmentation for nuclear compartment
+    // Run segmentation for nuclear compartment (skipped if skip_nuclear_mask)
     //
-    SOPA_SEGMENT_NUCLEAR(
-        ch_combined.map {
-            meta,
-            tiff,
-            nuclear_channel,
-            _membrane_channels -> [
+    if (!params.skip_nuclear_mask) {
+        SOPA_SEGMENT_NUCLEAR(
+            ch_combined.map {
                 meta,
                 tiff,
                 nuclear_channel,
-                '' // no membrane channels for nuclear segmentation
-            ]
-        },
-        'nuclear'
-    )
-    ch_versions = ch_versions.mix(SOPA_SEGMENT_NUCLEAR.out.versions.first())
+                _membrane_channels -> [
+                    meta,
+                    tiff,
+                    nuclear_channel,
+                    '' // no membrane channels for nuclear segmentation
+                ]
+            },
+            'nuclear'
+        )
+        ch_versions = ch_versions.mix(SOPA_SEGMENT_NUCLEAR.out.versions.first())
+    }
 
     //
     // Run segmentation for whole-cell compartment
@@ -65,40 +67,69 @@ workflow SOPA_SEGMENT {
     //
     // Create a channel for cell measurement
     //
-    SOPA_SEGMENT_NUCLEAR.out.tiff
-        .join(SOPA_SEGMENT_WHOLECELL.out.tiff, by: 0)
-        .join(ch_sopa, by: 0)
-        .map {
-            meta,
-            nuclear_tiff,
-            wholecell_tiff,
-            tiff,
-            _nuc_chan,
-            _mem_chans -> [
+    if (params.skip_nuclear_mask) {
+        // When skipping nuclear mask, use the whole-cell mask as a placeholder for nuclear
+        // (cellmeasurement.py will ignore it due to --skip-nuclear-mask flag)
+        SOPA_SEGMENT_WHOLECELL.out.tiff
+            .join(ch_sopa, by: 0)
+            .map {
                 meta,
+                wholecell_tiff,
                 tiff,
+                _nuc_chan,
+                _mem_chans -> [
+                    meta,
+                    tiff,
+                    wholecell_tiff,  // placeholder for nuclear mask
+                    wholecell_tiff
+                ]
+            }.set { ch_cellmeasurement }
+    } else {
+        SOPA_SEGMENT_NUCLEAR.out.tiff
+            .join(SOPA_SEGMENT_WHOLECELL.out.tiff, by: 0)
+            .join(ch_sopa, by: 0)
+            .map {
+                meta,
                 nuclear_tiff,
-                wholecell_tiff
-            ]
-        }.set { ch_cellmeasurement }
+                wholecell_tiff,
+                tiff,
+                _nuc_chan,
+                _mem_chans -> [
+                    meta,
+                    tiff,
+                    nuclear_tiff,
+                    wholecell_tiff
+                ]
+            }.set { ch_cellmeasurement }
+    }
 
     //
     // Optional mask smoothing to reduce polygon complexity
     //
     if (params.smooth_masks) {
-        SMOOTHMASKS_NUC(
-            ch_cellmeasurement.map { meta, tiff, nuclear_tiff, wholecell_tiff -> [meta, nuclear_tiff] }
-        )
+        if (!params.skip_nuclear_mask) {
+            SMOOTHMASKS_NUC(
+                ch_cellmeasurement.map { meta, tiff, nuclear_tiff, wholecell_tiff -> [meta, nuclear_tiff] }
+            )
+        }
         SMOOTHMASKS_WC(
             ch_cellmeasurement.map { meta, tiff, nuclear_tiff, wholecell_tiff -> [meta, wholecell_tiff] }
         )
-        ch_cellmeasurement
-            .map { meta, tiff, nuclear_tiff, wholecell_tiff -> [meta, tiff] }
-            .join(SMOOTHMASKS_NUC.out.smoothed_mask)
-            .join(SMOOTHMASKS_WC.out.smoothed_mask)
-            .set { ch_cellmeasurement }
-
-        ch_versions = ch_versions.mix(SMOOTHMASKS_NUC.out.versions.first())
+        if (!params.skip_nuclear_mask) {
+            ch_cellmeasurement
+                .map { meta, tiff, nuclear_tiff, wholecell_tiff -> [meta, tiff] }
+                .join(SMOOTHMASKS_NUC.out.smoothed_mask)
+                .join(SMOOTHMASKS_WC.out.smoothed_mask)
+                .set { ch_cellmeasurement }
+            ch_versions = ch_versions.mix(SMOOTHMASKS_NUC.out.versions.first())
+        } else {
+            ch_cellmeasurement
+                .map { meta, tiff, nuclear_tiff, wholecell_tiff -> [meta, tiff] }
+                .join(SMOOTHMASKS_WC.out.smoothed_mask)
+                .map { meta, tiff, smoothed_wc -> [meta, tiff, smoothed_wc, smoothed_wc] }
+                .set { ch_cellmeasurement }
+        }
+        ch_versions = ch_versions.mix(SMOOTHMASKS_WC.out.versions.first())
     }
 
     //

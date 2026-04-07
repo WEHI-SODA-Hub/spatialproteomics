@@ -45,53 +45,88 @@ workflow MESMER_SEGMENT {
 
 
     //
-    // Run MESMERSEGMENT module as above, but this time for nuclear segmentation
+    // Run MESMERSEGMENT module for nuclear segmentation (skipped if skip_nuclear_mask)
     //
-    MESMERNUC(
-        ch_mesmer,
-        "nuclear"
-    )
-    ch_versions = ch_versions.mix(MESMERNUC.out.versions.first())
+    if (!params.skip_nuclear_mask) {
+        MESMERNUC(
+            ch_mesmer,
+            "nuclear"
+        )
+        ch_versions = ch_versions.mix(MESMERNUC.out.versions.first())
+    }
 
     // Create channel for CELLMEASUREMENT input adding the segmentation masks
-    ch_mesmer_segment
-        .join(MESMERNUC.out.segmentation_mask)
-        .join(MESMERWC.out.segmentation_mask)
-        .map {
-            sample,
-            _run_backsub,
-            _run_mesmer,
-            _run_cellpose,
-            _run_cellsam,
-            tiff,
-            _nuclear_channel,
-            _membrane_channels,
-            nuclear_mask,
-            whole_cell_mask -> [
+    if (params.skip_nuclear_mask) {
+        // When skipping nuclear mask, use the whole-cell mask as a placeholder for nuclear
+        // (cellmeasurement.py will ignore it due to --skip-nuclear-mask flag)
+        ch_mesmer_segment
+            .join(MESMERWC.out.segmentation_mask)
+            .map {
                 sample,
+                _run_backsub,
+                _run_mesmer,
+                _run_cellpose,
+                _run_cellsam,
                 tiff,
+                _nuclear_channel,
+                _membrane_channels,
+                whole_cell_mask -> [
+                    sample,
+                    tiff,
+                    whole_cell_mask,  // placeholder for nuclear mask
+                    whole_cell_mask
+                ]
+            }.set { ch_cellmeasurement }
+    } else {
+        ch_mesmer_segment
+            .join(MESMERNUC.out.segmentation_mask)
+            .join(MESMERWC.out.segmentation_mask)
+            .map {
+                sample,
+                _run_backsub,
+                _run_mesmer,
+                _run_cellpose,
+                _run_cellsam,
+                tiff,
+                _nuclear_channel,
+                _membrane_channels,
                 nuclear_mask,
-                whole_cell_mask
-            ]
-        }.set { ch_cellmeasurement }
+                whole_cell_mask -> [
+                    sample,
+                    tiff,
+                    nuclear_mask,
+                    whole_cell_mask
+                ]
+            }.set { ch_cellmeasurement }
+    }
 
     //
     // Optional mask smoothing to reduce polygon complexity
     //
     if (params.smooth_masks) {
-        SMOOTHMASKS_NUC(
-            ch_cellmeasurement.map { sample, tiff, nuclear_mask, whole_cell_mask -> [sample, nuclear_mask] }
-        )
+        if (!params.skip_nuclear_mask) {
+            SMOOTHMASKS_NUC(
+                ch_cellmeasurement.map { sample, tiff, nuclear_mask, whole_cell_mask -> [sample, nuclear_mask] }
+            )
+        }
         SMOOTHMASKS_WC(
             ch_cellmeasurement.map { sample, tiff, nuclear_mask, whole_cell_mask -> [sample, whole_cell_mask] }
         )
-        ch_cellmeasurement
-            .map { sample, tiff, nuclear_mask, whole_cell_mask -> [sample, tiff] }
-            .join(SMOOTHMASKS_NUC.out.smoothed_mask)
-            .join(SMOOTHMASKS_WC.out.smoothed_mask)
-            .set { ch_cellmeasurement }
-
-        ch_versions = ch_versions.mix(SMOOTHMASKS_NUC.out.versions.first())
+        if (!params.skip_nuclear_mask) {
+            ch_cellmeasurement
+                .map { sample, tiff, nuclear_mask, whole_cell_mask -> [sample, tiff] }
+                .join(SMOOTHMASKS_NUC.out.smoothed_mask)
+                .join(SMOOTHMASKS_WC.out.smoothed_mask)
+                .set { ch_cellmeasurement }
+            ch_versions = ch_versions.mix(SMOOTHMASKS_NUC.out.versions.first())
+        } else {
+            ch_cellmeasurement
+                .map { sample, tiff, nuclear_mask, whole_cell_mask -> [sample, tiff] }
+                .join(SMOOTHMASKS_WC.out.smoothed_mask)
+                .map { sample, tiff, smoothed_wc -> [sample, tiff, smoothed_wc, smoothed_wc] }
+                .set { ch_cellmeasurement }
+        }
+        ch_versions = ch_versions.mix(SMOOTHMASKS_WC.out.versions.first())
     }
 
     //
@@ -193,7 +228,7 @@ workflow MESMER_SEGMENT {
     emit:
     annotations      = ch_annotations                  // channel: [ val(meta), *.geojson ]
     whole_cell_tif   = MESMERWC.out.segmentation_mask    // channel: [ val(meta), *.tiff ]
-    nuclear_tif      = MESMERNUC.out.segmentation_mask   // channel: [ val(meta), *.tiff ]
+    nuclear_tif      = params.skip_nuclear_mask ? Channel.empty() : MESMERNUC.out.segmentation_mask   // channel: [ val(meta), *.tiff ]
     kronos_embeddings     = ch_kronos_embeddings          // channel: [ val(meta), *.csv ] OPTIONAL
     kronos_marker_report  = ch_kronos_marker_report       // channel: [ val(meta), *.txt ] OPTIONAL
     kronos_merged_geojson = ch_kronos_merged_geojson       // channel: [ val(meta), *.geojson ] OPTIONAL
