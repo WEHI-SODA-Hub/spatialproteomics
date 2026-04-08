@@ -1100,6 +1100,7 @@ def add_neighborhood_features(features: List[Dict[str, Any]], k: int, pixel_size
     keys, so isolated cells in sparse tissue don't get meaningless aggregations
     from cells hundreds of microns away.
     """
+    #TODO, is mean enough? Worth adding median and other statistics?
     if k <= 0 or len(features) < 2:
         return
 
