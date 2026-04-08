@@ -38,8 +38,19 @@ def parse_ome_channel_names(ome_xml):
 
 def download_model_weights():
     '''Download latest CellSAM model weights (v1.2) from users.deepcell.org.'''
+    from pathlib import Path
+
     if 'DEEPCELL_ACCESS_TOKEN' in os.environ:
         print("Downloading/verifying latest CellSAM model weights (v1.2)...")
+
+        # Clear corrupted model cache if the .pt file exists but is invalid
+        model_dir = Path.home() / ".deepcell" / "models" / "cellsam_v1.2"
+        model_file = model_dir / "cellsam_general.pt"
+        if model_file.exists() and model_file.stat().st_size < 1_000_000:
+            print(f"Warning: {model_file} appears corrupted ({model_file.stat().st_size} bytes). Removing and re-downloading...")
+            import shutil
+            shutil.rmtree(model_dir)
+
         cellSAM.get_model()
     else:
         print("Warning: DEEPCELL_ACCESS_TOKEN not set. Using default model weights.")
