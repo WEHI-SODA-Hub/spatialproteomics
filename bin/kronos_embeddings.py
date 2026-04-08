@@ -25,6 +25,7 @@ Usage:
 
 import argparse
 import gc
+import gzip
 import json
 import os
 import sys
@@ -532,7 +533,8 @@ def create_mask_from_geojson(geojson_path, width, height):
 
     _log(f"Creating mask from GeoJSON: {geojson_path}")
 
-    with open(geojson_path) as f:
+    open_func = gzip.open if str(geojson_path).endswith('.gz') else open
+    with open_func(geojson_path, 'rt') as f:
         geojson = json.load(f)
 
     # Extract cell features and create label mapping
@@ -610,7 +612,8 @@ def merge_embeddings_into_geojson(geojson_path, mask_path, cell_ids, centroids, 
         geojson = geojson_data
         _log(f"  Using pre-parsed GeoJSON data (avoiding reload of {geojson_path})")
     else:
-        with open(geojson_path) as f:
+        open_func = gzip.open if str(geojson_path).endswith('.gz') else open
+        with open_func(geojson_path, 'rt') as f:
             geojson = json.load(f)
 
     if use_geojson_mask:
