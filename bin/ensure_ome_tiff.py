@@ -26,7 +26,15 @@ def _local_tag_name(tag):
 
 
 def has_valid_ome_xml(tif):
-    """Check whether the TIFF already contains parseable OME-XML with channel info."""
+    """Check whether the TIFF already has metadata that mesmer-segment can parse.
+
+    Returns True for:
+    - OME-TIFF with Channel elements
+    - MIBI TIFFs with per-page JSON containing ``channel.target``
+
+    In both cases rewriting would destroy information that mesmer-segment
+    reads natively, so the file should be passed through unchanged.
+    """
     try:
         ome_xml = tif.ome_metadata
         if ome_xml:
@@ -48,6 +56,14 @@ def has_valid_ome_xml(tif):
                     if _local_tag_name(elem.tag) == "Channel":
                         return True
             except ET.ParseError:
+                pass
+
+            # MIBI TIFFs: per-page JSON with channel.target
+            try:
+                meta = json.loads(desc)
+                if "channel.target" in meta:
+                    return True
+            except (json.JSONDecodeError, TypeError):
                 pass
     return False
 
