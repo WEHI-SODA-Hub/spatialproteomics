@@ -47,7 +47,6 @@ workflow SOPA_SEGMENT_WBACKSUB {
     annotations          = SOPA_SEGMENT.out.annotations          // channel: [ val(meta), *.geojson ]
     kronos_embeddings    = SOPA_SEGMENT.out.kronos_embeddings    // channel: [ val(meta), *.csv ] OPTIONAL
     kronos_marker_report = SOPA_SEGMENT.out.kronos_marker_report // channel: [ val(meta), *.txt ] OPTIONAL
-    kronos_merged_geojson = SOPA_SEGMENT.out.kronos_merged_geojson // channel: [ val(meta), *.geojson ] OPTIONAL
 
     versions = ch_versions                     // channel: [ versions.yml ]
 }

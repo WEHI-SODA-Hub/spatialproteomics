@@ -684,8 +684,9 @@ def merge_embeddings_into_geojson(geojson_path, mask_path, cell_ids, centroids, 
             else:
                 num_unmatched += 1
 
-        with open(output_path, "w") as f:
-            json.dump(geojson, f)
+        _open = gzip.open if str(output_path).endswith('.gz') else open
+        with _open(output_path, 'wt') as f:
+            json.dump(geojson, f, separators=(',', ':'))
 
         method_counts = {"by_label": num_matched, "by_distance": 0}
         _log(f"  GeoJSON-derived mask matching: {num_matched}/{len(cell_features)} cells matched")
@@ -758,8 +759,9 @@ def merge_embeddings_into_geojson(geojson_path, mask_path, cell_ids, centroids, 
 
     if not cell_features or len(cell_ids) == 0:
         # Nothing to merge, write unchanged
-        with open(output_path, "w") as f:
-            json.dump(geojson, f)
+        _open = gzip.open if str(output_path).endswith('.gz') else open
+        with _open(output_path, 'wt') as f:
+            json.dump(geojson, f, separators=(',', ':'))
         return 0, 0, len(cell_features), {}
 
     _log(f"  Mapped {len(uuid_to_mask_label)}/{len(cell_features)} GeoJSON cells to mask labels")
@@ -814,8 +816,9 @@ def merge_embeddings_into_geojson(geojson_path, mask_path, cell_ids, centroids, 
         if not matched:
             num_unmatched += 1
 
-    with open(output_path, "w") as f:
-        json.dump(geojson, f)
+    _open = gzip.open if str(output_path).endswith('.gz') else open
+    with _open(output_path, 'wt') as f:
+        json.dump(geojson, f, separators=(',', ':'))
 
     # Report matching statistics
     method_counts = {
@@ -1020,9 +1023,9 @@ def main():
 
     # Optionally merge embeddings into GeoJSON
     if args.merge_geojson:
-        merged_geojson_path = args.output.replace("_kronos_embeddings.csv", "_kronos_merged.geojson")
-        if not merged_geojson_path.endswith(".geojson"):
-            merged_geojson_path = args.output.rsplit(".", 1)[0] + "_kronos_merged.geojson"
+        merged_geojson_path = args.output.replace("_kronos_embeddings.csv", ".geojson.gz")
+        if not merged_geojson_path.endswith(".geojson.gz"):
+            merged_geojson_path = args.output.rsplit(".", 1)[0] + ".geojson.gz"
         _log(f"Merging embeddings into GeoJSON: {args.geojson}")
 
         # Use GeoJSON-derived mask for perfect matching (pass pre-parsed data to avoid reloading 124GB+ file)

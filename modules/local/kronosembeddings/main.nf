@@ -16,7 +16,7 @@ process KRONOSEMBEDDINGS {
     output:
     tuple val(meta), path("*_kronos_embeddings.csv")  , emit: embeddings
     tuple val(meta), path("*_marker_report.txt")       , emit: marker_report
-    tuple val(meta), path("*_kronos_merged.geojson")   , emit: merged_geojson
+    tuple val(meta), path("*.geojson{,.gz}")           , emit: merged_geojson
     path "versions.yml"                                , emit: versions
 
     when:
@@ -50,7 +50,7 @@ process KRONOSEMBEDDINGS {
     """
     touch ${prefix}_kronos_embeddings.csv
     touch ${prefix}_kronos_embeddings_marker_report.txt
-    touch ${prefix}_kronos_merged.geojson
+    touch ${prefix}.geojson.gz
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
