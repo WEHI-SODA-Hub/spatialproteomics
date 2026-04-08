@@ -87,8 +87,9 @@ def parse_args() -> argparse.Namespace:
                    help="Simplification tolerance in pixels (default 0.5). Lower values preserve more shape detail.")
     p.add_argument("--percentiles", default="")
     p.add_argument("--erosion-steps", default="")
-    p.add_argument("--expansion-steps", default="",
-                   help="CSV of positive ints: measure intensity in annular rings dilated outward from cell boundary")
+    p.add_argument("--expansion-steps", action="store_true",
+                   help="Measure intensity in 5 equal-area annular bins dilated 20 µm outward from cell boundary "
+                        "(distance computed from --pixel-size-microns). Disabled by default.")
     p.add_argument("-i", "--dist-threshold", type=float, default=10.0)
     p.add_argument("-e", "--estimate-cell-boundary-dist", type=float, default=3.0)
     p.add_argument("-t", "--threads", type=int, default=1)
@@ -106,10 +107,10 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--neighbors", type=int, default=0,
                    help="Number of nearest neighbors for neighborhood feature aggregation (0 = disabled). "
                         "Computes max and mean of every numeric measurement across each cell's k closest neighbours.")
-    p.add_argument("--environment-expansion", type=int, default=0,
-                   help="Dilate cell mask by this many pixels and measure the entire zone as a single "
-                        "'Environment' compartment (like CellTune). 0 = disabled. "
-                        "For ~20 µm: COMET=71, MIBI=51, OPAL=40.")
+    p.add_argument("--environment-expansion", action="store_true",
+                   help="Measure a pericellular 'Environment' compartment by dilating the cell mask "
+                        "outward by 20 µm (converted to pixels via --pixel-size-microns). "
+                        "Disabled by default.")
     return p.parse_args()
 
 
@@ -820,79 +821,145 @@ def add_percentiles(props: Dict[str, Any], image_cyx: np.ndarray, ch_names: Sequ
                 props[f"{ch}: {labels[comp]}: Percentile: {p}"] = float(np.percentile(vals, p))
 
 
-def erode_steps(mask: np.ndarray, step: int) -> np.ndarray:
-    """Iteratively erode a binary mask by *step* pixels using a disk(1) element.
+def _erosion_bins_for_mask(mask: np.ndarray, n_bins: int = 5) -> List[Tuple[np.ndarray, int]]:
+    """Compute erosion depths that divide a binary mask into n equal-area bins.
 
-    Each iteration peels one pixel from the boundary.  Used by
-    ``add_erosion_measurements`` to progressively shrink the cell or nucleus
-    mask and measure intensity at increasing depth from the boundary.
+    Works inward from the cell boundary. Each bin targets 1/n_bins of the
+    total mask area. Returns a list of (eroded_mask, depth_px) tuples, one
+    per bin, where each mask represents the region at that depth.
 
-    Returns the original mask unchanged if ``step <= 0``.
+    The approach: iteratively erode by 1 pixel at a time, recording the
+    cumulative area removed. When cumulative removal crosses the next
+    (bin_index / n_bins) * total_area threshold, we snapshot that erosion
+    level as the bin boundary.
     """
-    if step <= 0:
-        return mask
-    return ndi.binary_erosion(mask, structure=_DISK_1, iterations=step)
+    total = int(np.count_nonzero(mask))
+    if total == 0:
+        return []
+
+    target_fractions = [(b / n_bins) for b in range(1, n_bins + 1)]  # 0.2, 0.4, 0.6, 0.8, 1.0
+    bins: List[Tuple[np.ndarray, int]] = []
+
+    current = mask.astype(bool)
+    depth = 0
+
+    for target_frac in target_fractions:
+        target_remaining = int(total * (1.0 - target_frac))  # area we want left after this bin boundary
+        # Erode until area drops to or below target_remaining, or mask empties
+        while True:
+            area = int(np.count_nonzero(current))
+            if area <= target_remaining or area == 0:
+                break
+            current = binary_erosion(current, _DISK_1)
+            depth += 1
+        bins.append((current.copy(), depth))
+        if area == 0:
+            # All remaining bins will also be empty — pad with empty masks
+            while len(bins) < n_bins:
+                bins.append((current.copy(), depth))
+            break
+
+    return bins
 
 
-def add_erosion_measurements(props: Dict[str, Any], image_cyx: np.ndarray, ch_names: Sequence[str], comp_masks: Dict[str, np.ndarray], steps: Sequence[int]):
-    """Measure intensity at progressively eroded depths within Cell and Nucleus.
+def add_erosion_measurements(
+    props: Dict[str, Any],
+    image_cyx: np.ndarray,
+    ch_names: Sequence[str],
+    comp_masks: Dict[str, np.ndarray],
+    steps: Sequence[int],  # kept for API compatibility but ignored
+    n_bins: int = 5,
+):
+    """Measure intensity in 5 concentric erosion bins, each covering ~20% of cell area.
 
-    For each erosion step *s* (in pixels), the compartment mask is shrunk
-    inward by *s* pixels from the boundary.  This reveals how marker
-    expression varies with depth from the cell/nucleus edge — e.g.
-    membrane-localised markers will drop off quickly with erosion while
-    diffuse cytoplasmic markers remain stable.
+    Instead of fixed pixel depths, bins are defined by equal area fractions
+    working inward from the cell boundary. Bin 1 is the outermost 20% ring,
+    Bin 5 is the innermost 20% (deepest core). This makes bins comparable
+    across cells of different sizes.
 
-    Erosion steps are applied **cumulatively** (i.e. step 3 erodes 3
-    additional pixels beyond step 0, not 3 beyond step 2), and the
-    implementation tracks the previous erosion level to avoid redundant
-    work.
+    The ``steps`` parameter is accepted for API compatibility but ignored;
+    bin boundaries are computed adaptively from the mask geometry.
 
-    Produces for each step:
-      * ``<Compartment>: Eroded_<s>px: Area_Fraction`` — fraction of the
-        original compartment area remaining after erosion.
-      * ``<channel>: <Compartment>: Eroded_<s>px: Mean/Median`` —
-        intensity statistics within the eroded mask.
-
-    Parameters
-    ----------
-    props : dict
-        Measurement dictionary (mutated in place).
-    image_cyx : np.ndarray
-        Multi-channel image crop.
-    ch_names : sequence of str
-        Channel names.
-    comp_masks : dict
-        Compartment → boolean mask.
-    steps : sequence of int
-        Erosion distances in pixels (de-duplicated and sorted internally).
+    Produces per bin:
+      * ``<Compartment>: ErosionBin_<N>: Area_px`` — absolute pixel count
+      * ``<Compartment>: ErosionBin_<N>: Area_Fraction`` — fraction of total compartment area
+      * ``<Compartment>: ErosionBin_<N>: Depth_px`` — erosion depth at the inner edge of this bin
+      * ``<channel>: <Compartment>: ErosionBin_<N>: Mean``
+      * ``<channel>: <Compartment>: ErosionBin_<N>: Median``
     """
-    ordered_steps = sorted(set(int(s) for s in steps if int(s) > 0))
-    if not ordered_steps:
-        return
-
     for comp in ("CELL", "NUCLEUS"):
         base = comp_masks[comp]
         base_area = int(np.count_nonzero(base))
         if base_area == 0:
             continue
-        prev = 0
-        cur = base.copy()
+
         comp_name = comp.capitalize()
-        for s in ordered_steps:
-            extra = s - prev
-            cur = erode_steps(cur, extra)
-            prev = s
-            area = int(np.count_nonzero(cur))
-            props[f"{comp_name}: Eroded_{s}px: Area_Fraction"] = float(area / base_area)
-            if area == 0:
-                continue
-            for ci, ch in enumerate(ch_names):
-                vals = image_cyx[ci][cur]
-                if vals.size == 0:
-                    continue
-                props[f"{ch}: {comp_name}: Eroded_{s}px: Mean"] = float(np.mean(vals))
-                props[f"{ch}: {comp_name}: Eroded_{s}px: Median"] = float(np.median(vals))
+        bin_boundaries = _erosion_bins_for_mask(base, n_bins=n_bins)
+
+        # Convert cumulative eroded masks → mutually exclusive annular rings
+        # Ring N = (area remaining after bin N-1) minus (area remaining after bin N)
+        prev_mask = base.astype(bool)
+        for bin_idx, (eroded_mask, depth_px) in enumerate(bin_boundaries, start=1):
+            ring = prev_mask & ~eroded_mask  # the shell peeled off in this bin
+            ring_area = int(np.count_nonzero(ring))
+
+            props[f"{comp_name}: ErosionBin_{bin_idx}: Area_px"] = ring_area
+            props[f"{comp_name}: ErosionBin_{bin_idx}: Area_Fraction"] = float(ring_area / base_area)
+            props[f"{comp_name}: ErosionBin_{bin_idx}: Depth_px"] = depth_px
+
+            if ring_area > 0:
+                for ci, ch in enumerate(ch_names):
+                    vals = image_cyx[ci][ring]
+                    if vals.size > 0:
+                        props[f"{ch}: {comp_name}: ErosionBin_{bin_idx}: Mean"] = float(np.mean(vals))
+                        props[f"{ch}: {comp_name}: ErosionBin_{bin_idx}: Median"] = float(np.median(vals))
+
+            prev_mask = eroded_mask
+
+
+def _expansion_bins_for_mask(cell_mask: np.ndarray, total_expansion_px: int, n_bins: int = 5) -> List[Tuple[np.ndarray, int]]:
+    """Compute dilation depths that divide a 20 µm expansion zone into n equal-area bins.
+
+    Works outward from the cell boundary. First dilates the cell mask by
+    *total_expansion_px* pixels to define the full expansion zone, then
+    iteratively dilates from the cell boundary 1 pixel at a time, snapshotting
+    when cumulative ring area crosses each (bin_index / n_bins) * total_zone_area
+    threshold.
+
+    Returns a list of (dilated_mask, depth_px) tuples, one per bin.
+    """
+    cm = cell_mask.astype(bool)
+    if not np.any(cm):
+        return []
+
+    full_dilated = ndi.binary_dilation(cm, structure=_DISK_1, iterations=total_expansion_px)
+    zone = full_dilated & ~cm
+    total_zone_area = int(np.count_nonzero(zone))
+    if total_zone_area == 0:
+        return []
+
+    target_fractions = [(b / n_bins) for b in range(1, n_bins + 1)]  # 0.2, 0.4, 0.6, 0.8, 1.0
+    bins: List[Tuple[np.ndarray, int]] = []
+
+    current = cm.copy()
+    depth = 0
+
+    for target_frac in target_fractions:
+        target_area = int(total_zone_area * target_frac)
+        # Dilate until cumulative ring area reaches target
+        while depth < total_expansion_px:
+            current_ring_area = int(np.count_nonzero(current & ~cm)) 
+            if current_ring_area >= target_area:
+                break
+            current = ndi.binary_dilation(current, structure=_DISK_1, iterations=1)
+            depth += 1
+        bins.append((current.copy(), depth))
+        if depth >= total_expansion_px:
+            while len(bins) < n_bins:
+                bins.append((current.copy(), depth))
+            break
+
+    return bins
 
 
 def add_expansion_measurements(
@@ -900,28 +967,23 @@ def add_expansion_measurements(
     image_cyx: np.ndarray,
     ch_names: Sequence[str],
     cell_mask: np.ndarray,
-    steps: Sequence[int],
+    pixel_size_microns: float,
+    n_bins: int = 5,
 ):
-    """Measure intensity in annular rings dilated outward from the cell boundary.
+    """Measure intensity in 5 equal-area annular bins dilated 20 µm outward from the cell.
 
-    Each ring at step *s* covers the zone [dilated_{s-1}, dilated_s) so that
-    rings are mutually exclusive and together form a radial profile of the
-    pericellular neighbourhood.  This is analogous to measuring at increasing
-    distances *outside* the cell, complementing the erosion measurements
-    that probe *inside* the cell.
+    Instead of fixed pixel steps, the full 20 µm expansion zone is divided
+    into *n_bins* rings of approximately equal area. Bin 1 is the ring
+    immediately adjacent to the cell boundary, Bin 5 is the outermost ring
+    at the edge of the 20 µm zone. This makes bins comparable across cells
+    of different sizes and across imaging platforms with different pixel sizes.
 
-    Produces for each step:
-      * ``Cell: Expanded_<s>px: Area_Fraction`` — ring area as a fraction
-        of the original cell area.  Useful for normalisation.
-      * ``<channel>: Cell: Expanded_<s>px: Mean/Median`` — intensity
-        statistics within the annular ring.
-
-    .. note::
-
-       Expansion is performed on the **raw raster mask** before overlap
-       clipping, so annular rings may extend into territory that is later
-       assigned to a neighbouring cell.  The measurements therefore reflect
-       the unmodified pericellular microenvironment.
+    Produces per bin:
+      * ``Cell: ExpansionBin_<N>: Area_px`` — absolute pixel count
+      * ``Cell: ExpansionBin_<N>: Area_Fraction`` — fraction of cell body area
+      * ``Cell: ExpansionBin_<N>: Depth_px`` — dilation depth at the outer edge
+      * ``<channel>: Cell: ExpansionBin_<N>: Mean``
+      * ``<channel>: Cell: ExpansionBin_<N>: Median``
 
     Parameters
     ----------
@@ -933,36 +995,41 @@ def add_expansion_measurements(
         Channel names.
     cell_mask : np.ndarray
         Binary cell body mask.
-    steps : sequence of int
-        Expansion distances in pixels (de-duplicated and sorted internally).
+    pixel_size_microns : float
+        Pixel size in microns, used to convert 20 µm to pixels.
+    n_bins : int
+        Number of equal-area bins (default 5).
     """
-    ordered_steps = sorted(set(int(s) for s in steps if int(s) > 0))
-    if not ordered_steps:
-        return
+    EXPANSION_UM = 20.0
+    total_expansion_px = max(1, int(round(EXPANSION_UM / pixel_size_microns)))
 
-    base_area = int(np.count_nonzero(cell_mask))
+    cm = cell_mask.astype(bool)
+    base_area = int(np.count_nonzero(cm))
     if base_area == 0:
         return
 
-    prev_dilated = cell_mask.astype(bool)
-    prev_step = 0
-    for s in ordered_steps:
-        extra = s - prev_step
-        cur_dilated = ndi.binary_dilation(prev_dilated, structure=_DISK_1, iterations=extra)
-        ring = cur_dilated & ~prev_dilated
+    bin_boundaries = _expansion_bins_for_mask(cm, total_expansion_px, n_bins=n_bins)
+    if not bin_boundaries:
+        return
+
+    # Convert cumulative dilated masks → mutually exclusive annular rings
+    prev_mask = cm.copy()
+    for bin_idx, (dilated_mask, depth_px) in enumerate(bin_boundaries, start=1):
+        ring = dilated_mask & ~prev_mask
         ring_area = int(np.count_nonzero(ring))
-        props[f"Cell: Expanded_{s}px: Area_Fraction"] = float(ring_area / base_area)
+
+        props[f"Cell: ExpansionBin_{bin_idx}: Area_px"] = ring_area
+        props[f"Cell: ExpansionBin_{bin_idx}: Area_Fraction"] = float(ring_area / base_area)
+        props[f"Cell: ExpansionBin_{bin_idx}: Depth_px"] = depth_px
 
         if ring_area > 0:
             for ci, ch in enumerate(ch_names):
                 vals = image_cyx[ci][ring]
-                if vals.size == 0:
-                    continue
-                props[f"{ch}: Cell: Expanded_{s}px: Mean"] = float(np.mean(vals))
-                props[f"{ch}: Cell: Expanded_{s}px: Median"] = float(np.median(vals))
+                if vals.size > 0:
+                    props[f"{ch}: Cell: ExpansionBin_{bin_idx}: Mean"] = float(np.mean(vals))
+                    props[f"{ch}: Cell: ExpansionBin_{bin_idx}: Median"] = float(np.median(vals))
 
-        prev_dilated = cur_dilated
-        prev_step = s
+        prev_mask = dilated_mask
 
 
 def add_environment_measurements(
@@ -970,25 +1037,21 @@ def add_environment_measurements(
     image_cyx: np.ndarray,
     ch_names: Sequence[str],
     cell_mask: np.ndarray,
-    expansion_px: int,
+    pixel_size_microns: float,
 ):
-    """Measure intensity in the full pericellular environment zone.
+    """Measure intensity in a 20 µm pericellular environment zone.
 
     Unlike ``add_expansion_measurements`` which splits the dilated zone into
     mutually exclusive annular rings, this function computes a single
-    dilation of *expansion_px* pixels and measures the **entire** zone
-    between the cell boundary and the outer ring as one compartment.  This
-    matches CellTune's "Environment" compartment for characterising the
-    local tissue microenvironment around each cell.
-
-    Typical dilation distances for ~20 µm coverage:
-      * COMET images (≈0.28 µm/px): ~71 px
-      * MIBI images (≈0.39 µm/px): ~51 px
-      * OPAL images (≈0.50 µm/px): ~40 px
+    dilation of 20 µm (converted to pixels via *pixel_size_microns*) and
+    measures the **entire** zone between the cell boundary and the outer
+    ring as one compartment.  This matches CellTune's "Environment"
+    compartment for characterising the local tissue microenvironment
+    around each cell.
 
     Produces:
-      * ``Cell: Environment_<N>px: Pixel_Count`` and ``Area_Fraction``
-      * ``<channel>: Cell: Environment_<N>px: Mean/Median/Min/Max/Std.Dev.``
+      * ``Cell: Environment_20um: Pixel_Count`` and ``Area_Fraction``
+      * ``<channel>: Cell: Environment_20um: Mean/Median/Min/Max/Std.Dev.``
 
     Parameters
     ----------
@@ -1000,11 +1063,11 @@ def add_environment_measurements(
         Channel names.
     cell_mask : np.ndarray
         Binary cell body mask.
-    expansion_px : int
-        Dilation radius in pixels.  0 disables this measurement.
+    pixel_size_microns : float
+        Pixel size in microns, used to convert the 20 µm radius to pixels.
     """
-    if expansion_px <= 0:
-        return
+    ENVIRONMENT_UM = 20.0
+    expansion_px = max(1, int(round(ENVIRONMENT_UM / pixel_size_microns)))
     cm = cell_mask.astype(bool)
     if not np.any(cm):
         return
@@ -1014,63 +1077,33 @@ def add_environment_measurements(
     if env_area == 0:
         return
     base_area = int(np.count_nonzero(cm))
-    props[f"Cell: Environment_{expansion_px}px: Pixel_Count"] = env_area
-    props[f"Cell: Environment_{expansion_px}px: Area_Fraction"] = float(env_area / base_area) if base_area > 0 else 0.0
+    props["Cell: Environment_20um: Pixel_Count"] = env_area
+    props["Cell: Environment_20um: Area_Fraction"] = float(env_area / base_area) if base_area > 0 else 0.0
     for ci, ch in enumerate(ch_names):
         vals = image_cyx[ci][env_mask]
         if vals.size == 0:
             continue
-        props[f"{ch}: Cell: Environment_{expansion_px}px: Mean"] = float(np.mean(vals))
-        props[f"{ch}: Cell: Environment_{expansion_px}px: Median"] = float(np.median(vals))
-        props[f"{ch}: Cell: Environment_{expansion_px}px: Min"] = float(np.min(vals))
-        props[f"{ch}: Cell: Environment_{expansion_px}px: Max"] = float(np.max(vals))
-        props[f"{ch}: Cell: Environment_{expansion_px}px: Std.Dev."] = float(np.std(vals))
+        props[f"{ch}: Cell: Environment_20um: Mean"] = float(np.mean(vals))
+        props[f"{ch}: Cell: Environment_20um: Median"] = float(np.median(vals))
+        props[f"{ch}: Cell: Environment_20um: Min"] = float(np.min(vals))
+        props[f"{ch}: Cell: Environment_20um: Max"] = float(np.max(vals))
+        props[f"{ch}: Cell: Environment_20um: Std.Dev."] = float(np.std(vals))
 
 
-def add_neighborhood_features(features: List[Dict[str, Any]], k: int) -> None:
-    """Aggregate each cell's numeric measurements across its *k* nearest neighbours.
+def add_neighborhood_features(features: List[Dict[str, Any]], k: int, pixel_size_microns: float = 0.5) -> None:
+    """Aggregate each cell's numeric measurements across its k nearest neighbours
+    within a 20 µm radius. Only the mean is computed (max is omitted).
 
-    For every numeric measurement key already present in the features (from
-    shape, intensity, erosion, expansion, and environment measurements), two
-    new properties are added per cell:
-
-      * ``Neighbors: Max: <key>``  — maximum value among the *k* neighbours
-      * ``Neighbors: Mean: <key>`` — mean value among the *k* neighbours
-
-    This enables spatial analyses such as identifying cells in high-expression
-    neighbourhoods or detecting local heterogeneity.
-
-    **Implementation details:**
-
-    1. Centroids are computed from each feature's (post-clipping) polygon
-       geometry, so spatial proximity reflects the final exported positions.
-    2. A ``scipy.spatial.cKDTree`` is built for O(n log n) nearest-neighbour
-       lookup.  The query requests k+1 neighbours because the closest
-       neighbour of each point is itself.
-    3. Measurement values are pre-extracted into contiguous NumPy arrays
-       (one per measurement key) for vectorised slicing, avoiding repeated
-       dict lookups in the inner loop.
-
-    .. note::
-
-       The input measurement values were computed from the **raw raster
-       masks** before polygon overlap clipping (see ``feature_for_cell``).
-       Neighbourhood aggregation therefore propagates these pre-clipping
-       values.  This is intentional: the raw-mask measurements are
-       considered the more biologically faithful signal source.
-
-    Parameters
-    ----------
-    features : list of dict
-        GeoJSON Feature dicts, each with ``properties.measurements``.
-        Mutated in place to add neighbourhood keys.
-    k : int
-        Number of nearest neighbours.  0 or negative disables the feature.
+    Cells with no neighbours within the distance cap produce no neighbourhood
+    keys, so isolated cells in sparse tissue don't get meaningless aggregations
+    from cells hundreds of microns away.
     """
     if k <= 0 or len(features) < 2:
         return
 
-    # -- build centroid array ------------------------------------------------
+    MAX_DISTANCE_UM = 20.0
+    max_distance_px = MAX_DISTANCE_UM / pixel_size_microns
+
     centroids = np.empty((len(features), 2), dtype=np.float64)
     for i, feat in enumerate(features):
         geom = shape(feat["geometry"])
@@ -1078,11 +1111,9 @@ def add_neighborhood_features(features: List[Dict[str, Any]], k: int) -> None:
         centroids[i] = (c.x, c.y)
 
     tree = cKDTree(centroids)
-    # query k+1 because the nearest neighbour of a point is itself
     actual_k = min(k + 1, len(features))
-    _, indices = tree.query(centroids, k=actual_k)
+    distances, indices = tree.query(centroids, k=actual_k)
 
-    # -- collect measurement keys that are numeric --------------------------
     sample_meas = features[0]["properties"].get("measurements", {})
     numeric_keys = [
         key for key, val in sample_meas.items()
@@ -1091,9 +1122,8 @@ def add_neighborhood_features(features: List[Dict[str, Any]], k: int) -> None:
     if not numeric_keys:
         return
 
-    # -- pre-extract measurement vectors for speed --------------------------
     n = len(features)
-    print(f"  Extracting {len(numeric_keys)} measurement vectors for {n} cells...")
+    print(f"  Extracting {len(numeric_keys)} measurement vectors for {n} cells (20 µm cap = {max_distance_px:.1f} px)...")
     meas_vectors: Dict[str, np.ndarray] = {}
     for ki, key in enumerate(numeric_keys):
         arr = np.full(n, np.nan, dtype=np.float64)
@@ -1105,30 +1135,37 @@ def add_neighborhood_features(features: List[Dict[str, Any]], k: int) -> None:
         if (ki + 1) % 100 == 0 or (ki + 1) == len(numeric_keys):
             print(f"  Extracted {ki + 1}/{len(numeric_keys)} measurement vectors")
 
-    # -- compute neighborhood aggregations ----------------------------------
     for i, feat in enumerate(features):
         if (i + 1) % 10000 == 0 or (i + 1) == n:
             print(f"  Neighborhood aggregation: {i + 1}/{n} cells ({int((i + 1) * 100.0 / max(n, 1))}%)")
-        # exclude self (index 0 in the sorted neighbour list)
         if actual_k <= 1:
             continue
-        nbr_idx = indices[i, 1:actual_k]  # skip self
+
+        nbr_idx = indices[i, 1:actual_k]
+        nbr_dist = distances[i, 1:actual_k]
+
+        # Apply 20 µm distance cap — drop neighbours beyond the threshold
+        within = nbr_dist <= max_distance_px
+        nbr_idx = nbr_idx[within]
+
+        if len(nbr_idx) == 0:
+            continue  # isolated cell — skip rather than writing NaN features
+
         meas = feat["properties"].setdefault("measurements", {})
         for key in numeric_keys:
             vals = meas_vectors[key][nbr_idx]
             valid = vals[~np.isnan(vals)]
             if valid.size == 0:
                 continue
-            meas[f"Neighbors: Max: {key}"] = float(np.max(valid))
             meas[f"Neighbors: Mean: {key}"] = float(np.mean(valid))
 
 
 def parse_csv_numbers(s: str, cast=float, positive_only=False) -> List:
     """Parse a comma-separated string of numbers into a typed list.
 
-    Used to parse ``--percentiles``, ``--erosion-steps``, and
-    ``--expansion-steps`` CLI arguments.  Empty or whitespace-only strings
-    return an empty list.  Invalid tokens raise ``ValueError``.
+    Used to parse ``--percentiles`` and ``--erosion-steps`` CLI arguments.
+    Empty or whitespace-only strings return an empty list.  Invalid tokens
+    raise ``ValueError``.
 
     Parameters
     ----------
@@ -1177,8 +1214,8 @@ def feature_for_cell(
     ch_names: Sequence[str],
     percentiles: Sequence[float],
     erosion_steps: Sequence[int],
-    expansion_steps: Sequence[int] = (),
-    environment_expansion: int = 0,
+    expansion_enabled: bool = False,
+    environment_expansion: bool = False,
 ):
     """Build a complete GeoJSON Feature dict for a single cell.
 
@@ -1226,10 +1263,12 @@ def feature_for_cell(
         If True, only shape metrics are computed (no intensity stats).
     ch_names : sequence of str
         Channel names.
-    percentiles, erosion_steps, expansion_steps : sequences
+    percentiles, erosion_steps : sequences
         Optional measurement parameters.
-    environment_expansion : int
-        Pericellular environment dilation radius (0 = disabled).
+    expansion_enabled : bool
+        Whether to compute 20 µm expansion bin measurements.
+    environment_expansion : bool
+        Whether to compute 20 µm pericellular environment measurements.
 
     Returns
     -------
@@ -1262,10 +1301,10 @@ def feature_for_cell(
             add_percentiles(measurements, image_crop, ch_names, comps, percentiles)
         if erosion_steps:
             add_erosion_measurements(measurements, image_crop, ch_names, comps, erosion_steps)
-        if expansion_steps:
-            add_expansion_measurements(measurements, image_crop, ch_names, cmask, expansion_steps)
-        if environment_expansion > 0:
-            add_environment_measurements(measurements, image_crop, ch_names, cmask, environment_expansion)
+        if expansion_enabled:
+            add_expansion_measurements(measurements, image_crop, ch_names, cmask, pixel_size_microns)
+        if environment_expansion:
+            add_environment_measurements(measurements, image_crop, ch_names, cmask, pixel_size_microns)
 
     # --- Step 4: Package into GeoJSON Feature ---
     feature: Dict[str, Any] = {
@@ -1297,8 +1336,8 @@ def iter_tasks(
     ch_names: Sequence[str],
     percentiles: Sequence[float],
     erosion_steps: Sequence[int],
-    expansion_steps: Sequence[int] = (),
-    environment_expansion: int = 0,
+    expansion_enabled: bool = False,
+    environment_expansion: bool = False,
 ):
     """Lazily yield per-cell task tuples for ``feature_for_cell``.
 
@@ -1311,10 +1350,9 @@ def iter_tasks(
     ``ProcessPoolExecutor``.  The generator is consumed lazily to avoid
     materialising all crops in memory simultaneously.
 
-    The bounding box is padded outward by ``max(expansion_steps,
-    environment_expansion)`` pixels when expansion or environment
-    measurements are requested, so that dilation in the worker doesn't
-    run past the crop boundary.
+    The bounding box is padded outward by the 20 µm expansion distance
+    (in pixels) when expansion or environment measurements are requested,
+    so that dilation in the worker doesn't run past the crop boundary.
 
     Parameters
     ----------
@@ -1330,18 +1368,18 @@ def iter_tasks(
         Full multi-channel image.
     args : argparse.Namespace
         Parsed CLI arguments.
-    ch_names, percentiles, erosion_steps, expansion_steps, environment_expansion
+    ch_names, percentiles, erosion_steps
         Measurement configuration.
+    expansion_enabled, environment_expansion : bool
+        Whether to compute expansion / environment zone measurements.
 
     Yields
     ------
     tuple
         Positional arguments for ``feature_for_cell(*)``.
     """
-    max_expand = max(
-        max(expansion_steps) if expansion_steps else 0,
-        environment_expansion,
-    )
+    expand_px = max(1, int(round(20.0 / args.pixel_size_microns))) if (expansion_enabled or environment_expansion) else 0
+    max_expand = expand_px
     h, w = cell_labels.shape[:2]
     for cid in unique_cells:
         rs, cs = bbox_map[cid]
@@ -1372,7 +1410,7 @@ def iter_tasks(
             tuple(ch_names),
             tuple(percentiles),
             tuple(erosion_steps),
-            tuple(expansion_steps),
+            expansion_enabled,
             environment_expansion,
         )
 
@@ -1821,19 +1859,15 @@ def main() -> int:
     if erosion_steps_raw and erosion_steps_raw != erosion_steps:
         print(f"Warning: normalized erosion steps from {erosion_steps_raw} to {erosion_steps}")
 
-    expansion_steps_raw = parse_csv_numbers(args.expansion_steps, cast=int, positive_only=True)
-    expansion_steps = sorted(set(expansion_steps_raw))
-    if expansion_steps_raw and expansion_steps_raw != expansion_steps:
-        print(f"Warning: normalized expansion steps from {expansion_steps_raw} to {expansion_steps}")
-
     if percentiles:
         print(f"Will add intensity percentiles: {percentiles}")
     if erosion_steps:
         print(f"Will add erosion measurements at steps: {erosion_steps}")
-    if expansion_steps:
-        print(f"Will add expansion measurements at steps: {expansion_steps}")
-    if args.environment_expansion > 0:
-        print(f"Will add environment measurements ({args.environment_expansion}px dilation)")
+    expand_20um_px = max(1, int(round(20.0 / args.pixel_size_microns)))
+    if args.expansion_steps:
+        print(f"Will add expansion bin measurements (20 µm = {expand_20um_px} px, 5 bins)")
+    if args.environment_expansion:
+        print(f"Will add environment measurements (20 µm = {expand_20um_px} px dilation)")
 
     # ===================================================================
     # Stage 4: Per-cell measurement (parallelisable)
@@ -1856,7 +1890,7 @@ def main() -> int:
         ch_names,
         percentiles,
         erosion_steps,
-        expansion_steps,
+        args.expansion_steps,
         args.environment_expansion,
     )
 
@@ -1944,8 +1978,8 @@ def main() -> int:
     # measurement values for the aggregated statistics.
     # ===================================================================
     if args.neighbors and args.neighbors > 0:
-        print(f"Computing neighborhood features (k={args.neighbors})...")
-        add_neighborhood_features(features, args.neighbors)
+        print(f"Computing neighborhood features (k={args.neighbors}, max 20 µm = {20.0 / args.pixel_size_microns:.1f} px)...")
+        add_neighborhood_features(features, args.neighbors, pixel_size_microns=args.pixel_size_microns)
         print(f"Neighborhood features added for {len(features)} cells")
 
     # ===================================================================

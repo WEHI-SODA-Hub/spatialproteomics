@@ -443,20 +443,18 @@
                     "help_text": "A comma-separated list of erosion steps in pixels. Targets ~2–20 µm inward from the cell/nucleus boundary. For small cells, inner steps will fully erode the mask (Area_Fraction=0) and no measurements are recorded — this is safe. Recommended values: COMET (0.28 µm/px): 7,14,21,29,36,43,50,57,64,71; MIBI (0.390625 µm/px): 5,10,15,20,26,31,36,41,46,51; OPAL (0.4964 µm/px): 4,8,12,16,20,24,28,32,36,40. Skip measurements must be set to `false` to use this parameter."
                 },
                 "expansion_steps": {
-                    "type": "string",
-                    "default": "14,29,43,57,71",
-                    "description": "Comma-separated expansion steps in pixels (~4,8,12,16,20 µm outward from cell boundary).",
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Measure intensity in 5 equal-area annular bins dilated 20 µm outward from the cell boundary (distance computed from pixel_size_microns).",
                     "fa_icon": "fas fa-expand-arrows-alt",
-                    "pattern": "^([0-9]*)(,[0-9]*)*$",
-                    "help_text": "Measures mean/median intensity in annular rings dilated outward from the cell boundary to profile the pericellular neighbourhood. Targets ~4,8,12,16,20 µm. Recommended values: COMET (0.28 µm/px): 14,29,43,57,71; MIBI (0.390625 µm/px): 10,20,31,41,51; OPAL (0.4964 µm/px): 8,16,24,32,40. Set to empty string to disable. Skip measurements must be set to `false` to use this parameter."
+                    "help_text": "Divides the 20 µm pericellular zone into 5 rings of approximately equal area and measures mean/median intensity per ring. The total expansion distance is computed automatically from pixel_size_microns. Set to false to disable. Skip measurements must be set to false to use this parameter."
                 },
                 "environment_expansion": {
-                    "type": "integer",
-                    "default": 71,
-                    "minimum": 0,
-                    "description": "Single dilation in pixels for the 'Environment' compartment (~20 µm zone around the cell, as in CellTune). 0 = disabled.",
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Measure a 20 µm pericellular 'Environment' compartment (distance computed automatically from pixel_size_microns).",
                     "fa_icon": "fas fa-circle-notch",
-                    "help_text": "Dilates the cell mask by this many pixels and measures mean, median, min, max, and std dev of every channel in the full zone (cell boundary to outer ring) as one region. This matches CellTune's 'Environment' compartment. For ~20 µm: COMET (0.28 µm/px): 71; MIBI (0.390625 µm/px): 51; OPAL (0.4964 µm/px): 40. Set to 0 to disable."
+                    "help_text": "Dilates the cell mask by 20 µm (converted to pixels via pixel_size_microns) and measures mean, median, min, max, and std dev of every channel in the full zone (cell boundary to outer ring) as one region. This matches CellTune's 'Environment' compartment. Set to false to disable."
                 },
                 "pixel_size_microns": {
                     "type": "number",
