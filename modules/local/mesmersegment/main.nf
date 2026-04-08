@@ -29,12 +29,12 @@ process MESMERSEGMENT {
     ensure_ome_tiff.py "${tiff}" "ome_${tiff}"
 
     # Phase 1: Serialize model download — first task downloads, others wait
-    REAL_HOME="\$HOME"
+    REAL_HOME="${params.deepcell_cache_dir ? params.deepcell_cache_dir : '\$HOME'}"
     mkdir -p "\$REAL_HOME/.deepcell/models"
     (
         flock -x 200
         if ! ls "\$REAL_HOME/.deepcell/models"/MultiplexSegmentation*.tar.gz >/dev/null 2>&1; then
-            python -c "from deepcell.applications import Mesmer; Mesmer()"
+            HOME="\$REAL_HOME" python -c "from deepcell.applications import Mesmer; Mesmer()"
         fi
     ) 200>>"\$REAL_HOME/.deepcell/model_download.lock"
 

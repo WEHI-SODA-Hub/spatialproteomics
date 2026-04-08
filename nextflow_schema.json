@@ -618,6 +618,14 @@
                     "description": "Directory to use for Gradle cache.",
                     "fa_icon": "fas fa-cogs",
                     "hidden": true
+                },
+                "deepcell_cache_dir": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "default": "/vast/scratch/users/${USER}",
+                    "description": "Directory for caching DeepCell/CellSAM model weights. Defaults to /vast/scratch/users/$USER.",
+                    "fa_icon": "fas fa-database",
+                    "help_text": "Set this to redirect the DeepCell model cache away from the home directory. Models will be downloaded to {deepcell_cache_dir}/.deepcell/models/. The default uses /vast/scratch/users/$USER which is resolved automatically from the current username."
                 }
             }
         }

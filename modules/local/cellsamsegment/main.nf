@@ -22,8 +22,10 @@ process CELLSAMSEGMENT {
     def prefix = task.ext.prefix ?: "${meta.id}"
     def mem_channels = membrane_channels != '' && membrane_channels != [] ? membrane_channels.split(":") : []
     def mem_channel_args = mem_channels.collect { "--membrane-channel '${it}'" }.join(' ')
+    def cache_home = params.deepcell_cache_dir ? "export HOME=\"${params.deepcell_cache_dir}\"" : ''
 
     """
+    ${cache_home}
     cellsam_segment.py \\
         ${tiff} \\
         --output ${prefix}_${compartment}.tiff \\
