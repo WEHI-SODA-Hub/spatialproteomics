@@ -29,7 +29,7 @@ process MESMERSEGMENT {
     ensure_ome_tiff.py "${tiff}" "ome_${tiff}"
 
     # Phase 1: Serialize model download — first task downloads, others wait
-    REAL_HOME="${params.deepcell_cache_dir ? params.deepcell_cache_dir : '\$HOME'}"
+    REAL_HOME="${params.deepcell_cache_dir ? params.deepcell_cache_dir + '/$(whoami)' : '\$HOME'}"
     mkdir -p "\$REAL_HOME/.deepcell/models"
     (
         flock -x 200

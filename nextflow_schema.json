@@ -622,9 +622,10 @@
                 "deepcell_cache_dir": {
                     "type": "string",
                     "format": "directory-path",
-                    "description": "Directory for caching DeepCell/CellSAM model weights. Defaults to $HOME if not set.",
+                    "default": "/vast/scratch/users",
+                    "description": "Base directory for caching DeepCell/CellSAM model weights. The current username is appended automatically.",
                     "fa_icon": "fas fa-database",
-                    "help_text": "Set this to redirect the DeepCell model cache away from the home directory. For example, on HPC systems with limited home directory quota, set this to a scratch directory like '/vast/scratch/users/$USER'. Models will be downloaded to {deepcell_cache_dir}/.deepcell/models/. Pass via CLI (--deepcell_cache_dir /vast/scratch/users/$USER) so that $USER is resolved by your shell."
+                    "help_text": "Set this to redirect the DeepCell model cache away from the home directory. The current username is resolved at runtime and appended, so models are cached at {deepcell_cache_dir}/{username}/.deepcell/models/. Set to null to use $HOME instead."
                 }
             }
         }
