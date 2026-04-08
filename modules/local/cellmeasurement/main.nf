@@ -8,8 +8,8 @@ process CELLMEASUREMENT {
     input:
     tuple val(meta),
         path(tiff),
-        path(nuclear_mask),
-        path(whole_cell_mask)
+        path(nuclear_mask, stageAs: 'nuclear_mask_input.tiff'),
+        path(whole_cell_mask, stageAs: 'whole_cell_mask_input.tiff')
 
     output:
     tuple val(meta), path("*.geojson{,.gz}"), emit: annotations
