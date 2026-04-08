@@ -16,7 +16,7 @@ process KRONOSEMBEDDINGS {
     output:
     tuple val(meta), path("*_kronos_embeddings.csv")  , emit: embeddings
     tuple val(meta), path("*_marker_report.txt")       , emit: marker_report
-    tuple val(meta), path("*_kronos_merged.geojson")   , emit: merged_geojson, optional: true
+    tuple val(meta), path("*_kronos_merged.geojson")   , emit: merged_geojson
     path "versions.yml"                                , emit: versions
 
     when:
@@ -25,7 +25,7 @@ process KRONOSEMBEDDINGS {
     script:
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
-    def merge_args = params.kronos_merge_geojson ? "--geojson ${geojson} --merge-geojson" : ''
+    def merge_args = "--geojson ${geojson} --merge-geojson"
     """
     kronos_embeddings.py \\
         --tiff ${tiff} \\
@@ -50,7 +50,7 @@ process KRONOSEMBEDDINGS {
     """
     touch ${prefix}_kronos_embeddings.csv
     touch ${prefix}_kronos_embeddings_marker_report.txt
-    ${params.kronos_merge_geojson ? "touch ${prefix}_kronos_merged.geojson" : ''}
+    touch ${prefix}_kronos_merged.geojson
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

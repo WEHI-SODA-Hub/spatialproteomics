@@ -66,7 +66,6 @@ workflow MESMER_SEGMENT_WBACKSUB {
     nuclear_tif      = MESMER_SEGMENT.out.nuclear_tif       // channel: [ val(meta), *.tiff ]
     kronos_embeddings     = MESMER_SEGMENT.out.kronos_embeddings   // channel: [ val(meta), *.csv ] OPTIONAL
     kronos_marker_report  = MESMER_SEGMENT.out.kronos_marker_report // channel: [ val(meta), *.txt ] OPTIONAL
-    kronos_merged_geojson = MESMER_SEGMENT.out.kronos_merged_geojson // channel: [ val(meta), *.geojson ] OPTIONAL
 
     versions = ch_versions                                  // channel: [ versions.yml ]
 }

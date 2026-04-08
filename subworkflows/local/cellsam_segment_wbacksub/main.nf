@@ -66,7 +66,6 @@ workflow CELLSAM_SEGMENT_WBACKSUB {
     annotations                  = CELLSAM_SEGMENT.out.annotations                   // channel: [ val(meta), *.parquet ]
     kronos_embeddings            = CELLSAM_SEGMENT.out.kronos_embeddings              // channel: [ val(meta), *.csv ] OPTIONAL
     kronos_marker_report         = CELLSAM_SEGMENT.out.kronos_marker_report           // channel: [ val(meta), *.txt ] OPTIONAL
-    kronos_merged_geojson        = CELLSAM_SEGMENT.out.kronos_merged_geojson          // channel: [ val(meta), *.geojson ] OPTIONAL
     report                       = CELLSAM_SEGMENT.out.report                        // channel: [ val(meta), *.html ]
 
     versions = ch_versions                                                            // channel: [ versions.yml ]

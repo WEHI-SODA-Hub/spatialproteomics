@@ -144,7 +144,6 @@ workflow MESMER_SEGMENT {
     //
     ch_kronos_embeddings = Channel.empty()
     ch_kronos_marker_report = Channel.empty()
-    ch_kronos_merged_geojson = Channel.empty()
     if (!params.skip_kronos) {
 
         // Create channel for KRONOS input: tiff + whole-cell mask + geojson
@@ -175,7 +174,7 @@ workflow MESMER_SEGMENT {
         ch_versions = ch_versions.mix(KRONOSEMBEDDINGS.out.versions.first())
         ch_kronos_embeddings = KRONOSEMBEDDINGS.out.embeddings
         ch_kronos_marker_report = KRONOSEMBEDDINGS.out.marker_report
-        ch_kronos_merged_geojson = KRONOSEMBEDDINGS.out.merged_geojson
+        ch_annotations = KRONOSEMBEDDINGS.out.merged_geojson
     }
 
     // Optional SEGMENTATIONREPORT module
@@ -231,7 +230,6 @@ workflow MESMER_SEGMENT {
     nuclear_tif      = params.skip_nuclear_mask ? Channel.empty() : MESMERNUC.out.segmentation_mask   // channel: [ val(meta), *.tiff ]
     kronos_embeddings     = ch_kronos_embeddings          // channel: [ val(meta), *.csv ] OPTIONAL
     kronos_marker_report  = ch_kronos_marker_report       // channel: [ val(meta), *.txt ] OPTIONAL
-    kronos_merged_geojson = ch_kronos_merged_geojson       // channel: [ val(meta), *.geojson ] OPTIONAL
     report           = ch_report                         // channel: [ val(meta), *.html ] OPTIONAL
 
     versions         = ch_versions                       // channel: [ versions.yml ]
