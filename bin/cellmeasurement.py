@@ -86,7 +86,9 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--tolerance", type=float, default=0.5,
                    help="Simplification tolerance in pixels (default 0.5). Lower values preserve more shape detail.")
     p.add_argument("--percentiles", default="")
-    p.add_argument("--erosion-steps", default="")
+    p.add_argument("--erosion-steps", action="store_true",
+                   help="Measure intensity in 5 equal-area erosion bins working inward from the cell boundary. "
+                        "Disabled by default.")
     p.add_argument("--expansion-steps", action="store_true",
                    help="Measure intensity in 5 equal-area annular bins dilated 20 µm outward from cell boundary "
                         "(distance computed from --pixel-size-microns). Disabled by default.")
@@ -1163,7 +1165,7 @@ def add_neighborhood_features(features: List[Dict[str, Any]], k: int, pixel_size
 def parse_csv_numbers(s: str, cast=float, positive_only=False) -> List:
     """Parse a comma-separated string of numbers into a typed list.
 
-    Used to parse ``--percentiles`` and ``--erosion-steps`` CLI arguments.
+    Used to parse ``--percentiles`` CLI arguments.
     Empty or whitespace-only strings return an empty list.  Invalid tokens
     raise ``ValueError``.
 
@@ -1213,7 +1215,7 @@ def feature_for_cell(
     skip_measurements: bool,
     ch_names: Sequence[str],
     percentiles: Sequence[float],
-    erosion_steps: Sequence[int],
+    erosion_enabled: bool = False,
     expansion_enabled: bool = False,
     environment_expansion: bool = False,
 ):
@@ -1263,7 +1265,7 @@ def feature_for_cell(
         If True, only shape metrics are computed (no intensity stats).
     ch_names : sequence of str
         Channel names.
-    percentiles, erosion_steps : sequences
+    percentiles, erosion_enabled : sequences/bool
         Optional measurement parameters.
     expansion_enabled : bool
         Whether to compute 20 µm expansion bin measurements.
@@ -1299,8 +1301,8 @@ def feature_for_cell(
         add_intensity_measurements(measurements, image_crop, ch_names, comps)
         if percentiles:
             add_percentiles(measurements, image_crop, ch_names, comps, percentiles)
-        if erosion_steps:
-            add_erosion_measurements(measurements, image_crop, ch_names, comps, erosion_steps)
+        if erosion_enabled:
+            add_erosion_measurements(measurements, image_crop, ch_names, comps, steps=[])
         if expansion_enabled:
             add_expansion_measurements(measurements, image_crop, ch_names, cmask, pixel_size_microns)
         if environment_expansion:
@@ -1335,7 +1337,7 @@ def iter_tasks(
     args: argparse.Namespace,
     ch_names: Sequence[str],
     percentiles: Sequence[float],
-    erosion_steps: Sequence[int],
+    erosion_enabled: bool = False,
     expansion_enabled: bool = False,
     environment_expansion: bool = False,
 ):
@@ -1368,10 +1370,10 @@ def iter_tasks(
         Full multi-channel image.
     args : argparse.Namespace
         Parsed CLI arguments.
-    ch_names, percentiles, erosion_steps
+    ch_names, percentiles
         Measurement configuration.
-    expansion_enabled, environment_expansion : bool
-        Whether to compute expansion / environment zone measurements.
+    erosion_enabled, expansion_enabled, environment_expansion : bool
+        Whether to compute erosion / expansion / environment zone measurements.
 
     Yields
     ------
@@ -1409,7 +1411,7 @@ def iter_tasks(
             args.skip_measurements,
             tuple(ch_names),
             tuple(percentiles),
-            tuple(erosion_steps),
+            erosion_enabled,
             expansion_enabled,
             environment_expansion,
         )
@@ -1854,15 +1856,11 @@ def main() -> int:
     )
 
     percentiles = parse_csv_numbers(args.percentiles, cast=float)
-    erosion_steps_raw = parse_csv_numbers(args.erosion_steps, cast=int, positive_only=True)
-    erosion_steps = sorted(set(erosion_steps_raw))
-    if erosion_steps_raw and erosion_steps_raw != erosion_steps:
-        print(f"Warning: normalized erosion steps from {erosion_steps_raw} to {erosion_steps}")
 
     if percentiles:
         print(f"Will add intensity percentiles: {percentiles}")
-    if erosion_steps:
-        print(f"Will add erosion measurements at steps: {erosion_steps}")
+    if args.erosion_steps:
+        print(f"Will add erosion bin measurements (5 equal-area bins)")
     expand_20um_px = max(1, int(round(20.0 / args.pixel_size_microns)))
     if args.expansion_steps:
         print(f"Will add expansion bin measurements (20 µm = {expand_20um_px} px, 5 bins)")
@@ -1889,7 +1887,7 @@ def main() -> int:
         args,
         ch_names,
         percentiles,
-        erosion_steps,
+        args.erosion_steps,
         args.expansion_steps,
         args.environment_expansion,
     )
