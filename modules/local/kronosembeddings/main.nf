@@ -50,7 +50,7 @@ process KRONOSEMBEDDINGS {
     """
     touch ${prefix}_kronos_embeddings.csv
     touch ${prefix}_kronos_embeddings_marker_report.txt
-    touch ${prefix}.geojson.gz
+    touch ${prefix}_kronos.geojson.gz
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
