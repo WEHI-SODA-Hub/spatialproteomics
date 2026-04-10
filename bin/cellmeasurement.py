@@ -35,6 +35,17 @@ from skimage.segmentation import watershed
 _DISK_1 = disk(1)
 _DISK_1.flags.writeable = False
 
+# ---------------------------------------------------------------------------
+# Module-level globals for sharing large arrays with worker processes via
+# fork() copy-on-write.  Set in main() before ProcessPoolExecutor is created
+# so that forked workers inherit the arrays without pickling per-task copies.
+# Workers only READ from these arrays, so pages are never actually copied.
+# ---------------------------------------------------------------------------
+_GLOBAL_IMG: Optional[np.ndarray] = None    # full multi-channel image (original dtype)
+_GLOBAL_CELL: Optional[np.ndarray] = None   # whole-cell label mask
+_GLOBAL_NUC: Optional[np.ndarray] = None    # nuclear label mask (may be None)
+_GLOBAL_SKIP_NUC: bool = False
+
 
 @dataclass
 class CellRecord:
@@ -274,7 +285,10 @@ def load_image(path: str) -> Tuple[np.ndarray, List[str]]:
     else:
         print(f"Detected channel names: {ch_names}")
 
-    return img.astype(np.float32, copy=False), ch_names
+    # Return in original dtype (typically uint16).  Casting to float32 here
+    # would double the memory footprint (~70 GB for a 34-channel whole-slide
+    # image).  Conversion to float32 is deferred to per-crop workers.
+    return img, ch_names
 
 
 def maybe_downsample(image_cyx: np.ndarray, nuc: np.ndarray, whole: np.ndarray, ds: float) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -1418,6 +1432,98 @@ def iter_tasks(
         )
 
 
+def iter_tasks_coords(
+    unique_cells: Sequence[int],
+    bbox_map: Dict[int, Tuple[slice, slice]],
+    records_by_id: Dict[int, CellRecord],
+    img_h: int,
+    img_w: int,
+    args: argparse.Namespace,
+    ch_names: Sequence[str],
+    percentiles: Sequence[float],
+    erosion_enabled: bool = False,
+    expansion_enabled: bool = False,
+    environment_expansion: bool = False,
+):
+    """Yield per-cell bounding-box coordinate tuples for ``_feature_for_cell_global``.
+
+    Unlike ``iter_tasks``, **no array data is copied or yielded**.  Only scalar
+    integers and booleans are yielded, so pickling task payloads to worker
+    processes is essentially free.  Workers read crops directly from the
+    fork-inherited module globals ``_GLOBAL_IMG``, ``_GLOBAL_CELL``, and
+    ``_GLOBAL_NUC`` via copy-on-write shared memory.
+    """
+    expand_px = max(1, int(round(20.0 / args.pixel_size_microns))) if (expansion_enabled or environment_expansion) else 0
+    for cid in unique_cells:
+        rs, cs = bbox_map[cid]
+        if expand_px > 0:
+            r0 = max(rs.start - expand_px, 0)
+            r1 = min(rs.stop + expand_px, img_h)
+            c0 = max(cs.start - expand_px, 0)
+            c1 = min(cs.stop + expand_px, img_w)
+        else:
+            r0, r1 = rs.start, rs.stop
+            c0, c1 = cs.start, cs.stop
+        rec = records_by_id.get(cid)
+        yield (
+            cid, r0, r1, c0, c1,
+            rec.cell_label if rec else None,
+            rec.nucleus_label if rec else None,
+            args.simplify_rois,
+            args.tolerance,
+            args.pixel_size_microns,
+            args.skip_measurements,
+            tuple(ch_names),
+            tuple(percentiles),
+            erosion_enabled,
+            expansion_enabled,
+            environment_expansion,
+        )
+
+
+def _feature_for_cell_global(
+    cell_id: int,
+    r0: int, r1: int, c0: int, c1: int,
+    rec_cell_label: Optional[int],
+    rec_nucleus_label: Optional[int],
+    simplify_rois: bool,
+    tolerance: float,
+    pixel_size_microns: float,
+    skip_measurements: bool,
+    ch_names: Sequence[str],
+    percentiles: Sequence[float],
+    erosion_enabled: bool = False,
+    expansion_enabled: bool = False,
+    environment_expansion: bool = False,
+):
+    """Worker entry point that reads crops from fork-inherited global arrays.
+
+    Called by worker processes spawned by ``ProcessPoolExecutor``.  Because
+    Linux uses ``fork()`` to create workers, the parent's ``_GLOBAL_IMG``,
+    ``_GLOBAL_CELL``, and ``_GLOBAL_NUC`` arrays are accessible in each
+    worker via copy-on-write without any data transfer.  Workers only READ
+    from these globals so pages are never CoW-copied.
+
+    The image crop is cast to float32 here (not at load time) so the parent
+    can hold the image in its original dtype (typically uint16), halving
+    memory vs. a process-wide float32 copy (~35 GB saved for a 34-channel
+    whole-slide image).
+    """
+    cell_crop = _GLOBAL_CELL[r0:r1, c0:c1].copy()
+    if _GLOBAL_SKIP_NUC:
+        nuc_crop = np.zeros((r1 - r0, c1 - c0), dtype=np.int64)
+    else:
+        nuc_crop = _GLOBAL_NUC[r0:r1, c0:c1].copy()
+    # Cast only this small crop to float32 — not the full image.
+    img_crop = _GLOBAL_IMG[:, r0:r1, c0:c1].astype(np.float32)
+    return feature_for_cell(
+        cell_id, cell_crop, nuc_crop, img_crop, r0, c0,
+        rec_cell_label, rec_nucleus_label, simplify_rois, tolerance,
+        pixel_size_microns, skip_measurements, ch_names, percentiles,
+        erosion_enabled, expansion_enabled, environment_expansion,
+    )
+
+
 def _ensure_largest_polygon(geom):
     """Extract the largest Polygon from any geometry, discarding non-polygon parts.
 
@@ -1878,13 +1984,23 @@ def main() -> int:
     _tmp_f = open(_tmp_path, 'w', encoding='utf-8')
     feature_count = 0
     total = len(unique_cells)
-    task_iter = iter_tasks(
+
+    # Expose large arrays via module globals so fork()-based worker processes
+    # inherit them via copy-on-write instead of pickling per-task copies.
+    # Workers only read from these globals, so no CoW page faults occur.
+    global _GLOBAL_IMG, _GLOBAL_CELL, _GLOBAL_NUC, _GLOBAL_SKIP_NUC
+    _GLOBAL_IMG = img_cyx
+    _GLOBAL_CELL = cell_labels
+    _GLOBAL_NUC = None if args.skip_nuclear_mask else nuc_labels
+    _GLOBAL_SKIP_NUC = args.skip_nuclear_mask
+
+    h_img, w_img = image_shape
+    task_iter = iter_tasks_coords(
         unique_cells,
         bbox_map,
         records_by_id,
-        cell_labels,
-        nuc_labels,
-        img_cyx,
+        h_img,
+        w_img,
         args,
         ch_names,
         percentiles,
@@ -1903,7 +2019,7 @@ def main() -> int:
                     task = next(task_iter)
                 except StopIteration:
                     break
-                future_map[ex.submit(feature_for_cell, *task)] = task[0]
+                future_map[ex.submit(_feature_for_cell_global, *task)] = task[0]
 
             done = 0
             while future_map:
@@ -1929,11 +2045,11 @@ def main() -> int:
                         task = next(task_iter)
                     except StopIteration:
                         break
-                    future_map[ex.submit(feature_for_cell, *task)] = task[0]
+                    future_map[ex.submit(_feature_for_cell_global, *task)] = task[0]
     else:
         # --- Single-threaded execution: simpler, easier to debug ---
         for i, t in enumerate(task_iter, 1):
-            feat = feature_for_cell(*t)
+            feat = _feature_for_cell_global(*t)
             if feat is not None:
                 json.dump(feat, _tmp_f, separators=(',', ':'))
                 _tmp_f.write('\n')
@@ -1947,6 +2063,9 @@ def main() -> int:
     # Stage 5: Free large arrays to reclaim memory for post-processing
     # ===================================================================
     del task_iter, img_cyx, cell_labels, nuc_labels, bbox_map, records_by_id
+    # Also clear module globals so the arrays can be garbage collected.
+    global _GLOBAL_IMG, _GLOBAL_CELL, _GLOBAL_NUC
+    _GLOBAL_IMG = _GLOBAL_CELL = _GLOBAL_NUC = None
     gc.collect()
     print(f"Wrote {feature_count} features to temp file; freed image/mask arrays for post-processing")
 
