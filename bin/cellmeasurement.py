@@ -1988,7 +1988,7 @@ def main() -> int:
     # Expose large arrays via module globals so fork()-based worker processes
     # inherit them via copy-on-write instead of pickling per-task copies.
     # Workers only read from these globals, so no CoW page faults occur.
-    global _GLOBAL_IMG, _GLOBAL_CELL, _GLOBAL_NUC, _GLOBAL_SKIP_NUC
+    global _GLOBAL_IMG, _GLOBAL_CELL, _GLOBAL_NUC, _GLOBAL_SKIP_NUC  # declared here; cleared again in Stage 5
     _GLOBAL_IMG = img_cyx
     _GLOBAL_CELL = cell_labels
     _GLOBAL_NUC = None if args.skip_nuclear_mask else nuc_labels
@@ -2063,8 +2063,7 @@ def main() -> int:
     # Stage 5: Free large arrays to reclaim memory for post-processing
     # ===================================================================
     del task_iter, img_cyx, cell_labels, nuc_labels, bbox_map, records_by_id
-    # Also clear module globals so the arrays can be garbage collected.
-    global _GLOBAL_IMG, _GLOBAL_CELL, _GLOBAL_NUC
+    # Clear module globals so the arrays can be garbage collected.
     _GLOBAL_IMG = _GLOBAL_CELL = _GLOBAL_NUC = None
     gc.collect()
     print(f"Wrote {feature_count} features to temp file; freed image/mask arrays for post-processing")
