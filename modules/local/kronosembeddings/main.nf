@@ -11,7 +11,7 @@ process KRONOSEMBEDDINGS {
         path(whole_cell_mask)
     path(kronos_model)
     path(marker_metadata)
-    tuple val(meta2), path(geojson)
+    tuple val(meta2), path(geojson, stageAs: 'cellmeas_input/*')
 
     output:
     tuple val(meta), path("*_kronos_embeddings.csv")  , emit: embeddings
@@ -25,7 +25,8 @@ process KRONOSEMBEDDINGS {
     script:
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
-    def merge_args = "--geojson ${geojson} --merge-geojson"
+    def geojson_ext = geojson.name.endsWith('.gz') ? '.geojson.gz' : '.geojson'
+    def merge_args = "--geojson ${geojson} --merge-geojson --output-geojson ${prefix}${geojson_ext}"
     """
     kronos_embeddings.py \\
         --tiff ${tiff} \\
@@ -47,10 +48,11 @@ process KRONOSEMBEDDINGS {
 
     stub:
     def prefix = task.ext.prefix ?: "${meta.id}"
+    def geojson_ext = geojson.name.endsWith('.gz') ? '.geojson.gz' : '.geojson'
     """
     touch ${prefix}_kronos_embeddings.csv
     touch ${prefix}_kronos_embeddings_marker_report.txt
-    touch ${prefix}_kronos.geojson.gz
+    touch ${prefix}${geojson_ext}
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

@@ -857,6 +857,8 @@ def main():
     parser.add_argument("--geojson", default=None, help="Path to GeoJSON from cellmeasurement (required for --merge-geojson)")
     parser.add_argument("--merge-geojson", action="store_true", default=False,
                         help="Merge embeddings into GeoJSON as per-cell properties. Automatically creates mask from GeoJSON for perfect matching.")
+    parser.add_argument("--output-geojson", default=None,
+                        help="Explicit output path for merged GeoJSON. If not specified, derives from --output with _kronos suffix.")
     parser.add_argument("--distance-threshold", type=float, default=5.0,
                         help="Max pixel distance for centroid matching fallback (default: 5.0)")
     args = parser.parse_args()
@@ -1023,9 +1025,12 @@ def main():
 
     # Optionally merge embeddings into GeoJSON
     if args.merge_geojson:
-        merged_geojson_path = args.output.replace("_kronos_embeddings.csv", "_kronos.geojson.gz")
-        if not merged_geojson_path.endswith(".geojson.gz"):
-            merged_geojson_path = args.output.rsplit(".", 1)[0] + "_kronos.geojson.gz"
+        if args.output_geojson:
+            merged_geojson_path = args.output_geojson
+        else:
+            merged_geojson_path = args.output.replace("_kronos_embeddings.csv", "_kronos.geojson.gz")
+            if not merged_geojson_path.endswith(".geojson.gz"):
+                merged_geojson_path = args.output.rsplit(".", 1)[0] + "_kronos.geojson.gz"
         _log(f"Merging embeddings into GeoJSON: {args.geojson}")
 
         # Use GeoJSON-derived mask for perfect matching (pass pre-parsed data to avoid reloading 124GB+ file)
