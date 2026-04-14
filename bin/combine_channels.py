@@ -123,7 +123,7 @@ def detect_channel_names_and_metadata(tiff: TiffFile) -> Tuple[List[str], Dict[s
         (channel_names, metadata_attrs, metadata_source)
     """
     channel_names: List[str] = []
-    attrs: Dict[str, Any] = {}
+    metadata_attrs: Dict[str, Any] = {}
     metadata_source = "unknown"
 
     # MIBI JSON metadata in per-page ImageDescription
@@ -146,7 +146,7 @@ def detect_channel_names_and_metadata(tiff: TiffFile) -> Tuple[List[str], Dict[s
         if ome_xml:
             try:
                 channel_names = ome_extract_channel_names(ome_xml)
-                attrs.update(ome_extract_pixels_metadata(ome_xml))
+                metadata_attrs.update(ome_extract_pixels_metadata(ome_xml))
                 metadata_source = "ome-xml"
             except (ET.ParseError, ValueError, TypeError):
                 pass
@@ -157,7 +157,7 @@ def detect_channel_names_and_metadata(tiff: TiffFile) -> Tuple[List[str], Dict[s
         if channel_names:
             metadata_source = "imagej"
 
-    return channel_names, attrs, metadata_source
+    return channel_names, metadata_attrs, metadata_source
 
 
 def tiff_to_xarray(tiffPath: Path) -> DataArray:
@@ -181,11 +181,17 @@ def tiff_to_xarray(tiffPath: Path) -> DataArray:
             data = np.stack(arrays, axis=0)
         else:
             data = tiff.asarray()
-            # Single-page TIFFs with interleaved channels have shape (Y, X, C)
-            # Check if we need to transpose from (Y, X, C) to (C, Y, X)
-            if data.ndim == 3 and data.shape[2] == len(channel_names):
-                # Data is in (Y, X, C) format, transpose to (C, Y, X)
-                data = np.transpose(data, (2, 0, 1))
+            # Single-page TIFFs with interleaved channels have shape (Y, X, C).
+            # Transpose to (C, Y, X) if the last axis matches known channel names,
+            # or if it looks like a channel axis (much smaller than spatial dims)
+            # when metadata is absent.
+            if data.ndim == 3:
+                last_matches_names = bool(channel_names) and data.shape[2] == len(channel_names)
+                looks_like_channel_last = (
+                    not channel_names and data.shape[2] < data.shape[0] and data.shape[2] < data.shape[1]
+                )
+                if last_matches_names or looks_like_channel_last:
+                    data = np.transpose(data, (2, 0, 1))
 
         if not channel_names and data.ndim == 3:
             channel_names = [f"Channel_{i}" for i in range(data.shape[0])]
@@ -241,7 +247,8 @@ def combine_channels(array: DataArray, channels: List[str], combined_name: str,
 
 
 def create_ome_xml(width: int, height: int,
-                   num_channels: int, channel_names: List[str]) -> str:
+                   num_channels: int, channel_names: List[str],
+                   pixel_size_microns: Optional[float] = None) -> str:
     """
     Create minimal OME-XML metadata from scratch with the given channel names.
     Used when the source image has no OME-XML (e.g. MIBI TIFF with JSON metadata).
@@ -259,7 +266,7 @@ def create_ome_xml(width: int, height: int,
     root.set(f"{{{xsi_ns}}}schemaLocation", schema_loc)
 
     image = ET.SubElement(root, f"{{{ome_ns}}}Image", {"ID": "Image:0", "Name": "combined"})
-    pixels = ET.SubElement(image, f"{{{ome_ns}}}Pixels", {
+    pixels_attrs = {
         "ID": "Pixels:0",
         "DimensionOrder": "XYZCT",
         "Type": "uint16",
@@ -268,9 +275,13 @@ def create_ome_xml(width: int, height: int,
         "SizeZ": "1",
         "SizeC": str(num_channels),
         "SizeT": "1",
-        "PhysicalSizeX": "1.0",
-        "PhysicalSizeY": "1.0",
-    })
+    }
+    if pixel_size_microns is not None:
+        pixels_attrs["PhysicalSizeX"] = str(pixel_size_microns)
+        pixels_attrs["PhysicalSizeY"] = str(pixel_size_microns)
+        pixels_attrs["PhysicalSizeXUnit"] = "µm"
+        pixels_attrs["PhysicalSizeYUnit"] = "µm"
+    pixels = ET.SubElement(image, f"{{{ome_ns}}}Pixels", pixels_attrs)
     for c, name in enumerate(channel_names):
         ET.SubElement(pixels, f"{{{ome_ns}}}Channel", {
             "ID": f"Channel:0:{c}",
@@ -355,6 +366,10 @@ def main(
     combine_method: Annotated[CombineMethod, typer.Option(
         help="Method to use for combining channels (prod or max).")
     ] = CombineMethod.PROD,
+    pixel_size_microns: Annotated[Optional[float], typer.Option(
+        help="Pixel size in microns. Written to OME-XML PhysicalSizeX/Y when "
+             "the source image has no calibration metadata.")
+    ] = None,
 ):
     full_array = tiff_to_xarray(tiff)
 
@@ -387,7 +402,8 @@ def main(
         typer.echo(f"Warning: {e} Creating OME-XML from scratch.",
                    err=True)
         updated_metadata = create_ome_xml(width, height, c,
-                                          final_channels).encode('utf-8')
+                                          final_channels,
+                                          pixel_size_microns).encode('utf-8')
 
     imwrite(sys.stdout.buffer, output_array,
             photometric='minisblack',

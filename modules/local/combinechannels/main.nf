@@ -18,9 +18,10 @@ process COMBINECHANNELS {
     script:
     def args = task.ext.args ?: ''
     prefix = task.ext.prefix ?: "${meta.id}"
+
     def membrane_channel_args = membrane_channels != '' && membrane_channels != [] ?
-        membrane_channels.split(":").collect {
-            "--membrane-channel \"${it}\""
+        membrane_channels.split(":").collect { channel ->
+            "--membrane-channel \"${channel}\""
         }.join(' ') : ''
     """
     combine_channels.py \\
