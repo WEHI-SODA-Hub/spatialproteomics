@@ -210,7 +210,7 @@
                     "fa_icon": "fas fa-th",
                     "minimum": 128,
                     "maximum": 2048
-                },  
+                },
                 "cellsam_overlap": {
                     "type": "integer",
                     "default": 250,

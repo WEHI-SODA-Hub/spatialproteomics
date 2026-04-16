@@ -3,60 +3,40 @@
         "content": [
             {
                 "0": [
-                    [
-                        {
-                            "id": "test"
-                        },
-                        "test.geojson:md5,7d54ccc7af995545b1b9345ea1f0444e"
-                    ]
+                    
                 ],
                 "1": [
-                    [
-                        {
-                            "id": "test"
-                        },
-                        "test_whole-cell.tiff:md5,2ea45711ec9e06507e329e112c0a0981"
-                    ]
+                    
                 ],
                 "2": [
-                    [
-                        {
-                            "id": "test"
-                        },
-                        "test_nuclear.tiff:md5,55619457956dd6a61b65e4601b02b8c1"
-                    ]
+                    
                 ],
                 "3": [
-                    "versions.yml:md5,a0b4d5d63fa0ba41ff0f810d3472abdf",
-                    "versions.yml:md5,ff9617abf985337321d55e9ccc19ab82"
+                    
+                ],
+                "4": [
+                    
+                ],
+                "5": [
+                    
                 ],
                 "annotations": [
-                    [
-                        {
-                            "id": "test"
-                        },
-                        "test.geojson:md5,7d54ccc7af995545b1b9345ea1f0444e"
-                    ]
+                    
+                ],
+                "kronos_embeddings": [
+                    
+                ],
+                "kronos_marker_report": [
+                    
                 ],
                 "nuclear_tif": [
-                    [
-                        {
-                            "id": "test"
-                        },
-                        "test_nuclear.tiff:md5,55619457956dd6a61b65e4601b02b8c1"
-                    ]
+                    
                 ],
                 "versions": [
-                    "versions.yml:md5,a0b4d5d63fa0ba41ff0f810d3472abdf",
-                    "versions.yml:md5,ff9617abf985337321d55e9ccc19ab82"
+                    
                 ],
                 "whole_cell_tif": [
-                    [
-                        {
-                            "id": "test"
-                        },
-                        "test_whole-cell.tiff:md5,2ea45711ec9e06507e329e112c0a0981"
-                    ]
+                    
                 ]
             }
         ],
@@ -64,6 +44,6 @@
             "nf-test": "0.9.2",
             "nextflow": "25.04.4"
         },
-        "timestamp": "2025-11-13T11:16:52.105807094"
+        "timestamp": "2026-04-14T15:25:03.646856584"
     }
 }

@@ -4,7 +4,7 @@ process MESMERSEGMENT {
     secret 'DEEPCELL_ACCESS_TOKEN'
 
     conda "${moduleDir}/environment.yml"
-    container 'ghcr.io/wehi-soda-hub/mesmersegmentation:0.2.0'
+    container 'ghcr.io/wehi-soda-hub/mesmersegmentation:0.3.1'
 
     input:
     tuple val(meta), path(tiff), val(nuclear_channel), val(membrane_channels)
@@ -21,13 +21,10 @@ process MESMERSEGMENT {
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
     def membrane_channel_args = membrane_channels != '' && membrane_channels != [] ?
-        membrane_channels.split(":").collect {
-            "--membrane-channel \"${it}\""
+        membrane_channels.split(":").collect { channel ->
+            "--membrane-channel \"${channel}\""
         }.join(' ') : ''
     """
-    # Phase 0: Ensure TIFF has valid OME-XML metadata (handles ImageJ TIFFs)
-    ensure_ome_tiff.py "${tiff}" "ome_${tiff}"
-
     # Phase 1: Serialize model download — first task downloads, others wait
     REAL_HOME="${params.deepcell_cache_dir ? params.deepcell_cache_dir + '/$(whoami)' : '\$HOME'}"
     mkdir -p "\$REAL_HOME/.deepcell/models"
@@ -46,22 +43,14 @@ process MESMERSEGMENT {
         [ -e "\$f" ] && ln -sf "\$f" "\$HOME/.deepcell/models/"
     done
 
+    # Phase 3: Run segmentation
     mesmer-segment \\
-        "ome_${tiff}" \\
+        "${tiff}" \\
         --compartment ${compartment} \\
         --nuclear-channel ${nuclear_channel} \\
         ${membrane_channel_args} \\
         ${args} \\
         > "${prefix}_${compartment}.tiff"
-
-    # Clean up temp OME-converted file
-    rm -f "ome_${tiff}"
-
-    # Restore HOME for post-processing
-    export HOME="\$REAL_HOME"
-
-    # Post-process: transpose mask if dimensions are swapped
-    mesmer_postprocess.py "${tiff}" "${prefix}_${compartment}.tiff" ${params.mesmer_transpose_mask ? '--force-transpose' : ''}
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

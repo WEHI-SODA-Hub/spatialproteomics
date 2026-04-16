@@ -3,82 +3,46 @@
         "content": [
             {
                 "0": [
-                    [
-                        {
-                            "id": "test"
-                        },
-                        "test.geojson:md5,afc07e62c606c621035fef89f487e1fc"
-                    ]
+                    
                 ],
                 "1": [
-                    [
-                        {
-                            "id": "test"
-                        },
-                        "test_whole-cell.tiff:md5,44ffdcf115bfcffbcba7a03276e77561"
-                    ]
+                    
                 ],
                 "2": [
-                    [
-                        {
-                            "id": "test"
-                        },
-                        "test_nuclear.tiff:md5,07dc3d7f48a3ebf926fe82d6d68175af"
-                    ]
+                    
                 ],
                 "3": [
-                    [
-                        {
-                            "id": "test"
-                        },
-                        "test.html:md5,c83af29593f977da08ca17ee578303bb"
-                    ]
+                    
                 ],
                 "4": [
-                    "versions.yml:md5,020f6b6c73631bfaf9a42689d3222190",
-                    "versions.yml:md5,298b46e76bb2bff02f635a89d94acc79",
-                    "versions.yml:md5,60bf93b7b4ea7fdb952a7ac0d03e5c84",
-                    "versions.yml:md5,be18152ca76a4838c6f3de14615f118f",
-                    "versions.yml:md5,ec8fbc92050f538763cdc496a2986c88"
+                    
+                ],
+                "5": [
+                    
+                ],
+                "6": [
+                    
                 ],
                 "annotations": [
-                    [
-                        {
-                            "id": "test"
-                        },
-                        "test.geojson:md5,afc07e62c606c621035fef89f487e1fc"
-                    ]
+                    
+                ],
+                "kronos_embeddings": [
+                    
+                ],
+                "kronos_marker_report": [
+                    
                 ],
                 "nuclear_tif": [
-                    [
-                        {
-                            "id": "test"
-                        },
-                        "test_nuclear.tiff:md5,07dc3d7f48a3ebf926fe82d6d68175af"
-                    ]
+                    
                 ],
                 "report": [
-                    [
-                        {
-                            "id": "test"
-                        },
-                        "test.html:md5,c83af29593f977da08ca17ee578303bb"
-                    ]
+                    
                 ],
                 "versions": [
-                    "versions.yml:md5,020f6b6c73631bfaf9a42689d3222190",
-                    "versions.yml:md5,298b46e76bb2bff02f635a89d94acc79",
-                    "versions.yml:md5,60bf93b7b4ea7fdb952a7ac0d03e5c84",
-                    "versions.yml:md5,be18152ca76a4838c6f3de14615f118f",
-                    "versions.yml:md5,ec8fbc92050f538763cdc496a2986c88"
+                    
                 ],
                 "whole_cell_tif": [
-                    [
-                        {
-                            "id": "test"
-                        },
-                        "test_whole-cell.tiff:md5,44ffdcf115bfcffbcba7a03276e77561"
-                    ]
+                    
                 ]
             }
         ],
@@ -86,6 +50,6 @@
             "nf-test": "0.9.2",
             "nextflow": "25.04.4"
         },
-        "timestamp": "2025-11-13T11:14:14.178826574"
+        "timestamp": "2026-04-14T15:24:54.983291008"
     }
 }

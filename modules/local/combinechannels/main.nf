@@ -1,6 +1,6 @@
 process COMBINECHANNELS {
     tag "$meta.id"
-    label 'process_multi'
+    label 'process_high'
 
     conda "${moduleDir}/environment.yml"
     container 'community.wave.seqera.io/library/tifffile_xarray_numpy_typer:f92759840da2dc33'
