@@ -21,7 +21,9 @@ process CELLSAMSEGMENT {
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
     def mem_channels = membrane_channels != '' && membrane_channels != [] ? membrane_channels.split(":") : []
-    def mem_channel_args = mem_channels.collect { "--membrane-channel '${it}'" }.join(' ')
+    def mem_channel_args = mem_channels.collect { channel ->
+        "--membrane-channel '${channel}'"
+        }.join(' ')
     def cache_home = params.deepcell_cache_dir ? "export HOME=\"${params.deepcell_cache_dir}/\$(whoami)\"" : ''
 
     """
@@ -32,16 +34,7 @@ process CELLSAMSEGMENT {
         --compartment ${compartment} \\
         --nuclear-channel '${nuclear_channel}' \\
         ${mem_channel_args} \\
-        --bbox-threshold ${params.cellsam_bbox_threshold} \\
-        --block-size ${params.cellsam_block_size} \\
-        --overlap ${params.cellsam_overlap} \\
-        --iou-depth ${params.cellsam_iou_depth} \\
-        --iou-threshold ${params.cellsam_iou_threshold} \\
-        ${params.cellsam_use_wsi ? '--use-wsi' : ''} \\
-        ${params.cellsam_gauge_cell_size ? '--gauge-cell-size' : ''} \\
-        ${params.cellsam_low_contrast_enhancement ? '--low-contrast-enhancement' : ''} \\
-        ${params.cellsam_model_path ? "--model-path ${params.cellsam_model_path}" : ''} \\
-        --min-area ${params.cellsam_min_area}
+        ${args}
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
