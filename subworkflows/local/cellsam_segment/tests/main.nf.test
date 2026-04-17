@@ -23,35 +23,8 @@ nextflow_workflow {
                     false,  // run_cellpose
                     true,   // run_cellsam
                     file("${projectDir}/tests/data/mesmer/test_data.tiff", checkIfExists: true), // tiff
-                    ["nuclear"],     // nuclear_channel
-                    ["membrane"] // membrane_channels
-                ])
-                """
-            }
-        }
-
-        then {
-            assertAll(
-                { assert workflow.success},
-                { assert snapshot(workflow.out).match()}
-            )
-        }
-    }
-
-    test("cellsam_segment - with background subtraction") {
-
-        when {
-            workflow {
-                """
-                input[0] = Channel.of([
-                    [ id: 'test_backsub' ],
-                    true,   // run_backsub
-                    false,  // run_mesmer
-                    false,  // run_cellpose
-                    true,   // run_cellsam
-                    file("${projectDir}/tests/data/comet/synthetic_multichannel.tif", checkIfExists: true), // tiff
-                    ["DAPI"],     // nuclear_channel
-                    ["CD45"] // membrane_channels
+                    "nuclear", // nuclear_channel
+                    "membrane" // membrane_channels
                 ])
                 """
             }

@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
+import argparse
+import sys
+import os
+import shutil
+import json
+
 import numpy as np
 import tifffile
 from cellSAM.cellsam_pipeline import cellsam_pipeline
 import cellSAM
-import argparse
-import sys
-import os
 
 
 def _local_tag_name(tag):
@@ -46,9 +49,11 @@ def download_model_weights():
         # Clear corrupted model cache if the .pt file exists but is invalid
         model_dir = Path.home() / ".deepcell" / "models" / "cellsam_v1.2"
         model_file = model_dir / "cellsam_general.pt"
-        if model_file.exists() and model_file.stat().st_size < 1_000_000:
-            print(f"Warning: {model_file} appears corrupted ({model_file.stat().st_size} bytes). Removing and re-downloading...")
-            import shutil
+
+        model_file_corrupted = model_file.exists() and model_file.stat().st_size < 1_000_000
+        model_file_missing = model_dir.exists() and not model_file.exists()
+        if model_file_corrupted or model_file_missing:
+            print(f"Warning: {model_file} appears corrupted or missing. Removing and re-downloading...")
             shutil.rmtree(model_dir)
 
         cellSAM.get_model()
@@ -224,28 +229,51 @@ def extract_channels(tiff_path, nuclear_channel, membrane_channels, compartment)
     Returns:
         3-channel numpy array formatted for CellSAM [blank, nuclear, membrane]
     '''
-    # Load the TIFF image
-    img = tifffile.imread(tiff_path)
-
-    # Get channel names from metadata
+    # Load image data and channel names while preserving page-level channels
+    # (e.g. MIBI TIFF where each page is one channel with JSON metadata).
     with tifffile.TiffFile(tiff_path) as tif:
-        # Check if single-page interleaved TIFF (Y, X, C) format
-        if img.ndim == 3 and tif.is_ome and len(tif.pages) == 1:
-            # Try to get channel count from OME metadata
-            try:
-                from xml.etree import ElementTree as ET
-                root = ET.fromstring(tif.ome_metadata)
-                ns = {'ome': root.tag.split('}')[0].strip('{')}
-                pixels = root.find('.//ome:Pixels', ns)
-                n_channels = int(pixels.get('SizeC', img.shape[0]))
-                # If last dimension matches channel count, it's interleaved (Y, X, C)
-                if img.shape[2] == n_channels:
-                    img = np.transpose(img, (2, 0, 1))  # Convert to (C, Y, X)
-            except:
-                pass
+        channel_names = []
+        first_page = tif.pages[0]
+        is_mibi = False
 
-        n_channels = img.shape[0] if img.ndim > 2 else 1
-        channel_names = get_channel_names(tif, n_channels)
+        # Detect MIBI-style per-page JSON metadata.
+        try:
+            first_desc = json.loads(first_page.description)
+            is_mibi = "channel.target" in first_desc
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+        if is_mibi:
+            pages = []
+            for page in tif.pages:
+                desc = json.loads(page.description)
+                channel_names.append(desc["channel.target"])
+                pages.append(page.asarray())
+            img = np.stack(pages, axis=0)
+        elif len(tif.pages) > 1:
+            # Multi-page TIFF where each page is one channel.
+            img = np.stack([page.asarray() for page in tif.pages], axis=0)
+        else:
+            # Single-page TIFF. Could be (Y, X), (C, Y, X), or interleaved (Y, X, C).
+            img = tif.asarray()
+            if img.ndim == 2:
+                img = img[np.newaxis, ...]
+            elif img.ndim == 3:
+                # Use metadata-aware detection where possible, otherwise
+                # fallback to channel-last heuristic.
+                provisional_names = get_channel_names(tif, img.shape[0])
+                last_matches_names = bool(provisional_names) and img.shape[2] == len(provisional_names)
+                looks_like_channel_last = img.shape[2] < img.shape[0] and img.shape[2] < img.shape[1]
+                if last_matches_names or looks_like_channel_last:
+                    img = np.transpose(img, (2, 0, 1))
+
+        if not channel_names:
+            n_channels = img.shape[0] if img.ndim > 2 else 1
+            channel_names = get_channel_names(tif, n_channels)
+
+        # Keep channel metadata aligned with the loaded stack shape.
+        if len(channel_names) != img.shape[0]:
+            channel_names = [f"Channel_{i}" for i in range(img.shape[0])]
 
     print(f"Available channels: {channel_names}")
 
