@@ -215,6 +215,7 @@ nextflow run main.nf \
 
 - `--skip_kronos` (default: true): Set to `false` to enable KRONOS embedding extraction
 - `--kronos_model_path` (required): Path to the KRONOS model checkpoint (.pt file)
+- `--kronos_config_path` (optional): Path to KRONOS `config.json` (auto-detected from model directory if not set)
 - `--kronos_marker_metadata` (required): Path to marker metadata CSV file mapping marker IDs to names
 - `--kronos_merge_geojson` (default: false): Merge embeddings into the cellmeasurement GeoJSON output
 - `--kronos_patch_size` (default: 64): Patch size for cell-centered crops
@@ -222,6 +223,7 @@ nextflow run main.nf \
 - `--kronos_num_workers` (default: 4): Number of DataLoader workers for parallel data loading
 - `--kronos_max_value` (default: 65535): Maximum intensity value for normalization
 - `--kronos_marker_mapping` (optional): JSON string mapping image marker names to KRONOS marker names
+- `--kronos_distance_threshold` (default: 5.0): Maximum centroid distance (pixels) used for GeoJSON merge fallback matching
 
 #### Embeddings for filtered data with KRONOS
 

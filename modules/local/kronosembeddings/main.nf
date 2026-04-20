@@ -14,7 +14,7 @@ process KRONOSEMBEDDINGS {
     tuple val(meta2), path(geojson, stageAs: 'cellmeas_input/*')
 
     output:
-    tuple val(meta), path("*_kronos_embeddings.csv")  , emit: embeddings
+    tuple val(meta), path("*_kronos_embeddings.csv")   , emit: embeddings
     tuple val(meta), path("*_marker_report.txt")       , emit: marker_report
     tuple val(meta), path("*.geojson{,.gz}")           , emit: merged_geojson
     path "versions.yml"                                , emit: versions

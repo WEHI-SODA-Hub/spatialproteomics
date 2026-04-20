@@ -78,6 +78,6 @@ output:
           pattern: "versions.yml"
 
 authors:
-  - "@mcmero"
+  - "@mikemcka"
 maintainers:
   - "@mcmero"
