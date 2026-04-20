@@ -146,33 +146,33 @@ The following Mesmer parameters can be set:
 
 ### CellSAM parameters
 
-| Parameter Name                    | Description                                                                                                    |
-| --------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `cellsam_bbox_threshold`          | Confidence threshold for bounding-box detections (default: `0.4`).                                            |
-| `cellsam_block_size`              | Tile size in pixels used when processing large images (default: `600`).                                        |
-| `cellsam_overlap`                 | Overlap in pixels between adjacent tiles (default: `250`).                                                     |
-| `cellsam_iou_depth`               | Search depth (pixels) for IoU-based duplicate removal at tile boundaries (default: `250`).                     |
-| `cellsam_iou_threshold`           | IoU threshold for non-maximum suppression across tiles (default: `0.5`).                                       |
-| `cellsam_use_wsi`                 | Enable whole-slide-image tiling mode (default: `true`).                                                        |
-| `cellsam_gauge_cell_size`         | Automatically estimate cell size from the image before segmentation (default: `false`).                        |
-| `cellsam_low_contrast_enhancement`| Apply contrast enhancement before segmentation for low-contrast images (default: `false`).                     |
-| `cellsam_model_path`              | Path to a custom CellSAM model checkpoint. If `null` the built-in default model is used (default: `null`).    |
-| `cellsam_min_area`                | Minimum cell area in square pixels; smaller objects are discarded (default: `0`).                              |
+| Parameter Name                     | Description                                                                                                |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `cellsam_bbox_threshold`           | Confidence threshold for bounding-box detections (default: `0.4`).                                         |
+| `cellsam_block_size`               | Tile size in pixels used when processing large images (default: `600`).                                    |
+| `cellsam_overlap`                  | Overlap in pixels between adjacent tiles (default: `250`).                                                 |
+| `cellsam_iou_depth`                | Search depth (pixels) for IoU-based duplicate removal at tile boundaries (default: `250`).                 |
+| `cellsam_iou_threshold`            | IoU threshold for non-maximum suppression across tiles (default: `0.5`).                                   |
+| `cellsam_use_wsi`                  | Enable whole-slide-image tiling mode (default: `true`).                                                    |
+| `cellsam_gauge_cell_size`          | Automatically estimate cell size from the image before segmentation (default: `false`).                    |
+| `cellsam_low_contrast_enhancement` | Apply contrast enhancement before segmentation for low-contrast images (default: `false`).                 |
+| `cellsam_model_path`               | Path to a custom CellSAM model checkpoint. If `null` the built-in default model is used (default: `null`). |
+| `cellsam_min_area`                 | Minimum cell area in square pixels; smaller objects are discarded (default: `0`).                          |
 
 ### KRONOS embedding parameters
 
-| Parameter Name              | Description                                                                                                                |
-| --------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `skip_kronos`               | Skip the KRONOS embedding step entirely (default: `true`).                                                                 |
-| `kronos_model_path`         | **Required** path to the directory containing the pre-trained KRONOS `.pt` checkpoint.                                    |
-| `kronos_marker_metadata`    | **Required** path to a CSV file mapping marker channel names to KRONOS input slots.                                       |
-| `kronos_config_path`        | Path to a KRONOS YAML config file overriding default model settings (default: `null`).                                     |
-| `kronos_patch_size`         | Size in pixels of the square patch extracted around each cell for embedding (default: `64`).                               |
-| `kronos_batch_size`         | Number of patches processed per inference batch (default: `32`).                                                           |
-| `kronos_num_workers`        | Number of PyTorch DataLoader worker processes (default: `4`).                                                              |
-| `kronos_max_value`          | Maximum pixel intensity used for per-channel normalisation (default: `65535`).                                             |
+| Parameter Name              | Description                                                                                                                     |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `skip_kronos`               | Skip the KRONOS embedding step entirely (default: `true`).                                                                      |
+| `kronos_model_path`         | **Required** path to the directory containing the pre-trained KRONOS `.pt` checkpoint.                                          |
+| `kronos_marker_metadata`    | **Required** path to a CSV file mapping marker channel names to KRONOS input slots.                                             |
+| `kronos_config_path`        | Path to a KRONOS YAML config file overriding default model settings (default: `null`).                                          |
+| `kronos_patch_size`         | Size in pixels of the square patch extracted around each cell for embedding (default: `64`).                                    |
+| `kronos_batch_size`         | Number of patches processed per inference batch (default: `32`).                                                                |
+| `kronos_num_workers`        | Number of PyTorch DataLoader worker processes (default: `4`).                                                                   |
+| `kronos_max_value`          | Maximum pixel intensity used for per-channel normalisation (default: `65535`).                                                  |
 | `kronos_marker_mapping`     | JSON string or path mapping pipeline channel names to KRONOS marker names. Uses identity mapping when `null` (default: `null`). |
-| `kronos_distance_threshold` | Maximum distance in pixels between a cell centroid and its matched nucleus; larger gaps are left unmatched (default: `5.0`). |
+| `kronos_distance_threshold` | Maximum distance in pixels between a cell centroid and its matched nucleus; larger gaps are left unmatched (default: `5.0`).    |
 
 ### SOPA patching parameters
 
@@ -198,6 +198,14 @@ The following Mesmer parameters can be set:
 | percentiles                 | Comma-separated list of percentiles to calculate per channel. Skip measurements must be set to `false` to use this parameter. |
 | pixel_size_microns          | Pixel size in microns, use 0.28 for COMET and 0.390625 for MIBI                                                               |
 | estimate_cell_boundary_dist | Where no matching membrane ROI exists, expand the nucleus by this many pixels                                                 |
+| dist_threshold              | Maximum centroid distance in pixels for matching a nucleus to a whole-cell ROI (default: `10.0`).                             |
+| downsample_factor           | Integer downsample factor applied to image and masks before measurement, `1` = disabled (default: `1.0`).                     |
+| skip_nuclear_mask           | Ignore the nuclear mask; ROIs are generated from whole-cell mask only; compartmental measurements are skipped.                |
+| neighbors                   | Number of nearest neighbours for neighbourhood feature aggregation, `0` = disabled (default: `5`).                            |
+| erosion_steps               | Measure intensity in 5 equal-area erosion bins from the cell/nucleus boundary inward (default: `true`).                       |
+| expansion_steps             | Measure intensity in 5 equal-area expansion bins within 20 µm outward from the cell boundary (default: `true`).               |
+| environment_expansion       | Measure a pericellular 20 µm environment zone around each cell (default: `true`).                                             |
+| gzip_geojson                | Gzip-compress the output GeoJSON (produces `.geojson.gz`). Recommended for large whole-slide images (default: `false`).       |
 
 ### Report parameters
 

@@ -39,7 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Mask smoothing (`smooth_masks`)**: new optional `smoothmasks` module reduces polygon
   complexity. Two methods: `morphological` (disk close+open, default) and
   `shapely` (Douglas-Peucker polygon simplification). Enabled via `smooth_masks
-  = true`; tunable with `smooth_method` and `smooth_kernel_size`.
+= true`; tunable with `smooth_method` and `smooth_kernel_size`.
 
 - `dist_threshold` pipeline parameter: controls the maximum centroid distance (pixels) for
   matching a nucleus to a whole-cell ROI in cellmeasurement (default: 10.0).

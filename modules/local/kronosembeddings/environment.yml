@@ -1,19 +1,19 @@
 channels:
   - conda-forge
 dependencies:
-  - python=3.11
+  - python =3.11
   - git
-  - conda-forge::numpy>=1.26.4
-  - conda-forge::pandas>=2.0
-  - conda-forge::tifffile>=2023.0
-  - conda-forge::scipy>=1.11
-  - conda-forge::h5py>=3.9
-  - conda-forge::shapely>=2.0
-  - conda-forge::rasterio>=1.3
+  - numpy >=1.26.4
+  - pandas >=2.0
+  - tifffile >=2023.0
+  - scipy >=1.11
+  - h5py >=3.9
+  - shapely >=2.0
+  - rasterio >=1.3
   - pip
   - pip:
       - --extra-index-url https://download.pytorch.org/whl/cu128
-      - torch>=2.0.0+cu128
-      - xformers>=0.0.18
-      - huggingface_hub>=0.28.1
+      - torch >=2.0.0+cu128
+      - xformers >=0.0.18
+      - huggingface_hub >=0.28.1
       - kronos@git+https://github.com/mahmoodlab/KRONOS.git

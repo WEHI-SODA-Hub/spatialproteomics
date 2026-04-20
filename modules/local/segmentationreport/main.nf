@@ -1,6 +1,6 @@
 process SEGMENTATIONREPORT {
     tag "$meta.id"
-    label 'process_multi'
+    label 'process_high'
 
     conda "${moduleDir}/environment.yml"
     container 'ghcr.io/wehi-soda-hub/spatialvis:0.1.7'
