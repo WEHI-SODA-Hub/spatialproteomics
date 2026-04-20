@@ -262,10 +262,14 @@ def create_ome_xml(width: int, height: int,
     ET.register_namespace("", ome_ns)
     ET.register_namespace("xsi", xsi_ns)
 
-    root = ET.Element(f"{{{ome_ns}}}OME")
-    root.set(f"{{{xsi_ns}}}schemaLocation", schema_loc)
+    # Pre-build Clark-notation tag names to avoid {{{ patterns that trip nf-core linting
+    tag_ome = "{" + ome_ns + "}"
+    tag_xsi = "{" + xsi_ns + "}"
 
-    image = ET.SubElement(root, f"{{{ome_ns}}}Image", {"ID": "Image:0", "Name": "combined"})
+    root = ET.Element(tag_ome + "OME")
+    root.set(tag_xsi + "schemaLocation", schema_loc)
+
+    image = ET.SubElement(root, tag_ome + "Image", {"ID": "Image:0", "Name": "combined"})
     pixels_attrs = {
         "ID": "Pixels:0",
         "DimensionOrder": "XYZCT",
@@ -281,14 +285,14 @@ def create_ome_xml(width: int, height: int,
         pixels_attrs["PhysicalSizeY"] = str(pixel_size_microns)
         pixels_attrs["PhysicalSizeXUnit"] = "µm"
         pixels_attrs["PhysicalSizeYUnit"] = "µm"
-    pixels = ET.SubElement(image, f"{{{ome_ns}}}Pixels", pixels_attrs)
+    pixels = ET.SubElement(image, tag_ome + "Pixels", pixels_attrs)
     for c, name in enumerate(channel_names):
-        ET.SubElement(pixels, f"{{{ome_ns}}}Channel", {
+        ET.SubElement(pixels, tag_ome + "Channel", {
             "ID": f"Channel:0:{c}",
             "Name": name,
             "SamplesPerPixel": "1",
         })
-    tiff_data = ET.SubElement(pixels, f"{{{ome_ns}}}TiffData")
+    tiff_data = ET.SubElement(pixels, tag_ome + "TiffData")
     tiff_data.set("PlaneCount", str(num_channels))
 
     xml_str = '<?xml version="1.0" encoding="UTF-8"?>\n' + \
