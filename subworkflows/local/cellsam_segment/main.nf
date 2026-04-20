@@ -1,11 +1,11 @@
-include { CELLSAMSEGMENT as CELLSAMWC  } from '../../../modules/local/cellsamsegment/main.nf'
-include { CELLSAMSEGMENT as CELLSAMNUC } from '../../../modules/local/cellsamsegment/main.nf'
-include { CELLMEASUREMENT               } from '../../../modules/local/cellmeasurement/main.nf'
+include { CELLSAMSEGMENT as CELLSAMWC    } from '../../../modules/local/cellsamsegment/main.nf'
+include { CELLSAMSEGMENT as CELLSAMNUC   } from '../../../modules/local/cellsamsegment/main.nf'
+include { CELLMEASUREMENT                } from '../../../modules/local/cellmeasurement/main.nf'
 include { SMOOTHMASKS as SMOOTHMASKS_NUC } from '../../../modules/local/smoothmasks/main.nf'
 include { SMOOTHMASKS as SMOOTHMASKS_WC  } from '../../../modules/local/smoothmasks/main.nf'
 include { KRONOSEMBEDDINGS               } from '../../../modules/local/kronosembeddings/main.nf'
-include { COMBINECHANNELS               } from '../../../modules/local/combinechannels/main.nf'
-include { SEGMENTATIONREPORT            } from '../../../modules/local/segmentationreport/main.nf'
+include { COMBINECHANNELS                } from '../../../modules/local/combinechannels/main.nf'
+include { SEGMENTATIONREPORT             } from '../../../modules/local/segmentationreport/main.nf'
 
 workflow CELLSAM_SEGMENT {
 
@@ -14,7 +14,7 @@ workflow CELLSAM_SEGMENT {
 
     main:
 
-    ch_versions = Channel.empty()
+    ch_versions = channel.empty()
 
     ch_cellsam_segment.map {
         sample,
@@ -105,22 +105,22 @@ workflow CELLSAM_SEGMENT {
     if (params.smooth_masks) {
         if (!params.skip_nuclear_mask) {
             SMOOTHMASKS_NUC(
-                ch_cellmeasurement.map { sample, tiff, nuclear_mask, whole_cell_mask -> [sample, nuclear_mask] }
+                ch_cellmeasurement.map { sample, _tiff, nuclear_mask, _whole_cell_mask -> [sample, nuclear_mask] }
             )
         }
         SMOOTHMASKS_WC(
-            ch_cellmeasurement.map { sample, tiff, nuclear_mask, whole_cell_mask -> [sample, whole_cell_mask] }
+            ch_cellmeasurement.map { sample, _tiff, _nuclear_mask, whole_cell_mask -> [sample, whole_cell_mask] }
         )
         if (!params.skip_nuclear_mask) {
             ch_cellmeasurement
-                .map { sample, tiff, nuclear_mask, whole_cell_mask -> [sample, tiff] }
+                .map { sample, tiff, _nuclear_mask, _whole_cell_mask -> [sample, tiff] }
                 .join(SMOOTHMASKS_NUC.out.smoothed_mask)
                 .join(SMOOTHMASKS_WC.out.smoothed_mask)
                 .set { ch_cellmeasurement }
             ch_versions = ch_versions.mix(SMOOTHMASKS_NUC.out.versions.first())
         } else {
             ch_cellmeasurement
-                .map { sample, tiff, nuclear_mask, whole_cell_mask -> [sample, tiff] }
+                .map { sample, tiff, _nuclear_mask, _whole_cell_mask -> [sample, tiff] }
                 .join(SMOOTHMASKS_WC.out.smoothed_mask)
                 .map { sample, tiff, smoothed_wc -> [sample, tiff, smoothed_wc, smoothed_wc] }
                 .set { ch_cellmeasurement }
@@ -141,8 +141,8 @@ workflow CELLSAM_SEGMENT {
     //
     // Optional KRONOS embedding extraction
     //
-    ch_kronos_embeddings = Channel.empty()
-    ch_kronos_marker_report = Channel.empty()
+    ch_kronos_embeddings = channel.empty()
+    ch_kronos_marker_report = channel.empty()
     if (!params.skip_kronos) {
 
         // Create channel for KRONOS input: tiff + whole-cell mask + geojson
@@ -177,7 +177,7 @@ workflow CELLSAM_SEGMENT {
     }
 
     // Optional SEGMENTATIONREPORT module
-    ch_report = Channel.empty()
+    ch_report = channel.empty()
     if (params.generate_report) {
 
         //
@@ -223,12 +223,12 @@ workflow CELLSAM_SEGMENT {
     }
 
     emit:
-    nuclear_segmentation_mask    = params.skip_nuclear_mask ? Channel.empty() : CELLSAMNUC.out.segmentation_mask  // channel: [ val(meta), *.tiff ]
+    nuclear_segmentation_mask    = params.skip_nuclear_mask ? channel.empty() : CELLSAMNUC.out.segmentation_mask  // channel: [ val(meta), *.tiff ]
     wholecell_segmentation_mask  = CELLSAMWC.out.segmentation_mask        // channel: [ val(meta), *.tiff ]
-    annotations                  = ch_annotations                          // channel: [ val(meta), *.geojson ]
-    kronos_embeddings            = ch_kronos_embeddings                     // channel: [ val(meta), *.csv ] OPTIONAL
-    kronos_marker_report         = ch_kronos_marker_report                  // channel: [ val(meta), *.txt ] OPTIONAL
-    report                       = ch_report                               // channel: [ val(meta), *.html ]
+    annotations                  = ch_annotations                         // channel: [ val(meta), *.geojson ]
+    kronos_embeddings            = ch_kronos_embeddings                   // channel: [ val(meta), *.csv ] OPTIONAL
+    kronos_marker_report         = ch_kronos_marker_report                // channel: [ val(meta), *.txt ] OPTIONAL
+    report                       = ch_report                              // channel: [ val(meta), *.html ]
 
-    versions = ch_versions                                                 // channel: [ versions.yml ]
+    versions = ch_versions                                                // channel: [ versions.yml ]
 }

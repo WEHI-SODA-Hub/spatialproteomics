@@ -16,7 +16,7 @@ workflow SOPA_SEGMENT_COMPARTMENT {
 
     main:
 
-    ch_versions = Channel.empty()
+    ch_versions = channel.empty()
 
     ch_sopa.map {
         meta,

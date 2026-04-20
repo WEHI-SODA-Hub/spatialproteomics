@@ -14,7 +14,7 @@ workflow SOPA_SEGMENT {
 
     main:
 
-    ch_versions = Channel.empty()
+    ch_versions = channel.empty()
 
     //
     // Combine membrane channels into a single channel
@@ -109,22 +109,26 @@ workflow SOPA_SEGMENT {
     if (params.smooth_masks) {
         if (!params.skip_nuclear_mask) {
             SMOOTHMASKS_NUC(
-                ch_cellmeasurement.map { meta, tiff, nuclear_tiff, wholecell_tiff -> [meta, nuclear_tiff] }
+                ch_cellmeasurement.map {
+                    meta, _tiff, nuclear_tiff, _wholecell_tiff -> [meta, nuclear_tiff]
+                }
             )
         }
         SMOOTHMASKS_WC(
-            ch_cellmeasurement.map { meta, tiff, nuclear_tiff, wholecell_tiff -> [meta, wholecell_tiff] }
+            ch_cellmeasurement.map {
+                meta, _tiff, _nuclear_tiff, wholecell_tiff -> [meta, wholecell_tiff]
+            }
         )
         if (!params.skip_nuclear_mask) {
             ch_cellmeasurement
-                .map { meta, tiff, nuclear_tiff, wholecell_tiff -> [meta, tiff] }
+                .map { meta, tiff, _nuclear_tiff, _wholecell_tiff -> [meta, tiff] }
                 .join(SMOOTHMASKS_NUC.out.smoothed_mask)
                 .join(SMOOTHMASKS_WC.out.smoothed_mask)
                 .set { ch_cellmeasurement }
             ch_versions = ch_versions.mix(SMOOTHMASKS_NUC.out.versions.first())
         } else {
             ch_cellmeasurement
-                .map { meta, tiff, nuclear_tiff, wholecell_tiff -> [meta, tiff] }
+                .map { meta, tiff, _nuclear_tiff, _wholecell_tiff -> [meta, tiff] }
                 .join(SMOOTHMASKS_WC.out.smoothed_mask)
                 .map { meta, tiff, smoothed_wc -> [meta, tiff, smoothed_wc, smoothed_wc] }
                 .set { ch_cellmeasurement }
@@ -145,8 +149,8 @@ workflow SOPA_SEGMENT {
     //
     // Optional KRONOS embedding extraction
     //
-    ch_kronos_embeddings = Channel.empty()
-    ch_kronos_marker_report = Channel.empty()
+    ch_kronos_embeddings = channel.empty()
+    ch_kronos_marker_report = channel.empty()
     if (!params.skip_kronos) {
 
         // Create channel for KRONOS input: original tiff + whole-cell mask + geojson
@@ -177,7 +181,7 @@ workflow SOPA_SEGMENT {
     }
 
     // Optional SEGMENTATIONREPORT module
-    ch_report = Channel.empty()
+    ch_report = channel.empty()
     if (params.generate_report) {
         ch_combined
             .join(ch_annotations)
@@ -209,10 +213,10 @@ workflow SOPA_SEGMENT {
     }
 
     emit:
-    annotations          = ch_annotations                     // channel: [ val(meta), *.geojson ]
-    kronos_embeddings    = ch_kronos_embeddings               // channel: [ val(meta), *.csv ] OPTIONAL
-    kronos_marker_report = ch_kronos_marker_report            // channel: [ val(meta), *.txt ] OPTIONAL
+    annotations          = ch_annotations                    // channel: [ val(meta), *.geojson ]
+    kronos_embeddings    = ch_kronos_embeddings              // channel: [ val(meta), *.csv ] OPTIONAL
+    kronos_marker_report = ch_kronos_marker_report           // channel: [ val(meta), *.txt ] OPTIONAL
     report               = ch_report                         // channel: [ val(meta), *.html ] OPTIONAL
 
-    versions = ch_versions                          // channel: [ versions.yml ]
+    versions = ch_versions                                   // channel: [ versions.yml ]
 }

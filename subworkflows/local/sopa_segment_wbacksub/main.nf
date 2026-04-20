@@ -8,7 +8,7 @@ workflow SOPA_SEGMENT_WBACKSUB {
 
     main:
 
-    ch_versions = Channel.empty()
+    ch_versions = channel.empty()
 
     //
     // Run the BACKGROUNDSUBTRACT subworkflow for samples that ONLY require
