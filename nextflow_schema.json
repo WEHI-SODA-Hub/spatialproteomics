@@ -288,6 +288,13 @@
                     "fa_icon": "fas fa-file-medical",
                     "help_text": "The directory should contain the model checkpoint (e.g. kronos_vits16_model.pt) and optionally a config.json file. Download from https://github.com/mahmoodlab/KRONOS or Hugging Face Hub (MahmoodLab/kronos)."
                 },
+                "kronos_config_path": {
+                    "type": "string",
+                    "format": "file-path",
+                    "description": "Optional path to KRONOS config.json. If unset, the script auto-detects it from kronos_model_path.",
+                    "fa_icon": "fas fa-file-code",
+                    "help_text": "Use this only when auto-detection fails or when you need to force a specific KRONOS configuration file."
+                },
                 "kronos_marker_metadata": {
                     "type": "string",
                     "format": "file-path",
@@ -335,6 +342,14 @@
                     "description": "JSON string mapping image marker names to KRONOS marker names for markers that cannot be auto-matched.",
                     "fa_icon": "fas fa-exchange-alt",
                     "help_text": "Provide a JSON string like '{\"CD3e\": \"CD3E\", \"PanCK\": \"PANCK\"}' to manually resolve marker name mismatches between your image channels and the KRONOS metadata. KRONOS performs case-insensitive matching automatically, so only provide mappings for markers that truly differ in name."
+                },
+                "kronos_distance_threshold": {
+                    "type": "number",
+                    "default": 5.0,
+                    "description": "Maximum centroid distance in pixels for fallback embedding-to-GeoJSON matching.",
+                    "fa_icon": "fas fa-ruler-horizontal",
+                    "minimum": 0,
+                    "help_text": "Used only when merge fallback matching is needed. Increase for noisier centroid alignment; keep low to avoid incorrect cell matches."
                 }
             }
         },
@@ -482,6 +497,20 @@
                     "description": "Gzip-compress the output GeoJSON files. Produces .geojson.gz instead of .geojson.",
                     "fa_icon": "fas fa-file-archive",
                     "help_text": "Enable this to gzip-compress the GeoJSON output from cellmeasurement. For large images with hundreds of thousands of cells, the GeoJSON can be 100+ GB uncompressed. Gzip typically achieves 10-20x compression on JSON with floating-point coordinates. The compressed files can be used directly with the import_large_geojson pipeline."
+                },
+                "dist_threshold": {
+                    "type": "number",
+                    "default": 10.0,
+                    "description": "Maximum centroid distance in pixels for matching a nucleus to a whole-cell ROI.",
+                    "fa_icon": "fas fa-ruler",
+                    "help_text": "Nuclear and whole-cell centroids further apart than this threshold are not matched. Unmatched nuclei receive synthetic cell boundaries via watershed. Lower values enforce stricter matching; higher values tolerate more offset between segmentation models."
+                },
+                "downsample_factor": {
+                    "type": "number",
+                    "default": 1.0,
+                    "description": "Downsample factor applied to the image and masks before measurement (1 = no downsampling).",
+                    "fa_icon": "fas fa-compress-arrows-alt",
+                    "help_text": "Integer downsample factor >= 2 to speed up measurement on very large images. The image is block-averaged; masks use block-max to preserve labels. Values < 2 are treated as 1 (no downsampling). Note that physical measurements (area, length) are scaled back to original pixel units."
                 }
             }
         },
@@ -612,17 +641,9 @@
                     "default": "https://raw.githubusercontent.com/nf-core/test-datasets/",
                     "hidden": true
                 },
-                "gradle_cache_dir": {
-                    "type": "string",
-                    "format": "directory-path",
-                    "description": "Directory to use for Gradle cache.",
-                    "fa_icon": "fas fa-cogs",
-                    "hidden": true
-                },
                 "deepcell_cache_dir": {
                     "type": "string",
                     "format": "directory-path",
-                    "default": "/vast/scratch/users",
                     "description": "Base directory for caching DeepCell/CellSAM model weights. The current username is appended automatically.",
                     "fa_icon": "fas fa-database",
                     "help_text": "Set this to redirect the DeepCell model cache away from the home directory. The current username is resolved at runtime and appended, so models are cached at {deepcell_cache_dir}/{username}/.deepcell/models/. Set to null to use $HOME instead."

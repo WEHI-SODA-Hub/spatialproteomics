@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Python implementation of the cellmeasurement Groovy app.
+Python rewrite of the cellmeasurement Groovy app from:
+https://github.com/WEHI-SODA-Hub/cellmeasurement
 
 This script measures cell and nucleus compartments from labeled masks and a
 multi-channel TIFF image, then exports a GeoJSON FeatureCollection.
@@ -99,7 +100,10 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--percentiles", default="")
     p.add_argument("--erosion-steps", action="store_true",
                    help="Measure intensity in 5 equal-area erosion bins working inward from the cell boundary. "
-                        "Disabled by default.")
+                        "Disabled by default. "
+                        "NOTE: unlike the original Groovy cellmeasurement app, this flag does not accept pixel-depth "
+                        "values (e.g. 4,7,11,14,18). The Python implementation always uses 5 equal-area bins; "
+                        "the output measurement keys are named ErosionBin_1 through ErosionBin_5, not Eroded_Npx.")
     p.add_argument("--expansion-steps", action="store_true",
                    help="Measure intensity in 5 equal-area annular bins dilated 20 µm outward from cell boundary "
                         "(distance computed from --pixel-size-microns). Disabled by default.")
@@ -263,19 +267,36 @@ def load_image(path: str) -> Tuple[np.ndarray, List[str]]:
             except Exception:
                 pass
 
+        # Record the TIFF page count while we still have the file open.
+        # This is used below to disambiguate (C,H,W) vs (H,W,C) layout for
+        # 3D plain TIFFs without metadata: if page count == first dimension,
+        # the array is already (C,H,W); if page count == 1 and img is 3D,
+        # the TIFF was loaded as a single (H,W,C) interleaved frame.
+        n_pages = len(tf.pages) if tf.pages else 0
+
     # --- Normalize image shape to (C, H, W) regardless of input layout ---
     if img.ndim == 2:
         # Single-channel greyscale: promote to (1, H, W)
         img = img[np.newaxis, ...]
     elif img.ndim == 3:
-        # Accept C,Y,X or Y,X,C. Heuristic: if first dim is small (<= 64),
-        # assume it's already C,Y,X.  If last dim is small, it's Y,X,C.
-        if img.shape[0] <= 64:
-            pass  # already (C, H, W)
-        elif img.shape[2] <= 64:
-            img = np.transpose(img, (2, 0, 1))  # convert (H, W, C) -> (C, H, W)
+        # Disambiguate (C, H, W) vs (H, W, C) using TIFF page count.
+        # If the number of pages matches the first dimension the array
+        # is already page-per-channel (C, H, W).
+        # If pages == 1, the single frame was loaded as (H, W, C).
+        # Fall back to the shape heuristic only when page count is ambiguous.
+        if n_pages > 1 and img.shape[0] == n_pages:
+            pass  # already (C, H, W) — each page is one channel
+        elif n_pages == 1 or (n_pages > 1 and img.shape[2] == n_pages):
+            img = np.transpose(img, (2, 0, 1))  # (H, W, C) -> (C, H, W)
+        elif img.shape[0] < img.shape[1] and img.shape[0] < img.shape[2]:
+            pass  # heuristic: first dim is smaller than spatial dims -> (C, H, W)
+        elif img.shape[2] < img.shape[0] and img.shape[2] < img.shape[1]:
+            img = np.transpose(img, (2, 0, 1))  # heuristic: last dim smallest -> (H, W, C)
         else:
-            raise ValueError(f"Unsupported 3D image layout: {img.shape}")
+            raise ValueError(
+                f"Unsupported 3D image layout: shape={img.shape}, n_pages={n_pages}. "
+                "Cannot determine whether channels are first or last."
+            )
     else:
         raise ValueError(f"Unsupported image dimensions: {img.shape}")
 
@@ -964,7 +985,7 @@ def _expansion_bins_for_mask(cell_mask: np.ndarray, total_expansion_px: int, n_b
         target_area = int(total_zone_area * target_frac)
         # Dilate until cumulative ring area reaches target
         while depth < total_expansion_px:
-            current_ring_area = int(np.count_nonzero(current & ~cm)) 
+            current_ring_area = int(np.count_nonzero(current & ~cm))
             if current_ring_area >= target_area:
                 break
             current = ndi.binary_dilation(current, structure=_DISK_1, iterations=1)

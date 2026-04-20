@@ -23,7 +23,7 @@ process CELLMEASUREMENT {
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
-    python3 ${projectDir}/bin/cellmeasurement.py \\
+    cellmeasurement.py \\
         --nuclear-mask ${nuclear_mask} \\
         --whole-cell-mask ${whole_cell_mask} \\
         --tiff-file ${tiff} \\

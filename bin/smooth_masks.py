@@ -28,6 +28,7 @@ from skimage.morphology import disk, binary_closing, binary_opening
 from skimage.measure import find_contours
 from skimage.draw import polygon as draw_polygon
 from shapely.geometry import Polygon
+from shapely.ops import unary_union
 
 
 def enforce_min_area(mask, min_area):
@@ -59,7 +60,12 @@ def _process_label(args):
     label_mask = np.ndarray(mask_shape, dtype=mask_dtype, buffer=shm.buf)
 
     try:
-        slc = tuple(slice(s, e) for s, e in zip(slc_starts, slc_stops))
+        # Pad bounding box by kernel_size so the disk structuring element isn't
+        # clipped at the crop edge for labels near the image interior boundaries.
+        H, W = mask_shape[0], mask_shape[1]
+        pad_starts = tuple(max(0, s - kernel_size) for s in slc_starts)
+        pad_stops  = tuple(min(d, e + kernel_size) for e, d in zip(slc_stops, (H, W)))
+        slc = tuple(slice(s, e) for s, e in zip(pad_starts, pad_stops))
         crop = label_mask[slc] == label_id
 
         if not np.any(crop):
@@ -75,9 +81,9 @@ def _process_label(args):
         if not np.any(binary):
             return label_id, None, None
 
-        # Get local pixel coordinates and offset to global
+        # Get local pixel coordinates and offset to global using padded origin.
         local_rr, local_cc = np.where(binary)
-        minr, minc = slc_starts
+        minr, minc = pad_starts
         rr = local_rr + minr
         cc = local_cc + minc
 
@@ -209,38 +215,52 @@ def _process_label_shapely(args):
         if not contours:
             return label_id, None, None
 
-        # Work with the largest contour; undo the 1-pixel padding offset
-        contour = max(contours, key=len) - 1.0
+        # Build a Shapely polygon for every contour (undo the 1-pixel pad offset).
+        # Using unary_union handles disconnected fragments and fills holes, both of
+        # which are acceptable for a smoothing operation on segmentation masks.
+        polys = []
+        for c in contours:
+            c_shifted = c - 1.0
+            if len(c_shifted) < 3:
+                continue
+            p = Polygon(zip(c_shifted[:, 1], c_shifted[:, 0]))
+            if not p.is_valid:
+                p = p.buffer(0)
+            if not p.is_empty and p.area > 0:
+                polys.append(p)
 
-        if len(contour) < 3:
+        if not polys:
             return label_id, None, None
 
-        # Build Shapely polygon — coords are (col, row) = (x, y)
-        poly = Polygon(zip(contour[:, 1], contour[:, 0]))
-        if not poly.is_valid:
-            poly = poly.buffer(0)
-
+        poly = unary_union(polys)
         poly = poly.simplify(tolerance, preserve_topology=True)
 
         if poly.is_empty:
             return label_id, None, None
 
-        # If simplification produced a MultiPolygon, keep the largest part
-        if poly.geom_type == 'MultiPolygon':
-            poly = max(poly.geoms, key=lambda p: p.area)
-
-        if poly.is_empty or poly.area < min_area:
+        if poly.area < min_area:
             return label_id, None, None
 
-        # Rasterize simplified polygon in crop-local space
-        ext = np.array(poly.exterior.coords)
-        poly_rows = ext[:, 1]   # y → row
-        poly_cols = ext[:, 0]   # x → col
+        # Collect all parts — simplification can produce a MultiPolygon.
+        if poly.geom_type == 'MultiPolygon':
+            parts = list(poly.geoms)
+        elif poly.geom_type == 'Polygon':
+            parts = [poly]
+        else:
+            return label_id, None, None
 
         crop_h = slc_stops[0] - slc_starts[0]
         crop_w = slc_stops[1] - slc_starts[1]
-        local_rr, local_cc = draw_polygon(poly_rows, poly_cols,
-                                          shape=(crop_h, crop_w))
+        local_mask = np.zeros((crop_h, crop_w), dtype=bool)
+
+        for part in parts:
+            if part.is_empty:
+                continue
+            ext = np.array(part.exterior.coords)
+            rr_e, cc_e = draw_polygon(ext[:, 1], ext[:, 0], shape=(crop_h, crop_w))
+            local_mask[rr_e, cc_e] = True
+
+        local_rr, local_cc = np.where(local_mask)
 
         # Offset to global coordinates
         rr = local_rr + slc_starts[0]
