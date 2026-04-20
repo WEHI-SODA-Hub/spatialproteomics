@@ -144,6 +144,36 @@ The following Mesmer parameters can be set:
 | cellpose_model_type         | Cellpose model to use for segmentation (e.g., nuclei, cyto, cyto2, cyto3 etc.). |
 | cellpose_pretrained_model   | Path to a pre-trained Cellpose model.                                           |
 
+### CellSAM parameters
+
+| Parameter Name                    | Description                                                                                                    |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `cellsam_bbox_threshold`          | Confidence threshold for bounding-box detections (default: `0.4`).                                            |
+| `cellsam_block_size`              | Tile size in pixels used when processing large images (default: `600`).                                        |
+| `cellsam_overlap`                 | Overlap in pixels between adjacent tiles (default: `250`).                                                     |
+| `cellsam_iou_depth`               | Search depth (pixels) for IoU-based duplicate removal at tile boundaries (default: `250`).                     |
+| `cellsam_iou_threshold`           | IoU threshold for non-maximum suppression across tiles (default: `0.5`).                                       |
+| `cellsam_use_wsi`                 | Enable whole-slide-image tiling mode (default: `true`).                                                        |
+| `cellsam_gauge_cell_size`         | Automatically estimate cell size from the image before segmentation (default: `false`).                        |
+| `cellsam_low_contrast_enhancement`| Apply contrast enhancement before segmentation for low-contrast images (default: `false`).                     |
+| `cellsam_model_path`              | Path to a custom CellSAM model checkpoint. If `null` the built-in default model is used (default: `null`).    |
+| `cellsam_min_area`                | Minimum cell area in square pixels; smaller objects are discarded (default: `0`).                              |
+
+### KRONOS embedding parameters
+
+| Parameter Name              | Description                                                                                                                |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `skip_kronos`               | Skip the KRONOS embedding step entirely (default: `true`).                                                                 |
+| `kronos_model_path`         | **Required** path to the directory containing the pre-trained KRONOS `.pt` checkpoint.                                    |
+| `kronos_marker_metadata`    | **Required** path to a CSV file mapping marker channel names to KRONOS input slots.                                       |
+| `kronos_config_path`        | Path to a KRONOS YAML config file overriding default model settings (default: `null`).                                     |
+| `kronos_patch_size`         | Size in pixels of the square patch extracted around each cell for embedding (default: `64`).                               |
+| `kronos_batch_size`         | Number of patches processed per inference batch (default: `32`).                                                           |
+| `kronos_num_workers`        | Number of PyTorch DataLoader worker processes (default: `4`).                                                              |
+| `kronos_max_value`          | Maximum pixel intensity used for per-channel normalisation (default: `65535`).                                             |
+| `kronos_marker_mapping`     | JSON string or path mapping pipeline channel names to KRONOS marker names. Uses identity mapping when `null` (default: `null`). |
+| `kronos_distance_threshold` | Maximum distance in pixels between a cell centroid and its matched nucleus; larger gaps are left unmatched (default: `5.0`). |
+
 ### SOPA patching parameters
 
 | Parameter Name      | Description                                                              |
