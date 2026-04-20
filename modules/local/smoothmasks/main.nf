@@ -17,11 +17,10 @@ process SMOOTHMASKS {
 
     script:
     def args = task.ext.args ?: ''
-    def prefix = task.ext.prefix ?: "${meta.id}"
     def input_name = mask.getName()
     def output_name = input_name.replaceAll(/\.(tiff?|TIFF?)$/, '_smoothed.tiff')
     """
-    python3 ${projectDir}/bin/smooth_masks.py \\
+    smooth_masks.py \\
         ${mask} \\
         ${output_name} \\
         ${args}
