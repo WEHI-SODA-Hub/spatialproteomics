@@ -1,15 +1,11 @@
 #!/usr/bin/env python3
 """Tests for erosion bin, expansion bin, and environment measurement systems."""
 
-import sys
-from pathlib import Path
-
+# bin/ is added to sys.path by tests/python/conftest.py
 import numpy as np
 import pytest
 from skimage.morphology import disk
 
-# Make bin/cellmeasurement.py importable
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "bin"))
 import cellmeasurement as cm
 
 
