@@ -3,7 +3,6 @@ process CELLMEASUREMENT {
     label 'process_multi'
 
     conda "${moduleDir}/environment.yml"
-    container "community.wave.seqera.io/library/python_tifffile_numpy_scipy_pruned:e54488103afb8110"
 
     input:
     tuple val(meta),
@@ -23,7 +22,7 @@ process CELLMEASUREMENT {
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
-    cellmeasurement.py \\
+    cellmeasurement \\
         --nuclear-mask ${nuclear_mask} \\
         --whole-cell-mask ${whole_cell_mask} \\
         --tiff-file ${tiff} \\
@@ -34,11 +33,18 @@ process CELLMEASUREMENT {
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
+        cellmeasurement: \$(cellmeasurement --version)
         python: \$(python3 --version | sed 's/Python //')
         scipy: \$(python3 -c "import scipy; print(scipy.__version__)")
         scikit-image: \$(python3 -c "import skimage; print(skimage.__version__)")
         shapely: \$(python3 -c "import shapely; print(shapely.__version__)")
         tifffile: \$(python3 -c "import tifffile; print(tifffile.__version__)")
+        dask: \$(python3 -c "import dask; print(dask.__version__)")
+        spatialdata: \$(python3 -c "import spatialdata; print(spatialdata.__version__)")
+        rasterio: \$(python3 -c "import rasterio; print(rasterio.__version__)")
+        numpy: \$(python3 -c "import numpy; print(numpy.__version__)")
+        geopandas: \$(python3 -c "import geopandas; print(geopandas.__version__)")
+        typer: \$(python3 -c "import typer; print(typer.__version__)")
     END_VERSIONS
     """
 
@@ -50,11 +56,18 @@ process CELLMEASUREMENT {
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
+        cellmeasurement: \$(cellmeasurement --version)
         python: \$(python3 --version | sed 's/Python //')
         scipy: \$(python3 -c "import scipy; print(scipy.__version__)")
         scikit-image: \$(python3 -c "import skimage; print(skimage.__version__)")
         shapely: \$(python3 -c "import shapely; print(shapely.__version__)")
         tifffile: \$(python3 -c "import tifffile; print(tifffile.__version__)")
+        dask: \$(python3 -c "import dask; print(dask.__version__)")
+        spatialdata: \$(python3 -c "import spatialdata; print(spatialdata.__version__)")
+        rasterio: \$(python3 -c "import rasterio; print(rasterio.__version__)")
+        numpy: \$(python3 -c "import numpy; print(numpy.__version__)")
+        geopandas: \$(python3 -c "import geopandas; print(geopandas.__version__)")
+        typer: \$(python3 -c "import typer; print(typer.__version__)")
     END_VERSIONS
     """
 }

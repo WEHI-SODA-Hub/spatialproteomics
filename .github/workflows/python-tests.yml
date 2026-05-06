@@ -1,21 +1,22 @@
 name: Python unit tests
 
-on:
-  push:
-    branches:
-      - dev
-      - main
-    paths:
-      - "bin/**.py"
-      - "tests/python/**.py"
-      - "pyproject.toml"
-      - "uv.lock"
-  pull_request:
-    paths:
-      - "bin/**.py"
-      - "tests/python/**.py"
-      - "pyproject.toml"
-      - "uv.lock"
+on: []
+# Disabled for now as cellmeasurement was moved to a separate repo with its own tests
+#  push:
+#    branches:
+#      - dev
+#      - main
+#    paths:
+#      - "bin/**.py"
+#      - "tests/python/**.py"
+#      - "pyproject.toml"
+#      - "uv.lock"
+#  pull_request:
+#    paths:
+#      - "bin/**.py"
+#      - "tests/python/**.py"
+#      - "pyproject.toml"
+#      - "uv.lock"
 
 jobs:
   pytest:
