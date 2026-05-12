@@ -527,6 +527,7 @@
                     "fa_icon": "fas fa-compress-arrows-alt",
                     "minimum": 0,
                     "help_text": "The overlap between tiles. This should be set to at least the size of the largest cell in the image to ensure that measurements from cells are complete."
+                }
             }
         },
         "report_options": {
