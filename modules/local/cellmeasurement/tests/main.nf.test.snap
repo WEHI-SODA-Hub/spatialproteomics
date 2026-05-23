@@ -7,7 +7,7 @@
                         {
                             "id": "test"
                         },
-                        "test.geojson:md5,5ce93bbfb86895ec7d9311681a61a138"
+                        "test.geojson.gz:md5,da0063d5e066732ea2d753c5abd21814"
                     ]
                 ],
                 "1": [
@@ -19,14 +19,14 @@
                     ]
                 ],
                 "2": [
-                    "versions.yml:md5,7b30aec3bf6f7902373825a2ff286042"
+                    "versions.yml:md5,c21719ea9ad3f44a0d4b7e943338e587"
                 ],
                 "annotations": [
                     [
                         {
                             "id": "test"
                         },
-                        "test.geojson:md5,5ce93bbfb86895ec7d9311681a61a138"
+                        "test.geojson.gz:md5,da0063d5e066732ea2d753c5abd21814"
                     ]
                 ],
                 "masks": [
@@ -38,7 +38,7 @@
                     ]
                 ],
                 "versions": [
-                    "versions.yml:md5,7b30aec3bf6f7902373825a2ff286042"
+                    "versions.yml:md5,c21719ea9ad3f44a0d4b7e943338e587"
                 ]
             }
         ],
@@ -46,7 +46,7 @@
             "nf-test": "0.9.2",
             "nextflow": "25.04.4"
         },
-        "timestamp": "2026-05-12T15:14:20.522264661"
+        "timestamp": "2026-05-22T21:21:46.549687055"
     },
     "cellmeasurement - with cell expansion and skip measurements": {
         "content": [
@@ -101,7 +101,7 @@
                     ]
                 ],
                 "2": [
-                    "versions.yml:md5,7b30aec3bf6f7902373825a2ff286042"
+                    "versions.yml:md5,c21719ea9ad3f44a0d4b7e943338e587"
                 ],
                 "annotations": [
                     [
@@ -120,7 +120,7 @@
                     ]
                 ],
                 "versions": [
-                    "versions.yml:md5,7b30aec3bf6f7902373825a2ff286042"
+                    "versions.yml:md5,c21719ea9ad3f44a0d4b7e943338e587"
                 ]
             }
         ],
@@ -128,7 +128,7 @@
             "nf-test": "0.9.2",
             "nextflow": "25.04.4"
         },
-        "timestamp": "2026-05-12T15:14:49.585365811"
+        "timestamp": "2026-05-22T21:22:25.822190464"
     },
     "cellmeasurement - skip measurements": {
         "content": [

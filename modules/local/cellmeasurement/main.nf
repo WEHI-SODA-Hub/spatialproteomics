@@ -3,7 +3,7 @@ process CELLMEASUREMENT {
     label 'process_multi'
 
     conda "${moduleDir}/environment.yml"
-    container 'ghcr.io/wehi-soda-hub/cellmeasurement-py:0.1.0'
+    container 'ghcr.io/wehi-soda-hub/cellmeasurement-py:0.1.2'
 
     input:
     tuple val(meta),
@@ -22,10 +22,11 @@ process CELLMEASUREMENT {
     script:
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
+    def nuclear_mask_flag = params.use_whole_cell_only ? '' : "--nuclear-mask ${nuclear_mask}"
     """
     cellmeasurement \\
-        --nuclear-mask ${nuclear_mask} \\
         --whole-cell-mask ${whole_cell_mask} \\
+        ${nuclear_mask_flag} \\
         --tiff-file ${tiff} \\
         --output-file ${prefix}.geojson \\
         --output-mask ${prefix}_mask.tiff \\
