@@ -28,7 +28,7 @@ measurements per compartment. The output GeoJSON files can be viewed in QuPath.
 
 Workflow diagram (steps in dotted lined boxes are optional):
 
-```mermaid
+````mermaid
 flowchart TD
   input_comet("COMET TIFF") --> extract["Extract markers"]
   extract --> bgsub["Background
@@ -64,15 +64,15 @@ flowchart TD
   smooth --> measure
   measure --> geojson["GeoJSON"]
   measure --> embeddings["KRONOS
-          embeddings"]
+                         embeddings"]
   embeddings --> csv["Embeddings CSV"]
   embeddings --> marker_report["Marker report"]
   embeddings --> merged_geojson["Merged GeoJSON"]
   style embeddings stroke:#bbb,stroke-dasharray: 5 5
-  measure --> seg_report["Segmentation
-                         report"]
+  embeddings --> seg_report["Segmentation
+                            report"]
   style seg_report stroke:#bbb,stroke-dasharray: 5 5
-```
+  seg_report --> report["QC report"]`
 
 The pipeline uses the following tools:
 
@@ -116,7 +116,7 @@ Prepare a sample sheet as follows:
 sample,run_backsub,run_mesmer,run_cellpose,run_cellsam,tiff
 sample1,true,true,false,false,/path/to/sample1.tiff
 sample2,true,false,false,true,/path/to/sample2.tiff
-```
+````
 
 You may also prefer to use YAML for your samplesheet, either is supported:
 
