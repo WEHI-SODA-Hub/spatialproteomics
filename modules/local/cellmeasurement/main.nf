@@ -23,6 +23,10 @@ process CELLMEASUREMENT {
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
     def nuclear_mask_flag = params.use_whole_cell_only ? '' : "--nuclear-mask ${nuclear_mask}"
+    // Resolved against the launch directory, not the task work directory, so the
+    // checkpoint survives the fresh work dir that Nextflow allocates on retry.
+    def checkpoint_flag = params.geometry_checkpoint_dir ?
+        "--geometry-checkpoint-dir ${file(params.geometry_checkpoint_dir).toAbsolutePath()}/${meta.id}" : ''
     """
     cellmeasurement \\
         --whole-cell-mask ${whole_cell_mask} \\
@@ -31,6 +35,7 @@ process CELLMEASUREMENT {
         --output-file ${prefix}.geojson \\
         --output-mask ${prefix}_mask.tiff \\
         --threads ${task.cpus} \\
+        ${checkpoint_flag} \\
         ${args}
 
     cat <<-END_VERSIONS > versions.yml
