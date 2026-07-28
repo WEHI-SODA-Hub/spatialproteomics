@@ -7,22 +7,25 @@
                         {
                             "id": "test"
                         },
-                        "test.geojson.gz:md5,f3d8c2ee60e20b540c82498292122d07"
+                        "test.geojson.gz:md5,cf3e776b3350ff36292b9c0dca480589"
                     ]
                 ],
                 "1": [
-                    
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "synthetic_bgsub.ome.tif:md5,59c405c7edd0c8d8acdfb58dade076af",
+                        "test_whole-cell.tiff:md5,64c2d4bee525ed8f9ac38b6bee290bec"
+                    ]
                 ],
                 "2": [
                     
                 ],
                 "3": [
-                    
-                ],
-                "4": [
+                    "versions.yml:md5,8092d72f416a392ccee63719b0d4c998",
                     "versions.yml:md5,8e296315445b63f508c16e0259cffcc1",
                     "versions.yml:md5,a6cc5826c831c9e7a20f46c8900bfec4",
-                    "versions.yml:md5,d6d1c0b0a5be98807f1e7bf1b631cbff",
                     "versions.yml:md5,faeace3d7ca5ba5d9d9ebf3a48c43c24"
                 ],
                 "annotations": [
@@ -30,30 +33,33 @@
                         {
                             "id": "test"
                         },
-                        "test.geojson.gz:md5,f3d8c2ee60e20b540c82498292122d07"
+                        "test.geojson.gz:md5,cf3e776b3350ff36292b9c0dca480589"
                     ]
                 ],
-                "kronos_embeddings": [
-                    
-                ],
-                "kronos_marker_report": [
-                    
+                "kronos_input": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "synthetic_bgsub.ome.tif:md5,59c405c7edd0c8d8acdfb58dade076af",
+                        "test_whole-cell.tiff:md5,64c2d4bee525ed8f9ac38b6bee290bec"
+                    ]
                 ],
                 "report": [
                     
                 ],
                 "versions": [
+                    "versions.yml:md5,8092d72f416a392ccee63719b0d4c998",
                     "versions.yml:md5,8e296315445b63f508c16e0259cffcc1",
                     "versions.yml:md5,a6cc5826c831c9e7a20f46c8900bfec4",
-                    "versions.yml:md5,d6d1c0b0a5be98807f1e7bf1b631cbff",
                     "versions.yml:md5,faeace3d7ca5ba5d9d9ebf3a48c43c24"
                 ]
             }
         ],
+        "timestamp": "2026-07-28T15:35:39.900414972",
         "meta": {
-            "nf-test": "0.9.2",
-            "nextflow": "25.04.4"
-        },
-        "timestamp": "2026-06-09T15:50:51.041900683"
+            "nf-test": "0.9.5",
+            "nextflow": "24.04.2"
+        }
     }
 }
