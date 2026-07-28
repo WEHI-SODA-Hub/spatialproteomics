@@ -38,12 +38,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `bin/kronos2_common.py`, a shared scaffold for per-cell foundation-model
   extraction, so a future encoder does not become a second copy of the script.
+- A Wave-built container pinned by digest
+  (`community.wave.seqera.io/library/kronos2embeddings:70590359503eec08`),
+  carrying torch 2.6.0+cu124. Verified to reproduce a standalone run's
+  embeddings to cosine 1.000000.
 - `kronos_nuclear_marker`, `kronos_isolate_cell` and `kronos_allow_novel_defaults`
   parameters; `test_mesmer_kronos2` profile.
 - Unmatched markers now fail the run by default. KRONOS2 matches names exactly with
   no alias or fuzzy step, so a naming variant such as `Cytokeritin` would otherwise be
   normalised with default statistics silently. Use `--kronos_marker_mapping` to
   resolve them, or `--kronos_allow_novel_defaults` to accept the fallback.
+
+- Per-cell footprints are filled with Pillow rather than rasterio, dropping the
+  GDAL stack (which pulled a conda libtiff/libjpeg symbol clash into the
+  container). The two rasterisers differ slightly at the cell boundary:
+  embeddings shift by cosine 0.99974, roughly 15x less than the cell-isolation
+  change above, and less than rasterio's own two `all_touched` modes differ
+  from each other.
 
 ### Removed
 
