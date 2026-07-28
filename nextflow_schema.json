@@ -10,7 +10,10 @@
             "type": "object",
             "fa_icon": "fas fa-terminal",
             "description": "Define where the pipeline should find input data and save output data.",
-            "required": ["input", "outdir"],
+            "required": [
+                "input",
+                "outdir"
+            ],
             "properties": {
                 "input": {
                     "type": "string",
@@ -75,7 +78,10 @@
                     "type": "string",
                     "description": "Method used to combine membrane channels (product or max). Using product is not recommended for large numbers of channels with large images as this may use a lot of memory.",
                     "fa_icon": "fas fa-compress-arrows-alt",
-                    "enum": ["max", "prod"]
+                    "enum": [
+                        "max",
+                        "prod"
+                    ]
                 }
             }
         },
@@ -89,7 +95,9 @@
                     "type": "string",
                     "description": "Technology used for the imaging. Currently, only COMET is supported via the 'ome_tif' parameter.",
                     "fa_icon": "fas fa-microscope",
-                    "enum": ["ome_tif"]
+                    "enum": [
+                        "ome_tif"
+                    ]
                 },
                 "patch_width_pixel": {
                     "type": "integer",
@@ -279,38 +287,24 @@
             }
         },
         "kronos_options": {
-            "title": "KRONOS options",
+            "title": "KRONOS2 embedding options",
             "type": "object",
             "fa_icon": "fas fa-dna",
-            "description": "Parameters for KRONOS foundation model cell embedding extraction.",
+            "description": "Options for KRONOS2 per-cell foundation-model embeddings",
             "help_text": "KRONOS is a foundation model for multiplex spatial proteomic images. These parameters control the embedding extraction step that runs after cell measurement.",
             "properties": {
                 "enable_kronos": {
                     "type": "boolean",
-                    "description": "Skip KRONOS embedding extraction step.",
+                    "description": "Enable KRONOS2 per-cell embedding extraction.",
                     "fa_icon": "fas fa-stopwatch",
                     "help_text": "Set this to `true` to run KRONOS embedding extraction after cell measurement. Requires kronos_model_path and kronos_marker_metadata to be set."
                 },
                 "kronos_model_path": {
                     "type": "string",
                     "format": "directory-path",
-                    "description": "Path to directory containing KRONOS model weights (.pt file) and config.json.",
+                    "description": "Path to a KRONOS2 snapshot directory (or a Hugging Face repo id). The full snapshot is required - the loader imports the bundled dinov2 package - so a hand-picked subset of files will not work.",
                     "fa_icon": "fas fa-file-medical",
                     "help_text": "The directory should contain the model checkpoint (e.g. kronos_vits16_model.pt) and optionally a config.json file. Download from https://github.com/mahmoodlab/KRONOS or Hugging Face Hub (MahmoodLab/kronos)."
-                },
-                "kronos_config_path": {
-                    "type": "string",
-                    "format": "file-path",
-                    "description": "Optional path to KRONOS config.json. If unset, the script auto-detects it from kronos_model_path.",
-                    "fa_icon": "fas fa-file-code",
-                    "help_text": "Use this only when auto-detection fails or when you need to force a specific KRONOS configuration file."
-                },
-                "kronos_marker_metadata": {
-                    "type": "string",
-                    "format": "file-path",
-                    "description": "Path to KRONOS marker metadata CSV file with columns: marker_name, marker_id, marker_mean, marker_std.",
-                    "fa_icon": "fas fa-file-csv",
-                    "help_text": "This CSV maps marker names to KRONOS internal marker IDs and provides normalization statistics. A default metadata file is provided with the KRONOS repository. KRONOS uses fuzzy string matching to match image channel names to the metadata, but exact matches are preferred."
                 },
                 "kronos_patch_size": {
                     "type": "integer",
@@ -323,8 +317,8 @@
                 },
                 "kronos_batch_size": {
                     "type": "integer",
-                    "default": 32,
-                    "description": "Batch size for KRONOS model inference.",
+                    "default": 16,
+                    "description": "Batch size for inference. KRONOS2 runs fp32 and cuBLAS picks batch-dependent kernels, so this shifts embeddings slightly; 16 reproduces the published values.",
                     "fa_icon": "fas fa-layer-group",
                     "minimum": 1,
                     "maximum": 512,
@@ -341,25 +335,31 @@
                 },
                 "kronos_max_value": {
                     "type": "number",
-                    "default": 65535,
-                    "description": "Maximum intensity value for image normalization (65535 for 16-bit images).",
-                    "fa_icon": "fas fa-sliders-h",
-                    "minimum": 1,
-                    "help_text": "Used to scale raw pixel intensities before applying KRONOS normalization. Use 65535 for 16-bit images, 255 for 8-bit."
+                    "description": "Override the intensity divisor. Unset derives it from the image dtype (uint8=255, uint16=65535, float=400), matching KRONOS2 itself.",
+                    "fa_icon": "fas fa-sliders-h"
                 },
                 "kronos_marker_mapping": {
                     "type": "string",
-                    "description": "JSON string mapping image marker names to KRONOS marker names for markers that cannot be auto-matched.",
+                    "description": "JSON file or inline JSON mapping this panel's channel names onto KRONOS2 vocabulary names, e.g. {\"Collagen 4\": \"COLLAGENiv\"}. KRONOS2 matches names exactly (separator-insensitive) with no alias or fuzzy step, so naming variants otherwise fall back to default normalisation stats.",
                     "fa_icon": "fas fa-exchange-alt",
                     "help_text": "Provide a JSON string like '{\"CD3e\": \"CD3E\", \"PanCK\": \"PANCK\"}' to manually resolve marker name mismatches between your image channels and the KRONOS metadata. KRONOS performs case-insensitive matching automatically, so only provide mappings for markers that truly differ in name."
                 },
-                "kronos_distance_threshold": {
-                    "type": "number",
-                    "default": 5.0,
-                    "description": "Maximum centroid distance in pixels for fallback embedding-to-GeoJSON matching.",
-                    "fa_icon": "fas fa-ruler-horizontal",
-                    "minimum": 0,
-                    "help_text": "Used only when merge fallback matching is needed. Increase for noisier centroid alignment; keep low to avoid incorrect cell matches."
+                "kronos_nuclear_marker": {
+                    "type": "string",
+                    "description": "Channel to treat as the nuclear stain. This is the model's only marker-alias mechanism, so a DRAQ5/Hoechst slide needs it to receive DAPI stats. Defaults to the samplesheet nuclear_channel.",
+                    "fa_icon": "fas fa-circle"
+                },
+                "kronos_isolate_cell": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Zero pixels outside the target cell so each embedding describes that cell rather than its surrounding neighbourhood.",
+                    "fa_icon": "fas fa-crop"
+                },
+                "kronos_allow_novel_defaults": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Proceed when markers fall outside KRONOS2's vocabulary (they take default normalisation stats). Off by default so this fails loudly.",
+                    "fa_icon": "fas fa-exclamation-triangle"
                 }
             }
         },
@@ -395,16 +395,16 @@
                 "expansion_steps": {
                     "type": "boolean",
                     "default": true,
-                    "description": "Measure intensity in 5 equal-area annular bins dilated 20 µm outward from the cell boundary (distance computed from pixel_size_microns).",
+                    "description": "Measure intensity in 5 equal-area annular bins dilated 20 \u00b5m outward from the cell boundary (distance computed from pixel_size_microns).",
                     "fa_icon": "fas fa-expand-arrows-alt",
-                    "help_text": "Divides the 20 µm pericellular zone into 5 rings of approximately equal area and measures mean/median intensity per ring. The total expansion distance is computed automatically from pixel_size_microns. Set to false to disable. Skip measurements must be set to false to use this parameter."
+                    "help_text": "Divides the 20 \u00b5m pericellular zone into 5 rings of approximately equal area and measures mean/median intensity per ring. The total expansion distance is computed automatically from pixel_size_microns. Set to false to disable. Skip measurements must be set to false to use this parameter."
                 },
                 "environment_expansion": {
                     "type": "boolean",
                     "default": true,
-                    "description": "Measure a 20 µm pericellular 'Environment' compartment (distance computed automatically from pixel_size_microns).",
+                    "description": "Measure a 20 \u00b5m pericellular 'Environment' compartment (distance computed automatically from pixel_size_microns).",
                     "fa_icon": "fas fa-circle-notch",
-                    "help_text": "Dilates the cell mask by 20 µm (converted to pixels via pixel_size_microns) and measures mean, median, min, max, and std dev of every channel in the full zone (cell boundary to outer ring) as one region. This matches CellTune's 'Environment' compartment. Set to false to disable."
+                    "help_text": "Dilates the cell mask by 20 \u00b5m (converted to pixels via pixel_size_microns) and measures mean, median, min, max, and std dev of every channel in the full zone (cell boundary to outer ring) as one region. This matches CellTune's 'Environment' compartment. Set to false to disable."
                 },
                 "pixel_size_microns": {
                     "type": "number",
@@ -412,7 +412,7 @@
                     "minimum": 0.1,
                     "maximum": 10.0,
                     "fa_icon": "fas fa-ruler-combined",
-                    "help_text": "COMET: 0.28 µm/px, MIBI: 0.390625 µm/px, OPAL: 0.4964 µm/px."
+                    "help_text": "COMET: 0.28 \u00b5m/px, MIBI: 0.390625 \u00b5m/px, OPAL: 0.4964 \u00b5m/px."
                 },
                 "estimate_cell_boundary_dist": {
                     "type": "integer",
@@ -516,8 +516,11 @@
                     "default": "morphological",
                     "description": "Smoothing algorithm: 'morphological' (disk close+open) or 'shapely' (Douglas-Peucker polygon simplification).",
                     "fa_icon": "fas fa-cogs",
-                    "enum": ["morphological", "shapely"],
-                    "help_text": "'morphological' applies binary close then open with a disk kernel to smooth pixel boundaries. 'shapely' extracts the polygon boundary for each label and applies Shapely's simplify (Douglas-Peucker) algorithm, which directly reduces vertex count — the main cause of StackOverflowError in QuPath GeoJSON export."
+                    "enum": [
+                        "morphological",
+                        "shapely"
+                    ],
+                    "help_text": "'morphological' applies binary close then open with a disk kernel to smooth pixel boundaries. 'shapely' extracts the polygon boundary for each label and applies Shapely's simplify (Douglas-Peucker) algorithm, which directly reduces vertex count \u2014 the main cause of StackOverflowError in QuPath GeoJSON export."
                 },
                 "smooth_kernel_size": {
                     "type": "integer",
@@ -558,7 +561,7 @@
                     "type": "number",
                     "default": 0,
                     "minimum": 0,
-                    "description": "[shapely] Minimum polygon area in pixels² to retain after simplification.",
+                    "description": "[shapely] Minimum polygon area in pixels\u00b2 to retain after simplification.",
                     "fa_icon": "fas fa-compress-arrows-alt",
                     "help_text": "Labels whose simplified polygon area falls below this threshold are removed from the output mask. Useful for discarding fragments created by aggressive simplification. Only used when smooth_method is 'shapely'."
                 }
@@ -631,7 +634,14 @@
                     "description": "Method used to save pipeline results to output directory.",
                     "help_text": "The Nextflow `publishDir` option specifies which intermediate files should be saved to the output directory. This option tells the pipeline what method should be used to move these files. See [Nextflow docs](https://www.nextflow.io/docs/latest/process.html#publishdir) for details.",
                     "fa_icon": "fas fa-copy",
-                    "enum": ["symlink", "rellink", "link", "copy", "copyNoFollow", "move"],
+                    "enum": [
+                        "symlink",
+                        "rellink",
+                        "link",
+                        "copy",
+                        "copyNoFollow",
+                        "move"
+                    ],
                     "hidden": true
                 },
                 "email_on_fail": {

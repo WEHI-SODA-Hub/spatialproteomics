@@ -13,7 +13,7 @@ include { CELLSAM_SEGMENT_WBACKSUB  } from '../subworkflows/local/cellsam_segmen
 include { CELLSAM_SEGMENT           } from '../subworkflows/local/cellsam_segment'
 include { SOPA_SEGMENT              } from '../subworkflows/local/sopa_segment'
 include { SOPA_SEGMENT_WBACKSUB     } from '../subworkflows/local/sopa_segment_wbacksub'
-include { KRONOSEMBEDDINGS          } from '../modules/local/kronosembeddings/main.nf'
+include { KRONOS2EMBEDDINGS         } from '../modules/local/kronos2embeddings/main.nf'
 include { softwareVersionsToYAML    } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { methodsDescriptionText    } from '../subworkflows/local/utils_nfcore_sp_segment_pipeline'
 
@@ -177,23 +177,37 @@ workflow SP_SEGMENT {
             .mix(CELLSAM_SEGMENT.out.annotations)
             .mix(CELLSAM_SEGMENT_WBACKSUB.out.annotations)
 
-        // KRONOSEMBEDDINGS takes the image/mask and the GeoJSON as two separate
-        // channels, which Nextflow consumes positionally. Join on meta first and
-        // derive both inputs from that single joined channel, so a sample's mask
-        // can never be paired with another sample's annotations.
-        ch_kronos_joined = ch_kronos_input.join(ch_kronos_annotations, by: 0)
+        // The samplesheet's per-sample nuclear channel is the model's DAPI hint
+        // (preferred_dapi), which is KRONOS2's only marker-alias mechanism.
+        ch_nuclear = ch_samplesheet.map {
+            meta,
+            _run_backsub,
+            _run_mesmer,
+            _run_cellpose,
+            _run_cellsam,
+            _tiff,
+            nuclear_channel,
+            _membrane_channels -> [ meta, nuclear_channel ]
+        }
 
-        KRONOSEMBEDDINGS(
-            ch_kronos_joined.map { meta, tiff, whole_cell_mask, _geojson ->
-                [ meta, tiff, whole_cell_mask ]
-            },
-            file(params.kronos_model_path),
-            file(params.kronos_marker_metadata),
-            ch_kronos_joined.map { meta, _tiff, _whole_cell_mask, geojson ->
-                [ meta, geojson ]
-            }
+        // Everything is joined on meta before the call: Nextflow consumes
+        // separate channels positionally, so mixing six upstream sources that
+        // finish at different times could otherwise pair one sample's image
+        // with another sample's annotations.
+        //
+        // KRONOS2 derives cells from the GeoJSON polygons, so the whole-cell
+        // mask carried by kronos_input is not needed here and is dropped
+        // before staging.
+        KRONOS2EMBEDDINGS(
+            ch_kronos_input
+                .join(ch_kronos_annotations, by: 0)
+                .join(ch_nuclear, by: 0)
+                .map { meta, tiff, _whole_cell_mask, geojson, nuclear_channel ->
+                    [ meta, tiff, geojson, nuclear_channel ]
+                },
+            file(params.kronos_model_path)
         )
-        ch_versions = ch_versions.mix(KRONOSEMBEDDINGS.out.versions.first())
+        ch_versions = ch_versions.mix(KRONOS2EMBEDDINGS.out.versions.first())
     }
 
     //

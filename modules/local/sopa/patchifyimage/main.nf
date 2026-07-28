@@ -39,7 +39,10 @@ process SOPA_PATCHIFYIMAGE {
     mkdir -p ${prefix}.zarr/.sopa_cache
     mkdir -p ${prefix}.zarr/shapes
 
-    touch ${prefix}.zarr/.sopa_cache/patches_file_image
+    # Must be a parseable patch count, not an empty file: the caller reads this
+    # with .text.trim().toInteger() to size the per-patch fan-out, so `touch`
+    # made every stub run of the cellpose path die with `For input string: ""`.
+    echo 1 > ${prefix}.zarr/.sopa_cache/patches_file_image
     touch ${prefix}.zarr/shapes/image_patches
 
     cat <<-END_VERSIONS > versions.yml
