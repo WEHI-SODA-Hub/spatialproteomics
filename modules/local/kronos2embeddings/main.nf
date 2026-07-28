@@ -3,10 +3,14 @@ process KRONOS2EMBEDDINGS {
     label 'process_gpu'
 
     conda "${moduleDir}/environment.yml"
-    // TODO: build via Seqera Wave from environment.yml and pin the digest here,
-    // as was done for the KRONOS1 module. The cu124 torch/xformers stack has no
-    // suitable public image.
-    container 'community.wave.seqera.io/library/kronos2embeddings:PLACEHOLDER'
+    // Built from environment.yml with the Wave CLI and frozen to the community
+    // registry, so the digest is reproducible:
+    //   java -jar wave.jar --conda-file modules/local/kronos2embeddings/environment.yml \
+    //       --platform linux/amd64 --freeze --await 30m
+    // Verified to carry torch 2.6.0+cu124 (not a CPU fallback) and a working
+    // rasterio. Keep the reference fully qualified: docker.registry='quay.io'
+    // in nextflow.config rewrites anything that is not.
+    container 'community.wave.seqera.io/library/kronos2embeddings:70590359503eec08'
 
     input:
     tuple val(meta), path(tiff), path(geojson, stageAs: 'cellmeas_input/*'), val(nuclear_channel)

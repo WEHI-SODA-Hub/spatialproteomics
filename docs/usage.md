@@ -219,6 +219,20 @@ hf auth login
 hf download MahmoodLab/KRONOS2 --local-dir /path/to/KRONOS2 --exclude "demo_image/*"
 ```
 
+**Do not stage the weights under a path the container also uses**, such as
+`/opt`. Nextflow bind-mounts an input's parent directory into the container to
+make it visible, so a host `/opt` shadows the container's own `/opt/conda` and
+its Python disappears. The failure is reported as:
+
+```
+/usr/bin/env: 'python3': No such file or directory
+```
+
+from an image that demonstrably has `python3`, which points nowhere near the
+cause. Somewhere like `/data/KRONOS2` or a project directory is safe. This
+applies to any process input, not just KRONOS2 -- `/opt` is simply the common
+case, because conda-based images live there.
+
 No marker metadata file is needed: KRONOS2 carries its own 288-marker vocabulary
 and applies the marker-aware z-score internally.
 

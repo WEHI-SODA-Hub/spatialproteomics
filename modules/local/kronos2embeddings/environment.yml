@@ -7,8 +7,11 @@ dependencies:
   - pandas
   - tifffile >=2023.0
   - zarr >=2.16
-  - shapely >=2.0
-  - rasterio >=1.3
+  # Pillow fills the per-cell polygon footprints. rasterio/GDAL was used for
+  # this originally, but it is a heavy geospatial stack for filling one small
+  # polygon per patch, and its libtiff pulled in a symbol clash with the conda
+  # libjpeg (undefined symbol: jpeg12_write_raw_data).
+  - pillow >=10
   - pip
   - pip:
       # Pins taken verbatim from MahmoodLab/KRONOS2's own requirements.txt --

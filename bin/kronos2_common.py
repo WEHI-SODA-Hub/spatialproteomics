@@ -346,36 +346,27 @@ class CellPatchDataset:
         self.divisor = float(divisor)
         self.isolate = bool(isolate)
         self.half = self.patch_size // 2
-        self._rasterize = None
-        if self.isolate:
-            from rasterio import features as _feat
-
-            self._rasterize = _feat.rasterize
 
     def __len__(self):
         return len(self.centroids)
 
     def _footprint(self, index, x0, y0):
-        """Binary mask of cell ``index`` within its own patch window."""
-        from shapely.geometry import Polygon
+        """Binary mask of cell ``index`` within its own patch window.
+
+        Uses Pillow's C polygon filler rather than rasterio/GDAL. Only one small
+        polygon is filled per patch, so the geospatial stack bought nothing --
+        and pulling it in caused a libtiff/libjpeg symbol clash inside the conda
+        container. Pillow is the same approach CORAL takes, for the same reason.
+        """
+        from PIL import Image, ImageDraw
 
         size = self.patch_size
-        ring = self.rings[index]
-        # Shift into patch-local coordinates so only this window is rasterised.
-        local = [(px - x0, py - y0) for px, py in ring]
+        # Shift into patch-local coordinates so only this window is filled.
+        local = [(float(px) - x0, float(py) - y0) for px, py in self.rings[index]]
         try:
-            poly = Polygon(local)
-            if not poly.is_valid:
-                poly = poly.buffer(0)
-            if poly.is_empty:
-                return np.ones((size, size), dtype=bool)
-            return self._rasterize(
-                [(poly, 1)],
-                out_shape=(size, size),
-                fill=0,
-                dtype=np.uint8,
-                all_touched=False,
-            ).astype(bool)
+            img = Image.new("L", (size, size), 0)
+            ImageDraw.Draw(img).polygon(local, fill=1, outline=1)
+            return np.asarray(img, dtype=bool)
         except Exception:
             # A malformed polygon must not drop the cell; keep the raw box.
             return np.ones((size, size), dtype=bool)
