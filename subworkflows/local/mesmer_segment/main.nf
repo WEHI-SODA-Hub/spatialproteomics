@@ -3,7 +3,6 @@ include { MESMERSEGMENT as MESMERNUC } from '../../../modules/local/mesmersegmen
 include { CELLMEASUREMENT            } from '../../../modules/local/cellmeasurement/main.nf'
 include { SMOOTHMASKS as SMOOTHMASKS_NUC } from '../../../modules/local/smoothmasks/main.nf'
 include { SMOOTHMASKS as SMOOTHMASKS_WC  } from '../../../modules/local/smoothmasks/main.nf'
-include { KRONOSEMBEDDINGS            } from '../../../modules/local/kronosembeddings/main.nf'
 include { COMBINECHANNELS            } from '../../../modules/local/combinechannels/main.nf'
 include { SEGMENTATIONREPORT         } from '../../../modules/local/segmentationreport/main.nf'
 
@@ -144,42 +143,30 @@ workflow MESMER_SEGMENT {
     ch_annotations = CELLMEASUREMENT.out.annotations
 
     //
-    // Optional KRONOS embedding extraction
+    // Assemble the KRONOS input channel: tiff + whole-cell mask.
     //
-    ch_kronos_embeddings = channel.empty()
-    ch_kronos_marker_report = channel.empty()
-    if (params.enable_kronos) {
-
-        // Create channel for KRONOS input: tiff + whole-cell mask + geojson
-        ch_mesmer_segment
-            .join(MESMERWC.out.segmentation_mask)
-            .map {
+    // KRONOS itself is invoked once at the top level (workflows/sp_segment.nf)
+    // rather than per segmenter, so that a cohort-wide pass sees every sample
+    // regardless of which segmenter produced its mask. This subworkflow only
+    // publishes the inputs.
+    //
+    ch_mesmer_segment
+        .join(MESMERWC.out.segmentation_mask)
+        .map {
+            sample,
+            _run_backsub,
+            _run_mesmer,
+            _run_cellpose,
+            _run_cellsam,
+            tiff,
+            _nuclear_channel,
+            _membrane_channels,
+            whole_cell_mask -> [
                 sample,
-                _run_backsub,
-                _run_mesmer,
-                _run_cellpose,
-                _run_cellsam,
                 tiff,
-                _nuclear_channel,
-                _membrane_channels,
-                whole_cell_mask -> [
-                    sample,
-                    tiff,
-                    whole_cell_mask
-                ]
-            }.set { ch_kronos_input }
-
-        KRONOSEMBEDDINGS(
-            ch_kronos_input,
-            file(params.kronos_model_path),
-            file(params.kronos_marker_metadata),
-            CELLMEASUREMENT.out.annotations
-        )
-        ch_versions = ch_versions.mix(KRONOSEMBEDDINGS.out.versions.first())
-        ch_kronos_embeddings = KRONOSEMBEDDINGS.out.embeddings
-        ch_kronos_marker_report = KRONOSEMBEDDINGS.out.marker_report
-        ch_annotations = KRONOSEMBEDDINGS.out.merged_geojson
-    }
+                whole_cell_mask
+            ]
+        }.set { ch_kronos_input }
 
     // Optional SEGMENTATIONREPORT module
     ch_report = channel.empty()
@@ -233,8 +220,7 @@ workflow MESMER_SEGMENT {
     annotations      = ch_annotations                  // channel: [ val(meta), *.geojson ]
     whole_cell_tif   = MESMERWC.out.segmentation_mask    // channel: [ val(meta), *.tiff ]
     nuclear_tif      = params.use_whole_cell_only ? channel.empty() : MESMERNUC.out.segmentation_mask   // channel: [ val(meta), *.tiff ]
-    kronos_embeddings     = ch_kronos_embeddings          // channel: [ val(meta), *.csv ] OPTIONAL
-    kronos_marker_report  = ch_kronos_marker_report       // channel: [ val(meta), *.txt ] OPTIONAL
+    kronos_input     = ch_kronos_input                   // channel: [ val(meta), tiff, whole_cell_mask ]
     report           = ch_report                         // channel: [ val(meta), *.html ] OPTIONAL
 
     versions         = ch_versions                       // channel: [ versions.yml ]

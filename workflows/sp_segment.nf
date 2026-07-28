@@ -13,6 +13,7 @@ include { CELLSAM_SEGMENT_WBACKSUB  } from '../subworkflows/local/cellsam_segmen
 include { CELLSAM_SEGMENT           } from '../subworkflows/local/cellsam_segment'
 include { SOPA_SEGMENT              } from '../subworkflows/local/sopa_segment'
 include { SOPA_SEGMENT_WBACKSUB     } from '../subworkflows/local/sopa_segment_wbacksub'
+include { KRONOSEMBEDDINGS          } from '../modules/local/kronosembeddings/main.nf'
 include { softwareVersionsToYAML    } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { methodsDescriptionText    } from '../subworkflows/local/utils_nfcore_sp_segment_pipeline'
 
@@ -150,6 +151,50 @@ workflow SP_SEGMENT {
     CELLSAM_SEGMENT(
         ch_cellsam.cellsam_only
     )
+
+    //
+    // Optional KRONOS embedding extraction
+    //
+    // Invoked ONCE here rather than inside each segmentation subworkflow.
+    // KRONOS is segmenter-agnostic, and a cohort-wide pass must see every
+    // sample: a channel operator inside e.g. MESMER_SEGMENT would only ever
+    // observe the Mesmer samples, so a cohort-level statistic computed there
+    // would silently differ per segmenter.
+    //
+    if (params.enable_kronos) {
+
+        ch_kronos_input = MESMER_SEGMENT.out.kronos_input
+            .mix(MESMER_SEGMENT_WBACKSUB.out.kronos_input)
+            .mix(SOPA_SEGMENT.out.kronos_input)
+            .mix(SOPA_SEGMENT_WBACKSUB.out.kronos_input)
+            .mix(CELLSAM_SEGMENT.out.kronos_input)
+            .mix(CELLSAM_SEGMENT_WBACKSUB.out.kronos_input)
+
+        ch_kronos_annotations = MESMER_SEGMENT.out.annotations
+            .mix(MESMER_SEGMENT_WBACKSUB.out.annotations)
+            .mix(SOPA_SEGMENT.out.annotations)
+            .mix(SOPA_SEGMENT_WBACKSUB.out.annotations)
+            .mix(CELLSAM_SEGMENT.out.annotations)
+            .mix(CELLSAM_SEGMENT_WBACKSUB.out.annotations)
+
+        // KRONOSEMBEDDINGS takes the image/mask and the GeoJSON as two separate
+        // channels, which Nextflow consumes positionally. Join on meta first and
+        // derive both inputs from that single joined channel, so a sample's mask
+        // can never be paired with another sample's annotations.
+        ch_kronos_joined = ch_kronos_input.join(ch_kronos_annotations, by: 0)
+
+        KRONOSEMBEDDINGS(
+            ch_kronos_joined.map { meta, tiff, whole_cell_mask, _geojson ->
+                [ meta, tiff, whole_cell_mask ]
+            },
+            file(params.kronos_model_path),
+            file(params.kronos_marker_metadata),
+            ch_kronos_joined.map { meta, _tiff, _whole_cell_mask, geojson ->
+                [ meta, geojson ]
+            }
+        )
+        ch_versions = ch_versions.mix(KRONOSEMBEDDINGS.out.versions.first())
+    }
 
     //
     // Collate and save software versions
