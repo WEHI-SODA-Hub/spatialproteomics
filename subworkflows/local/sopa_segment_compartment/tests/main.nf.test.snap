@@ -10,9 +10,17 @@
                         [
                             [
                                 [
-                                    "0.parquet:md5,22513c5fb02725de58b4db868075b34d"
+                                    "0.parquet:md5,4a6747973bb75ee97447fd29df81250c",
+                                    "1.parquet:md5,24f3ca0efdca9ccde276c8ee523a61b7",
+                                    "2.parquet:md5,b3c1ae2907f6602619f4f0c0d97b8af4",
+                                    "3.parquet:md5,853320ff4e25af116c81409f4d71b4ae",
+                                    "4.parquet:md5,e145d165c692c925c557b4e5bbb6f24a",
+                                    "5.parquet:md5,37df5f6bc17f2ce180de2a99d0a75780",
+                                    "6.parquet:md5,49178fd79ba02f32c9299ac36b79e008",
+                                    "7.parquet:md5,8914b485d8bdca6360e80cf6015445cf",
+                                    "8.parquet:md5,41d7d6327666d7c982db00f3005f7ed7"
                                 ],
-                                "patches_file_image:md5,b026324c6904b2a9cb4b88d6d61c81d1"
+                                "patches_file_image:md5,7c5aba41f53293b712fd86d08ed5b36e"
                             ],
                             ".zattrs:md5,5b1624cbfb8945c68cb2c81560b6c34a",
                             ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
@@ -118,12 +126,12 @@
                                 [
                                     ".zattrs:md5,37c0eabf77e69009a9f0c878e69ea262",
                                     ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
-                                    "shapes.parquet:md5,95bdc05ab2fb0996577ae711761f01bc"
+                                    "shapes.parquet:md5,4bb0003cd3135236723901e5a2864c99"
                                 ],
                                 [
                                     ".zattrs:md5,37c0eabf77e69009a9f0c878e69ea262",
                                     ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
-                                    "shapes.parquet:md5,3b93467199715b849ed467bd3030b386"
+                                    "shapes.parquet:md5,b7144210319d46dfcd545b9a59368d79"
                                 ]
                             ],
                             "zmetadata:md5,de568dce6924e52a7c25150fb5768b33"
@@ -135,7 +143,7 @@
                         {
                             "id": "test"
                         },
-                        "test_whole-cell.tiff:md5,d02bd49283eb52ee4bd3deba594fb0c3"
+                        "test_whole-cell.tiff:md5,64c2d4bee525ed8f9ac38b6bee290bec"
                     ]
                 ],
                 "2": [
@@ -149,7 +157,7 @@
                         {
                             "id": "test"
                         },
-                        "test_whole-cell.tiff:md5,d02bd49283eb52ee4bd3deba594fb0c3"
+                        "test_whole-cell.tiff:md5,64c2d4bee525ed8f9ac38b6bee290bec"
                     ]
                 ],
                 "versions": [
@@ -166,9 +174,17 @@
                         [
                             [
                                 [
-                                    "0.parquet:md5,22513c5fb02725de58b4db868075b34d"
+                                    "0.parquet:md5,4a6747973bb75ee97447fd29df81250c",
+                                    "1.parquet:md5,24f3ca0efdca9ccde276c8ee523a61b7",
+                                    "2.parquet:md5,b3c1ae2907f6602619f4f0c0d97b8af4",
+                                    "3.parquet:md5,853320ff4e25af116c81409f4d71b4ae",
+                                    "4.parquet:md5,e145d165c692c925c557b4e5bbb6f24a",
+                                    "5.parquet:md5,37df5f6bc17f2ce180de2a99d0a75780",
+                                    "6.parquet:md5,49178fd79ba02f32c9299ac36b79e008",
+                                    "7.parquet:md5,8914b485d8bdca6360e80cf6015445cf",
+                                    "8.parquet:md5,41d7d6327666d7c982db00f3005f7ed7"
                                 ],
-                                "patches_file_image:md5,b026324c6904b2a9cb4b88d6d61c81d1"
+                                "patches_file_image:md5,7c5aba41f53293b712fd86d08ed5b36e"
                             ],
                             ".zattrs:md5,5b1624cbfb8945c68cb2c81560b6c34a",
                             ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
@@ -274,12 +290,12 @@
                                 [
                                     ".zattrs:md5,37c0eabf77e69009a9f0c878e69ea262",
                                     ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
-                                    "shapes.parquet:md5,95bdc05ab2fb0996577ae711761f01bc"
+                                    "shapes.parquet:md5,4bb0003cd3135236723901e5a2864c99"
                                 ],
                                 [
                                     ".zattrs:md5,37c0eabf77e69009a9f0c878e69ea262",
                                     ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
-                                    "shapes.parquet:md5,3b93467199715b849ed467bd3030b386"
+                                    "shapes.parquet:md5,b7144210319d46dfcd545b9a59368d79"
                                 ]
                             ],
                             "zmetadata:md5,de568dce6924e52a7c25150fb5768b33"
@@ -288,11 +304,11 @@
                 ]
             }
         ],
+        "timestamp": "2026-07-29T18:44:55.390477082",
         "meta": {
-            "nf-test": "0.9.2",
-            "nextflow": "25.04.4"
-        },
-        "timestamp": "2026-05-25T10:48:33.916123973"
+            "nf-test": "0.9.5",
+            "nextflow": "24.04.2"
+        }
     },
     "sopa_segment - tiff - whole-cell": {
         "content": [
@@ -577,11 +593,11 @@
                 ]
             }
         ],
+        "timestamp": "2025-07-22T12:22:38.860786592",
         "meta": {
             "nf-test": "0.9.2",
             "nextflow": "25.04.4"
-        },
-        "timestamp": "2025-07-22T12:22:38.860786592"
+        }
     },
     "sopa_segment_compartment - tiff - nuclear": {
         "content": [
@@ -594,9 +610,17 @@
                         [
                             [
                                 [
-                                    "0.parquet:md5,61c904c0f59f03be6036b39a7f5446a7"
+                                    "0.parquet:md5,1d2c1c87753d2309c573ddfc3172cc89",
+                                    "1.parquet:md5,09f4e03fa7315b55617d6efca6673530",
+                                    "2.parquet:md5,979aac9045f6d47d25253d9e25c8b8ba",
+                                    "3.parquet:md5,94e867c31d131edd0dac23e6739bf9d6",
+                                    "4.parquet:md5,14353d5cb3dad58f08fee6e9b30c9249",
+                                    "5.parquet:md5,050cf6705e9ac6e0c053ee586953853a",
+                                    "6.parquet:md5,18a3366b2cdcbf4dc61bab61ca97e796",
+                                    "7.parquet:md5,02371670452a0742eddeb01ba96e99d5",
+                                    "8.parquet:md5,4d292caa381a54949733b06c9d6f907f"
                                 ],
-                                "patches_file_image:md5,b026324c6904b2a9cb4b88d6d61c81d1"
+                                "patches_file_image:md5,7c5aba41f53293b712fd86d08ed5b36e"
                             ],
                             ".zattrs:md5,5b1624cbfb8945c68cb2c81560b6c34a",
                             ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
@@ -702,12 +726,12 @@
                                 [
                                     ".zattrs:md5,37c0eabf77e69009a9f0c878e69ea262",
                                     ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
-                                    "shapes.parquet:md5,421068b309f947d377a39796ab75c048"
+                                    "shapes.parquet:md5,fc3ab769e967239ccfb6ca9cec780e59"
                                 ],
                                 [
                                     ".zattrs:md5,37c0eabf77e69009a9f0c878e69ea262",
                                     ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
-                                    "shapes.parquet:md5,3b93467199715b849ed467bd3030b386"
+                                    "shapes.parquet:md5,b7144210319d46dfcd545b9a59368d79"
                                 ]
                             ],
                             "zmetadata:md5,de568dce6924e52a7c25150fb5768b33"
@@ -719,7 +743,7 @@
                         {
                             "id": "test"
                         },
-                        "test_nuclear.tiff:md5,0dd293dea680c886f43a3207291aedf3"
+                        "test_nuclear.tiff:md5,a9b4c304882462721430267d8ffa5260"
                     ]
                 ],
                 "2": [
@@ -733,7 +757,7 @@
                         {
                             "id": "test"
                         },
-                        "test_nuclear.tiff:md5,0dd293dea680c886f43a3207291aedf3"
+                        "test_nuclear.tiff:md5,a9b4c304882462721430267d8ffa5260"
                     ]
                 ],
                 "versions": [
@@ -750,9 +774,17 @@
                         [
                             [
                                 [
-                                    "0.parquet:md5,61c904c0f59f03be6036b39a7f5446a7"
+                                    "0.parquet:md5,1d2c1c87753d2309c573ddfc3172cc89",
+                                    "1.parquet:md5,09f4e03fa7315b55617d6efca6673530",
+                                    "2.parquet:md5,979aac9045f6d47d25253d9e25c8b8ba",
+                                    "3.parquet:md5,94e867c31d131edd0dac23e6739bf9d6",
+                                    "4.parquet:md5,14353d5cb3dad58f08fee6e9b30c9249",
+                                    "5.parquet:md5,050cf6705e9ac6e0c053ee586953853a",
+                                    "6.parquet:md5,18a3366b2cdcbf4dc61bab61ca97e796",
+                                    "7.parquet:md5,02371670452a0742eddeb01ba96e99d5",
+                                    "8.parquet:md5,4d292caa381a54949733b06c9d6f907f"
                                 ],
-                                "patches_file_image:md5,b026324c6904b2a9cb4b88d6d61c81d1"
+                                "patches_file_image:md5,7c5aba41f53293b712fd86d08ed5b36e"
                             ],
                             ".zattrs:md5,5b1624cbfb8945c68cb2c81560b6c34a",
                             ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
@@ -858,12 +890,12 @@
                                 [
                                     ".zattrs:md5,37c0eabf77e69009a9f0c878e69ea262",
                                     ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
-                                    "shapes.parquet:md5,421068b309f947d377a39796ab75c048"
+                                    "shapes.parquet:md5,fc3ab769e967239ccfb6ca9cec780e59"
                                 ],
                                 [
                                     ".zattrs:md5,37c0eabf77e69009a9f0c878e69ea262",
                                     ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
-                                    "shapes.parquet:md5,3b93467199715b849ed467bd3030b386"
+                                    "shapes.parquet:md5,b7144210319d46dfcd545b9a59368d79"
                                 ]
                             ],
                             "zmetadata:md5,de568dce6924e52a7c25150fb5768b33"
@@ -872,11 +904,11 @@
                 ]
             }
         ],
+        "timestamp": "2026-07-29T19:11:22.512764705",
         "meta": {
-            "nf-test": "0.9.2",
-            "nextflow": "25.04.4"
-        },
-        "timestamp": "2026-04-20T15:07:22.555730691"
+            "nf-test": "0.9.5",
+            "nextflow": "24.04.2"
+        }
     },
     "sopa_segment - tiff - nuclear": {
         "content": [
@@ -1135,10 +1167,10 @@
                 ]
             }
         ],
+        "timestamp": "2025-07-22T12:23:29.614171908",
         "meta": {
             "nf-test": "0.9.2",
             "nextflow": "25.04.4"
-        },
-        "timestamp": "2025-07-22T12:23:29.614171908"
+        }
     }
 }

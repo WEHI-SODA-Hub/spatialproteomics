@@ -10,6 +10,7 @@ workflow SOPA_SEGMENT {
 
     take:
     ch_sopa // channel: [ (meta, tiff, nuclear_channel, membrane_channels) ]
+    ch_cellpose_models // channel: value, path to the staged Cellpose weights directory
 
     main:
 
@@ -49,7 +50,8 @@ workflow SOPA_SEGMENT {
                     '' // no membrane channels for nuclear segmentation
                 ]
             },
-            'nuclear'
+            'nuclear',
+            ch_cellpose_models
         )
         ch_versions = ch_versions.mix(SOPA_SEGMENT_NUCLEAR.out.versions.first())
     }
@@ -59,7 +61,8 @@ workflow SOPA_SEGMENT {
     //
     SOPA_SEGMENT_WHOLECELL(
         ch_combined,
-        'whole-cell'
+        'whole-cell',
+        ch_cellpose_models
     )
     ch_versions = ch_versions.mix(SOPA_SEGMENT_WHOLECELL.out.versions.first())
 

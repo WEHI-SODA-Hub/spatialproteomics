@@ -13,6 +13,7 @@ include { CELLSAM_SEGMENT_WBACKSUB  } from '../subworkflows/local/cellsam_segmen
 include { CELLSAM_SEGMENT           } from '../subworkflows/local/cellsam_segment'
 include { SOPA_SEGMENT              } from '../subworkflows/local/sopa_segment'
 include { SOPA_SEGMENT_WBACKSUB     } from '../subworkflows/local/sopa_segment_wbacksub'
+include { CELLPOSEMODEL             } from '../modules/local/cellposemodel/main.nf'
 include { KRONOS2EMBEDDINGS         } from '../modules/local/kronos2embeddings/main.nf'
 include { softwareVersionsToYAML    } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { methodsDescriptionText    } from '../subworkflows/local/utils_nfcore_sp_segment_pipeline'
@@ -104,6 +105,39 @@ workflow SP_SEGMENT {
     }.set { ch_cellpose_samplesheet }
 
     //
+    // Stage the Cellpose model weights once for the whole run.
+    //
+    // Invoked ONCE here rather than inside the Cellpose subworkflows, for the
+    // same reason KRONOS is hoisted below: SOPA_SEGMENT is instantiated twice
+    // (with and without background subtraction) and instantiates
+    // SOPA_SEGMENT_COMPARTMENT twice again (nuclear and whole-cell), so a call
+    // sited any lower would fetch the weights up to four times and could not
+    // guarantee that every patch task in a run read the same file.
+    //
+    // The trigger channel is the Cellpose samplesheet reduced to a constant:
+    // `.first()` emits nothing when no sample runs Cellpose, so Mesmer- and
+    // CellSAM-only runs never pay the ~1.2 GB download, and mapping to a
+    // constant keeps the `-resume` cache key independent of which sample
+    // happened to arrive first.
+    //
+    if (params.cellpose_models_dir) {
+        ch_cellpose_models = Channel.value(file(params.cellpose_models_dir, checkIfExists: true))
+    } else {
+        CELLPOSEMODEL(
+            ch_cellpose_samplesheet.with_backsub
+                .mix(ch_cellpose_samplesheet.no_backsub)
+                .map { 'cellpose' }
+                .first()
+        )
+        // This is a value channel, because the trigger above is one and
+        // Nextflow propagates that to the outputs. It has to be: a queue
+        // channel would be consumed by the first patch task and starve
+        // the rest.
+        ch_cellpose_models = CELLPOSEMODEL.out.models
+        ch_versions = ch_versions.mix(CELLPOSEMODEL.out.versions)
+    }
+
+    //
     // Run CELLPOSE subworkflow for samples that require background subtraction
     //
     SOPA_SEGMENT_WBACKSUB(
@@ -113,7 +147,8 @@ workflow SP_SEGMENT {
             nuclear_channel,
             membrane_channels ->
             [ sample, tiff, nuclear_channel, membrane_channels ]
-        }
+        },
+        ch_cellpose_models
     )
 
     //
@@ -126,7 +161,8 @@ workflow SP_SEGMENT {
             nuclear_channel,
             membrane_channels ->
             [ sample, tiff, nuclear_channel, membrane_channels ]
-        }
+        },
+        ch_cellpose_models
     )
 
     //

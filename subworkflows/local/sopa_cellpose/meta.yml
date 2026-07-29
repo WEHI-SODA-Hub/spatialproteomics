@@ -27,6 +27,12 @@ input:
         The input channel containing spatial data in zarr format
         Structure: [ val(meta), path(zarr) ]
       pattern: "*.zarr"
+  - ch_cellpose_models:
+      type: channel
+      description: |
+        Value channel holding the directory of staged Cellpose model weights,
+        shared by every patch task
+        Structure: [ path(cellpose_models) ]
 output:
   - boundaries:
       type: file

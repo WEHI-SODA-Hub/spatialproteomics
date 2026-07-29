@@ -159,6 +159,39 @@ The following Mesmer parameters can be set:
 | cellpose_cellprob_threshold | Cell probability threshold for cellpose.                                        |
 | cellpose_model_type         | Cellpose model to use for segmentation (e.g., nuclei, cyto, cyto2, cyto3 etc.). |
 | cellpose_pretrained_model   | Path to a pre-trained Cellpose model.                                           |
+| cellpose_models_dir         | Directory of pre-staged Cellpose weights; skips the download entirely.          |
+
+#### Cellpose model weights
+
+The pipeline fetches the Cellpose weights **once per run** and stages them as an
+input to every segmentation task. Previously each patch task downloaded the
+~1.2 GB `cpsam` checkpoint itself — roughly 18 identical requests for a single
+sample — which caused HTTP 429 rate limiting and truncated downloads. The staged
+copy is also reused by `-resume`.
+
+On a cluster, or anywhere compute nodes have no outbound network, point the
+pipeline at a shared copy instead:
+
+```bash
+nextflow run WEHI-SODA-Hub/sp_segment --cellpose_models_dir /shared/cellpose_models ...
+```
+
+That directory is the Cellpose model cache — the one holding `cpsam`. To
+populate it once on a login node:
+
+```bash
+CELLPOSE_LOCAL_MODELS_PATH=/shared/cellpose_models \
+  python -c "from cellpose import models; models.CellposeModel(gpu=False)"
+```
+
+Note that this pins _where_ the weights come from, not _which_ weights: the
+container is pinned but cellpose.org serves whatever is current, so results are
+only reproducible over time against a fixed `--cellpose_models_dir`.
+
+`cellpose_pretrained_model` and `cellpose_models_dir` are both checked for
+existence before the pipeline starts any work. Cellpose silently falls back to
+its built-in weights when given a `--pretrained-model` path that does not exist,
+so a typo previously produced a complete and plausible but wrong run.
 
 ### CellSAM segmentation
 

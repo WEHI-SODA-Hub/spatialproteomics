@@ -27,6 +27,12 @@ input:
       type: string
       description: |
         Compartment type identifier for segmentation (e.g., nuclear, whole_cell)
+  - ch_cellpose_models:
+      type: channel
+      description: |
+        Value channel holding the directory of staged Cellpose model weights,
+        shared by every patch task
+        Structure: [ path(cellpose_models) ]
 output:
   - zarr:
       type: file

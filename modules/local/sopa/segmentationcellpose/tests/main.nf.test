@@ -25,6 +25,9 @@ nextflow_process {
                 zarrDir = file("test.zarr", type: 'dir')
                 zarrDir.mkdir()
 
+                modelsDir = file("cellpose_models", type: 'dir')
+                modelsDir.mkdir()
+
                 input[0] = [
                     [ id:'test' ], // meta map
                     zarrDir,
@@ -33,6 +36,7 @@ nextflow_process {
                     "DAPI", // nuclear_channel
                     "CD45" // membrane_channels
                 ]
+                input[1] = modelsDir
                 """
             }
         }

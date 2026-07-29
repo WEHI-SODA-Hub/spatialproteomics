@@ -31,6 +31,16 @@ nextflow_workflow {
                     "DAPI", // nuclear channel
                     "CD45"  // membrane channels
                 ])
+
+                // An empty directory is a valid input: the module links its
+                // contents into a task-local cache, so tasks fall back to
+                // downloading the weights themselves. Set --cellpose_models_dir
+                // to a pre-staged copy to make this test much faster.
+                modelsDir = params.cellpose_models_dir
+                    ? file(params.cellpose_models_dir, checkIfExists: true)
+                    : file("cellpose_models", type: 'dir')
+                modelsDir.mkdirs()
+                input[1] = modelsDir
                 """
             }
         }

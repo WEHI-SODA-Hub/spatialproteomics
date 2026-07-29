@@ -28,7 +28,20 @@ nextflow_workflow {
         then {
             assertAll(
                 { assert workflow.success},
-                { assert snapshot(workflow.out).match()}
+                // Snapshot the NAMED emits only, minus backsub_tif.
+                //
+                // workflow.out carries every channel twice -- once positionally
+                // ("0", "1", ...) and once by name -- so filtering by name alone
+                // still leaves the positional copy. backsub_tif is an OME-TIFF
+                // that the upstream backsub container stamps with a fresh UUID
+                // per run (Creator="backsub"), so its md5 is not reproducible
+                // and the snapshot drifts on every execution. The container is
+                // not ours to change, so assert the file is produced by name
+                // instead of by content.
+                { assert snapshot(workflow.out.findAll { entry ->
+                    !entry.key.toString().isNumber() && entry.key != 'backsub_tif'
+                }).match()},
+                { assert file(workflow.out.backsub_tif[0][1]).name == 'test.ome.tif' }
             )
         }
     }

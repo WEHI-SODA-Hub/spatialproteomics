@@ -5,6 +5,7 @@ workflow SOPA_SEGMENT_WBACKSUB {
 
     take:
     ch_sopa_wbacksub
+    ch_cellpose_models // channel: value, path to the staged Cellpose weights directory
 
     main:
 
@@ -39,7 +40,8 @@ workflow SOPA_SEGMENT_WBACKSUB {
         }.set { ch_sopa }
 
     SOPA_SEGMENT(
-        ch_sopa
+        ch_sopa,
+        ch_cellpose_models
     )
     ch_versions = ch_versions.mix(SOPA_SEGMENT.out.versions.first())
 

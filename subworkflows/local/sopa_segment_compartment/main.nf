@@ -13,6 +13,7 @@ workflow SOPA_SEGMENT_COMPARTMENT {
     take:
     ch_sopa // channel: [ (meta, tiff, nuclear_channel, membrane_channels) ]
     compartment
+    ch_cellpose_models // channel: value, path to the staged Cellpose weights directory
 
     main:
 
@@ -60,7 +61,8 @@ workflow SOPA_SEGMENT_COMPARTMENT {
     //
     SOPA_CELLPOSE(
         ch_cellpose,
-        SOPA_CONVERT.out.spatial_data
+        SOPA_CONVERT.out.spatial_data,
+        ch_cellpose_models
     )
     ch_versions = ch_versions.mix(SOPA_CELLPOSE.out.versions.first())
 
