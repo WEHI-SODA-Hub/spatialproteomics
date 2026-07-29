@@ -1,21 +1,4 @@
 {
-    "sopa_segmentationcellpose - patched zarr": {
-        "content": [
-            {
-                "0": [
-                    
-                ],
-                "cellpose_parquet": [
-                    
-                ]
-            }
-        ],
-        "meta": {
-            "nf-test": "0.9.2",
-            "nextflow": "25.04.4"
-        },
-        "timestamp": "2025-07-17T16:30:26.883119375"
-    },
     "sopa_segmentationcellpose - stub": {
         "content": [
             {
@@ -28,7 +11,7 @@
                     ]
                 ],
                 "1": [
-                    "versions.yml:md5,136a272dcac58a3ea9a0506d60184a4b"
+                    "versions.yml:md5,8cfa7bbbe0940fcc528b1bf4b9f3ab36"
                 ],
                 "cellpose_parquet": [
                     [
@@ -39,41 +22,14 @@
                     ]
                 ],
                 "versions": [
-                    "versions.yml:md5,136a272dcac58a3ea9a0506d60184a4b"
+                    "versions.yml:md5,8cfa7bbbe0940fcc528b1bf4b9f3ab36"
                 ]
             }
         ],
+        "timestamp": "2026-07-29T18:01:36.97033722",
         "meta": {
-            "nf-test": "0.9.2",
-            "nextflow": "25.04.4"
-        },
-        "timestamp": "2025-08-25T13:50:27.157249005"
-    },
-    "sopa_segmentationcellpose - patched zarr - stub": {
-        "content": [
-            {
-                "0": [
-                    [
-                        {
-                            "id": "test"
-                        },
-                        "0.parquet:md5,d41d8cd98f00b204e9800998ecf8427e"
-                    ]
-                ],
-                "cellpose_parquet": [
-                    [
-                        {
-                            "id": "test"
-                        },
-                        "0.parquet:md5,d41d8cd98f00b204e9800998ecf8427e"
-                    ]
-                ]
-            }
-        ],
-        "meta": {
-            "nf-test": "0.9.2",
-            "nextflow": "25.04.4"
-        },
-        "timestamp": "2025-07-17T16:37:25.487378741"
+            "nf-test": "0.9.5",
+            "nextflow": "24.04.2"
+        }
     }
 }

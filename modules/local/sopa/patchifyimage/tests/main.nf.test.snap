@@ -9,11 +9,14 @@
                         },
                         "patches_file_image:md5,7c5aba41f53293b712fd86d08ed5b36e",
                         [
-                            ".zattrs:md5,3092d7fd5d51b39416853b3c74211344",
+                            ".zattrs:md5,37c0eabf77e69009a9f0c878e69ea262",
                             ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
-                            "shapes.parquet:md5,d0403d80632ac962138b734523e01b55"
+                            "shapes.parquet:md5,b7144210319d46dfcd545b9a59368d79"
                         ]
                     ]
+                ],
+                "1": [
+                    "versions.yml:md5,19c09bc973a415d2ab3673bc1f8dc96b"
                 ],
                 "patches": [
                     [
@@ -22,19 +25,22 @@
                         },
                         "patches_file_image:md5,7c5aba41f53293b712fd86d08ed5b36e",
                         [
-                            ".zattrs:md5,3092d7fd5d51b39416853b3c74211344",
+                            ".zattrs:md5,37c0eabf77e69009a9f0c878e69ea262",
                             ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
-                            "shapes.parquet:md5,d0403d80632ac962138b734523e01b55"
+                            "shapes.parquet:md5,b7144210319d46dfcd545b9a59368d79"
                         ]
                     ]
+                ],
+                "versions": [
+                    "versions.yml:md5,19c09bc973a415d2ab3673bc1f8dc96b"
                 ]
             }
         ],
+        "timestamp": "2026-07-29T18:01:11.332786479",
         "meta": {
-            "nf-test": "0.9.2",
-            "nextflow": "25.04.4"
-        },
-        "timestamp": "2025-07-17T15:58:00.161552282"
+            "nf-test": "0.9.5",
+            "nextflow": "24.04.2"
+        }
     },
     "sopa_patchifyimage - zarr - stub": {
         "content": [
@@ -44,31 +50,31 @@
                         {
                             "id": "test"
                         },
-                        "patches_file_image:md5,d41d8cd98f00b204e9800998ecf8427e",
+                        "patches_file_image:md5,b026324c6904b2a9cb4b88d6d61c81d1",
                         "image_patches:md5,d41d8cd98f00b204e9800998ecf8427e"
                     ]
                 ],
                 "1": [
-                    "versions.yml:md5,1ceaa829636aa28de4a85e404fdd6187"
+                    "versions.yml:md5,19c09bc973a415d2ab3673bc1f8dc96b"
                 ],
                 "patches": [
                     [
                         {
                             "id": "test"
                         },
-                        "patches_file_image:md5,d41d8cd98f00b204e9800998ecf8427e",
+                        "patches_file_image:md5,b026324c6904b2a9cb4b88d6d61c81d1",
                         "image_patches:md5,d41d8cd98f00b204e9800998ecf8427e"
                     ]
                 ],
                 "versions": [
-                    "versions.yml:md5,1ceaa829636aa28de4a85e404fdd6187"
+                    "versions.yml:md5,19c09bc973a415d2ab3673bc1f8dc96b"
                 ]
             }
         ],
+        "timestamp": "2026-07-29T18:01:19.303973157",
         "meta": {
-            "nf-test": "0.9.2",
-            "nextflow": "25.04.4"
-        },
-        "timestamp": "2025-08-25T13:49:12.13645607"
+            "nf-test": "0.9.5",
+            "nextflow": "24.04.2"
+        }
     }
 }
