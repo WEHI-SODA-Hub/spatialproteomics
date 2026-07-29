@@ -91,6 +91,26 @@ workflow PIPELINE_INITIALISATION {
     }
 
     //
+    // A model cache under /opt breaks the container, confusingly.
+    //
+    // Nextflow bind-mounts the host directory holding a staged input, so
+    // --cellpose_models_dir /opt/... mounts the host's /opt over the
+    // container's. The Cellpose image installs into /opt/conda, so that
+    // shadows the interpreter and every task dies with
+    // "sopa: command not found" -- an error that says nothing about the real
+    // cause. /opt is a natural place to put a shared cache, so catch it here.
+    //
+    if (params.cellpose_models_dir && file(params.cellpose_models_dir).toAbsolutePath().toString().startsWith('/opt')) {
+        error(
+            "cellpose_models_dir must not be under /opt: ${params.cellpose_models_dir}\n" +
+            "Nextflow bind-mounts the host directory containing a staged input, which would " +
+            "mount the host's /opt over the container's and hide /opt/conda, where the Cellpose " +
+            "image is installed. Tasks would fail with \"sopa: command not found\".\n" +
+            "Put the cache somewhere else, e.g. /shared/cellpose_models."
+        )
+    }
+
+    //
     // cellpose_model_type is retired rather than quietly ignored.
     //
     // Cellpose >=4.0.1 logs "model_type argument is not used in v4.0.1+" and

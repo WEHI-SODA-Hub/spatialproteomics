@@ -215,7 +215,14 @@ sample — which caused HTTP 429 rate limiting and truncated downloads. The stag
 copy is also reused by `-resume`.
 
 On a cluster, or anywhere compute nodes have no outbound network, point the
-pipeline at a shared copy instead:
+pipeline at a shared copy instead.
+
+> **Do not put the cache under `/opt`.** Nextflow bind-mounts the host
+> directory containing a staged input, so `--cellpose_models_dir /opt/...`
+> mounts the host's `/opt` over the container's, hiding `/opt/conda` where the
+> Cellpose image is installed. Every task then fails with
+> `sopa: command not found`. The pipeline rejects this at startup rather than
+> letting you discover it that way.
 
 ```bash
 nextflow run WEHI-SODA-Hub/sp_segment --cellpose_models_dir /shared/cellpose_models ...
