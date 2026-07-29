@@ -26,6 +26,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   asserts the file is produced by name, matching the treatment `kronos_input`
   already gets.
 
+- **The nf-test snapshot suite has been repaired.** Eight tests across five
+  files had not passed in any current environment, and unmodified `dev` failed
+  them identically. Two causes: `versions.yml` md5s recorded in an environment
+  that no longer matches (one historical value is provably a `versions.yml`
+  where the sopa version rendered empty), and the `sopa_segment_compartment`
+  snapshots predating `patch_width_pixel = 250` — they recorded one patch where
+  the test profile now produces nine, so every downstream parquet, shape and
+  mask disagreed. Each snapshot was regenerated and then reproduced by a
+  separate run without `--update-snapshot`, which is the only pass that proves
+  reproducibility.
+
+- **`sopa_patchifyimage - zarr` runs again.** Its setup block called
+  `SOPA_CONVERT` with one input after that process gained a second in
+  `b015b6f`, so it had been dying on an arity error. Nothing caught it because
+  the snapshot suite has never run in CI.
+
 - **KRONOS1 has been replaced by KRONOS2.** `bin/kronos_embeddings.py` and the
   `KRONOSEMBEDDINGS` module are removed; embeddings are now 768-d rather than 384-d.
   Outputs from the two versions are not comparable.
@@ -57,6 +73,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `cellpose_models_dir` parameter, pointing at a pre-staged Cellpose model
   cache so sites with no outbound network on compute nodes skip the download.
+
+- `.github/workflows/nf-test.yml`, running the snapshot suite. Manual-dispatch
+  only for now: three tests remain known-red for undiagnosed reasons, recorded
+  in `docs/nf-test-status.md` along with what is and is not established about
+  them.
+
+- `docs/nf-test-status.md`, recording the state of the test suite — what was
+  repaired, and for the rest what is known versus assumed. Notably, whether
+  CellSAM is deterministic on CPU is **unresolved**: `accelerator = 1` in
+  `conf/base.config` makes Nextflow pass `--gpus all`, so runs that looked like
+  CPU runs were not.
 
 - `bin/kronos2_common.py`, a shared scaffold for per-cell foundation-model
   extraction, so a future encoder does not become a second copy of the script.
