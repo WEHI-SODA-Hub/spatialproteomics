@@ -2,34 +2,6 @@
     "backgroundsubtract - tiff": {
         "content": [
             {
-                "0": [
-                    [
-                        {
-                            "id": "test"
-                        },
-                        "test.ome.tif:md5,db46e01e7cbca61bab56b533e0af57fd"
-                    ]
-                ],
-                "1": [
-                    [
-                        {
-                            "id": "test"
-                        },
-                        "test.csv:md5,3692adbd67412c39b64a138d3a0ee448"
-                    ]
-                ],
-                "2": [
-                    "versions.yml:md5,1cecc3473595658d6fd78efac8045516",
-                    "versions.yml:md5,e302ce17f9fa003635e1f162564f4f99"
-                ],
-                "backsub_tif": [
-                    [
-                        {
-                            "id": "test"
-                        },
-                        "test.ome.tif:md5,db46e01e7cbca61bab56b533e0af57fd"
-                    ]
-                ],
                 "markers": [
                     [
                         {

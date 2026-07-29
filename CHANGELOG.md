@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Cellpose model weights are fetched once per run** by a new `CELLPOSEMODEL`
+  process and staged as an input to every segmentation task. Each patch task
+  previously downloaded the ~1.2 GB `cpsam` checkpoint from cellpose.org itself
+  — about 18 identical requests for a single sample — which produced HTTP 429
+  rate limiting in CI and truncated downloads locally. The staged copy is reused
+  by `-resume`, and every patch task in a run now provably reads the same file.
+
+- **A missing Cellpose model path is now a startup error.** Cellpose does not
+  fail on a `--pretrained-model` path that does not exist; it falls back to its
+  built-in weights, so a typo produced a complete, plausible, silently wrong
+  run. `cellpose_pretrained_model` and `cellpose_models_dir` are both checked in
+  `PIPELINE_INITIALISATION`, before any compute.
+
+- **The `backgroundsubtract` snapshot no longer records the output TIFF's md5.**
+  The upstream backsub container stamps each OME-TIFF with a fresh UUID, so that
+  md5 changed on every run and the snapshot could never pass twice. The test now
+  asserts the file is produced by name, matching the treatment `kronos_input`
+  already gets.
+
 - **KRONOS1 has been replaced by KRONOS2.** `bin/kronos_embeddings.py` and the
   `KRONOSEMBEDDINGS` module are removed; embeddings are now 768-d rather than 384-d.
   Outputs from the two versions are not comparable.
@@ -35,6 +54,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   already merged into the GeoJSON, which is now the only embedding artefact.
 
 ### Added
+
+- `cellpose_models_dir` parameter, pointing at a pre-staged Cellpose model
+  cache so sites with no outbound network on compute nodes skip the download.
 
 - `bin/kronos2_common.py`, a shared scaffold for per-cell foundation-model
   extraction, so a future encoder does not become a second copy of the script.
