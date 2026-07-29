@@ -22,6 +22,13 @@ include { UTILS_NEXTFLOW_PIPELINE   } from '../../nf-core/utils_nextflow_pipelin
 // cellpose_pretrained_model is treated as a path to a custom model.
 def CELLPOSE_BUILTIN_MODELS = ['cpsam_v2', 'cpsam', 'cpdino', 'cpdino-vitb']
 
+// The DINO models additionally need Meta's `dinov3` package, which is not on
+// PyPI and is not in the pinned container. Cellpose only warns at import and
+// then dies with `NameError: name 'dinov3_vitl16' is not defined` when the
+// model is constructed -- after downloading a 1.13 GB checkpoint. Reject them
+// up front instead. Remove this once the container carries dinov3.
+def CELLPOSE_MODELS_NEEDING_DINOV3 = ['cpdino', 'cpdino-vitb']
+
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     SUBWORKFLOW TO INITIALISE PIPELINE
@@ -84,6 +91,16 @@ workflow PIPELINE_INITIALISATION {
             "cellpose_pretrained_model is neither a built-in model name nor an existing path: " +
             "${params.cellpose_pretrained_model}\n" +
             "Built-in models: ${CELLPOSE_BUILTIN_MODELS.join(', ')}"
+        )
+    }
+    if (CELLPOSE_MODELS_NEEDING_DINOV3.contains(params.cellpose_pretrained_model)) {
+        error(
+            "cellpose_pretrained_model '${params.cellpose_pretrained_model}' needs Meta's `dinov3` " +
+            "package, which the pinned container does not carry.\n" +
+            "Cellpose only warns at import and then fails with " +
+            "\"NameError: name 'dinov3_vitl16' is not defined\" when the model is built -- after " +
+            "downloading a 1.13 GB checkpoint.\n" +
+            "Use one of: ${(CELLPOSE_BUILTIN_MODELS - CELLPOSE_MODELS_NEEDING_DINOV3).join(', ')}"
         )
     }
     if (params.cellpose_models_dir && !file(params.cellpose_models_dir).exists()) {
