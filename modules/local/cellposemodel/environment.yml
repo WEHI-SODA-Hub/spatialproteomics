@@ -6,4 +6,8 @@ dependencies:
   - python =3.12
   - pip
   - pip:
-      - sopa ==2.1.11
+      # Must match segmentationcellpose: this process stages the weights that
+      # one consumes, so a cellpose version skew here would fetch a checkpoint
+      # segmentation cannot load.
+      - sopa[cellpose] ==2.2.6
+      - cellpose ==4.2.1.1

@@ -131,13 +131,15 @@
                 },
                 "cellpose_model_type": {
                     "type": "string",
-                    "description": "Cellpose model to use for segmentation (e.g. nuclei, cyto, cyto2, cyto3 etc.).",
+                    "description": "Retired. Cellpose 4 ignores --model-type; use cellpose_pretrained_model instead.",
+                    "help_text": "Cellpose >=4.0.1 logs `model_type argument is not used in v4.0.1+. Ignoring this argument`, and sopa only reads it on the cellpose<4 code path, so it never had any effect on a v4 run. Setting it now raises an error rather than being silently discarded.",
+                    "hidden": true,
                     "fa_icon": "fas fa-cogs"
                 },
                 "cellpose_pretrained_model": {
                     "type": "string",
-                    "format": "file-path",
-                    "description": "Path to a pre-trained Cellpose model.",
+                    "description": "Cellpose model to segment with: cpsam_v2 (default), cpsam, cpdino, cpdino-vitb, or a path to a custom model.",
+                    "help_text": "Selects the Cellpose model. Accepts either a built-in model name or a filesystem path to your own trained model.\n\nBuilt-in models (cellpose 4.2.1.1):\n\n- `cpsam_v2` — default; the current Cellpose-SAM model.\n- `cpsam` — the previous Cellpose-SAM model. Use this to reproduce results from before this pipeline moved to cellpose 4.2.\n- `cpdino` — DINO-backbone model added in cellpose 4.2.\n- `cpdino-vitb` — larger ViT-B DINO variant.\n\nA path is passed through untouched, so a custom model is loaded directly and no download occurs. Built-in names are fetched once per run by CELLPOSEMODEL, or read from --cellpose_models_dir if you have a pre-staged copy.",
                     "fa_icon": "fas fa-file-upload"
                 },
                 "cellpose_models_dir": {

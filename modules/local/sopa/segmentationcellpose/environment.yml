@@ -6,4 +6,8 @@ dependencies:
   - python =3.12
   - pip
   - pip:
-      - sopa ==2.1.11
+      # cellpose 4.2.1.1 is the first release carrying cpsam_v2, cpdino and
+      # cpdino-vitb. sopa pins `cellpose>=3.0.5` with no upper bound, so this
+      # satisfies its own constraint.
+      - sopa[cellpose] ==2.2.6
+      - cellpose ==4.2.1.1

@@ -6,4 +6,4 @@ dependencies:
   - python =3.12
   - pip
   - pip:
-      - sopa ==2.1.11
+      - sopa ==2.2.6

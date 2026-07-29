@@ -4,12 +4,15 @@
  * License: MIT
  */
 process SOPA_SEGMENTATIONCELLPOSE {
-    label "process_medium"
+    // GPU: sopa warns that cellpose >=4 "can be slow without a GPU", and the
+    // pipeline now passes --gpu. The reference must stay fully qualified or a
+    // configured docker.registry rewrites it and the pull 401s.
+    label "process_gpu"
 
     conda "${moduleDir}/environment.yml"
     container "${workflow.containerEngine == 'apptainer' && !task.ext.singularity_pull_docker_container
-        ? 'docker://quentinblampey/sopa:2.1.11-cellpose'
-        : 'docker.io/quentinblampey/sopa:2.1.11-cellpose'}"
+        ? 'docker://community.wave.seqera.io/library/python_pip_sopacellpose_cellpose:06f04d6833aa089b'
+        : 'community.wave.seqera.io/library/python_pip_sopacellpose_cellpose:06f04d6833aa089b'}"
 
     input:
     tuple val(meta), path(zarr), val(index), val(n_patches), val(nuclear_channel), val(membrane_channel)
