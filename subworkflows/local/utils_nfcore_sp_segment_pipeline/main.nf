@@ -64,6 +64,20 @@ workflow PIPELINE_INITIALISATION {
     )
 
     //
+    // Fail before any compute on a model path that does not exist.
+    //
+    // Cellpose does not error on a missing --pretrained-model: it falls back to
+    // its built-in weights, so a typo in the path produced a full, plausible,
+    // silently-wrong run.
+    //
+    if (params.cellpose_pretrained_model && !file(params.cellpose_pretrained_model).exists()) {
+        error("cellpose_pretrained_model does not exist: ${params.cellpose_pretrained_model}")
+    }
+    if (params.cellpose_models_dir && !file(params.cellpose_models_dir).exists()) {
+        error("cellpose_models_dir does not exist: ${params.cellpose_models_dir}")
+    }
+
+    //
     // Create channel from input file provided through params.input
     //
     Channel
