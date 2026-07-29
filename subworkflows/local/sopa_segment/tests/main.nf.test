@@ -32,11 +32,17 @@ nextflow_workflow {
         then {
             assertAll(
                 { assert workflow.success},
-                // kronos_input is excluded: it re-exports the input image, which on the
-                // backsub paths is a generated OME-TIFF carrying a fresh UUID per run
-                // (Creator="backsub"), so its md5 is not reproducible. The channel is
-                // plumbing for the top-level KRONOS2 call and is covered there.
-                { assert snapshot(workflow.out.findAll { entry -> entry.key != 'kronos_input' }).match()}
+                // Snapshot the NAMED emits only, minus kronos_input.
+                //
+                // workflow.out carries every channel twice -- once positionally ("0",
+                // "1", ...) and once by name -- so filtering by name alone still leaves
+                // the positional copy. kronos_input re-exports the input image, which on
+                // the backsub paths is a generated OME-TIFF stamped with a fresh UUID per
+                // run (Creator="backsub"), making its md5 unreproducible. It is plumbing
+                // for the top-level KRONOS2 call and is covered there.
+                { assert snapshot(workflow.out.findAll { entry ->
+                    !entry.key.toString().isNumber() && entry.key != 'kronos_input'
+                }).match()}
             )
         }
     }

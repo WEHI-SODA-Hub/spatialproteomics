@@ -2,61 +2,12 @@
     "cellsam_segment_wbacksub - tiff with background subtraction": {
         "content": [
             {
-                "0": [
-                    [
-                        {
-                            "id": "test_wbacksub"
-                        },
-                        "test_wbacksub_nuclear.tiff:md5,d043551e6940bd86d72557596d98aff7"
-                    ]
-                ],
-                "1": [
-                    [
-                        {
-                            "id": "test_wbacksub"
-                        },
-                        "test_wbacksub_whole-cell.tiff:md5,9148fa787370fa34bd165cf1f8b041ac"
-                    ]
-                ],
-                "2": [
-                    [
-                        {
-                            "id": "test_wbacksub"
-                        },
-                        "test_wbacksub.geojson.gz:md5,738c19547226d3f63bf2af6c082fb8d2"
-                    ]
-                ],
-                "3": [
-                    [
-                        {
-                            "id": "test_wbacksub"
-                        },
-                        "test_wbacksub.ome.tif:md5,ccfcfe58d39bff894e705edb8553598b",
-                        "test_wbacksub_whole-cell.tiff:md5,9148fa787370fa34bd165cf1f8b041ac"
-                    ]
-                ],
-                "4": [
-                    
-                ],
-                "5": [
-                    "versions.yml:md5,190ed3ef9c713c670798c907d354d57f",
-                    "versions.yml:md5,fba1e9b0ce3eb984a535e53a86d31f43"
-                ],
                 "annotations": [
                     [
                         {
                             "id": "test_wbacksub"
                         },
                         "test_wbacksub.geojson.gz:md5,738c19547226d3f63bf2af6c082fb8d2"
-                    ]
-                ],
-                "kronos_input": [
-                    [
-                        {
-                            "id": "test_wbacksub"
-                        },
-                        "test_wbacksub.ome.tif:md5,ccfcfe58d39bff894e705edb8553598b",
-                        "test_wbacksub_whole-cell.tiff:md5,9148fa787370fa34bd165cf1f8b041ac"
                     ]
                 ],
                 "nuclear_segmentation_mask": [
@@ -84,7 +35,7 @@
                 ]
             }
         ],
-        "timestamp": "2026-07-28T16:37:22.044285764",
+        "timestamp": "2026-07-29T09:54:48.614930871",
         "meta": {
             "nf-test": "0.9.5",
             "nextflow": "24.04.2"

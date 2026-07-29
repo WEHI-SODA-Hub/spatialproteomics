@@ -2,47 +2,12 @@
     "sopa_segment - tiff": {
         "content": [
             {
-                "0": [
-                    [
-                        {
-                            "id": "test"
-                        },
-                        "test.geojson.gz:md5,cf3e776b3350ff36292b9c0dca480589"
-                    ]
-                ],
-                "1": [
-                    [
-                        {
-                            "id": "test"
-                        },
-                        "synthetic_bgsub.ome.tif:md5,59c405c7edd0c8d8acdfb58dade076af",
-                        "test_whole-cell.tiff:md5,64c2d4bee525ed8f9ac38b6bee290bec"
-                    ]
-                ],
-                "2": [
-                    
-                ],
-                "3": [
-                    "versions.yml:md5,8092d72f416a392ccee63719b0d4c998",
-                    "versions.yml:md5,8e296315445b63f508c16e0259cffcc1",
-                    "versions.yml:md5,a6cc5826c831c9e7a20f46c8900bfec4",
-                    "versions.yml:md5,faeace3d7ca5ba5d9d9ebf3a48c43c24"
-                ],
                 "annotations": [
                     [
                         {
                             "id": "test"
                         },
                         "test.geojson.gz:md5,cf3e776b3350ff36292b9c0dca480589"
-                    ]
-                ],
-                "kronos_input": [
-                    [
-                        {
-                            "id": "test"
-                        },
-                        "synthetic_bgsub.ome.tif:md5,59c405c7edd0c8d8acdfb58dade076af",
-                        "test_whole-cell.tiff:md5,64c2d4bee525ed8f9ac38b6bee290bec"
                     ]
                 ],
                 "report": [
@@ -56,7 +21,7 @@
                 ]
             }
         ],
-        "timestamp": "2026-07-28T15:35:39.900414972",
+        "timestamp": "2026-07-29T10:58:26.973182665",
         "meta": {
             "nf-test": "0.9.5",
             "nextflow": "24.04.2"

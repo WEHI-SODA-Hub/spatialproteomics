@@ -2,63 +2,12 @@
     "cellsam_segment - tiff": {
         "content": [
             {
-                "0": [
-                    [
-                        {
-                            "id": "test"
-                        },
-                        "test_nuclear.tiff:md5,219b3fe8f77e31ddc88bb271c473faf8"
-                    ]
-                ],
-                "1": [
-                    [
-                        {
-                            "id": "test"
-                        },
-                        "test_whole-cell.tiff:md5,7915618d77d3e28dabc992e32601ba3a"
-                    ]
-                ],
-                "2": [
-                    [
-                        {
-                            "id": "test"
-                        },
-                        "test.geojson.gz:md5,2125a4e0079e27d7c3de0b1452c6cb58"
-                    ]
-                ],
-                "3": [
-                    [
-                        {
-                            "id": "test"
-                        },
-                        "test_data.tiff:md5,b46dc18d27132c0fc48abe487bd57da2",
-                        "test_whole-cell.tiff:md5,7915618d77d3e28dabc992e32601ba3a"
-                    ]
-                ],
-                "4": [
-                    
-                ],
-                "5": [
-                    "versions.yml:md5,2ada6b41c70211026e4f0d81d0512c15",
-                    "versions.yml:md5,3bf60019488b73b2726b5ce986b4c9a8",
-                    "versions.yml:md5,92f71ebcee8f47a19acafaf3fbd54b0b",
-                    "versions.yml:md5,a1c2a449997ac85df7fb9deead74caec"
-                ],
                 "annotations": [
                     [
                         {
                             "id": "test"
                         },
                         "test.geojson.gz:md5,2125a4e0079e27d7c3de0b1452c6cb58"
-                    ]
-                ],
-                "kronos_input": [
-                    [
-                        {
-                            "id": "test"
-                        },
-                        "test_data.tiff:md5,b46dc18d27132c0fc48abe487bd57da2",
-                        "test_whole-cell.tiff:md5,7915618d77d3e28dabc992e32601ba3a"
                     ]
                 ],
                 "nuclear_segmentation_mask": [
@@ -88,7 +37,7 @@
                 ]
             }
         ],
-        "timestamp": "2026-07-28T16:10:10.742080015",
+        "timestamp": "2026-07-29T10:39:27.498473094",
         "meta": {
             "nf-test": "0.9.5",
             "nextflow": "24.04.2"
@@ -150,63 +99,12 @@
     "cellsam_segment - multi-membrane combine": {
         "content": [
             {
-                "0": [
-                    [
-                        {
-                            "id": "test_multimem"
-                        },
-                        "test_multimem_nuclear.tiff:md5,d043551e6940bd86d72557596d98aff7"
-                    ]
-                ],
-                "1": [
-                    [
-                        {
-                            "id": "test_multimem"
-                        },
-                        "test_multimem_whole-cell.tiff:md5,9148fa787370fa34bd165cf1f8b041ac"
-                    ]
-                ],
-                "2": [
-                    [
-                        {
-                            "id": "test_multimem"
-                        },
-                        "test_multimem.geojson.gz:md5,a4fc223ccc4da43e1cc67b4fa7f8d44e"
-                    ]
-                ],
-                "3": [
-                    [
-                        {
-                            "id": "test_multimem"
-                        },
-                        "synthetic_multichannel.tif:md5,f0ebd7853aa3de6cfd9cabaf8ca7ba1c",
-                        "test_multimem_whole-cell.tiff:md5,9148fa787370fa34bd165cf1f8b041ac"
-                    ]
-                ],
-                "4": [
-                    
-                ],
-                "5": [
-                    "versions.yml:md5,2ada6b41c70211026e4f0d81d0512c15",
-                    "versions.yml:md5,3bf60019488b73b2726b5ce986b4c9a8",
-                    "versions.yml:md5,92f71ebcee8f47a19acafaf3fbd54b0b",
-                    "versions.yml:md5,a1c2a449997ac85df7fb9deead74caec"
-                ],
                 "annotations": [
                     [
                         {
                             "id": "test_multimem"
                         },
                         "test_multimem.geojson.gz:md5,a4fc223ccc4da43e1cc67b4fa7f8d44e"
-                    ]
-                ],
-                "kronos_input": [
-                    [
-                        {
-                            "id": "test_multimem"
-                        },
-                        "synthetic_multichannel.tif:md5,f0ebd7853aa3de6cfd9cabaf8ca7ba1c",
-                        "test_multimem_whole-cell.tiff:md5,9148fa787370fa34bd165cf1f8b041ac"
                     ]
                 ],
                 "nuclear_segmentation_mask": [
@@ -236,7 +134,7 @@
                 ]
             }
         ],
-        "timestamp": "2026-07-28T16:23:58.949157112",
+        "timestamp": "2026-07-29T10:52:09.359764948",
         "meta": {
             "nf-test": "0.9.5",
             "nextflow": "24.04.2"

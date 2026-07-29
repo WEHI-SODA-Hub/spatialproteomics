@@ -2,62 +2,12 @@
     "mesmer_segment - tiff": {
         "content": [
             {
-                "0": [
-                    [
-                        {
-                            "id": "test"
-                        },
-                        "test.geojson.gz:md5,a9e5773abb4d02acde1efb7d260a09bc"
-                    ]
-                ],
-                "1": [
-                    [
-                        {
-                            "id": "test"
-                        },
-                        "test_whole-cell.tiff:md5,44ffdcf115bfcffbcba7a03276e77561"
-                    ]
-                ],
-                "2": [
-                    [
-                        {
-                            "id": "test"
-                        },
-                        "test_nuclear.tiff:md5,07dc3d7f48a3ebf926fe82d6d68175af"
-                    ]
-                ],
-                "3": [
-                    [
-                        {
-                            "id": "test"
-                        },
-                        "test_data.tiff:md5,b46dc18d27132c0fc48abe487bd57da2",
-                        "test_whole-cell.tiff:md5,44ffdcf115bfcffbcba7a03276e77561"
-                    ]
-                ],
-                "4": [
-                    
-                ],
-                "5": [
-                    "versions.yml:md5,020f6b6c73631bfaf9a42689d3222190",
-                    "versions.yml:md5,7b6297bb104ce980748a3b972439d412",
-                    "versions.yml:md5,ec8fbc92050f538763cdc496a2986c88"
-                ],
                 "annotations": [
                     [
                         {
                             "id": "test"
                         },
                         "test.geojson.gz:md5,a9e5773abb4d02acde1efb7d260a09bc"
-                    ]
-                ],
-                "kronos_input": [
-                    [
-                        {
-                            "id": "test"
-                        },
-                        "test_data.tiff:md5,b46dc18d27132c0fc48abe487bd57da2",
-                        "test_whole-cell.tiff:md5,44ffdcf115bfcffbcba7a03276e77561"
                     ]
                 ],
                 "nuclear_tif": [
@@ -86,7 +36,7 @@
                 ]
             }
         ],
-        "timestamp": "2026-07-28T16:45:00.939095806",
+        "timestamp": "2026-07-29T10:54:02.052648452",
         "meta": {
             "nf-test": "0.9.5",
             "nextflow": "24.04.2"
