@@ -1,0 +1,9 @@
+{
+    "_comment": "Maps this panel's channel names onto KRONOS2 vocabulary names. Use this FIRST for any marker preflight reports as novel - a mapped marker keeps the model's PRETRAINED stats and text embedding. Only fall back to additional_markers.csv for genuinely new biology.",
+
+    "Collagen 4": "COLLAGENiv",
+    "Cytokeritin": "CYTOKERATIN",
+    "VISA": "VISTA",
+
+    "_note_dapi": "DAPI-01 needs no entry - set --kronos_nuclear_marker 'DAPI-01' (or the samplesheet nuclear_channel) and preprocess() maps it to the dapi stats directly."
+}

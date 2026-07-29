@@ -18,7 +18,7 @@ The pipeline is built using [Nextflow](https://www.nextflow.io/) and processes d
 - Cell measurement
   - generates a GeoJSON file with consolidated whole-cell/nuclear segmentations
   - calculates cell compartment measurements and channel intensities
-- Optional KRONOS embeddings merged into the cellmeasurement GeoJSON
+- Optional KRONOS2 embeddings merged into the cellmeasurement GeoJSON
 - [Pipeline information](#pipeline-information) - Report metrics generated during the workflow execution
 
 ### Pipeline outputs
@@ -58,17 +58,24 @@ The pipeline is built using [Nextflow](https://www.nextflow.io/) and processes d
   segmentations, optionally containing measurements and intensity values per
   cell, compatible with QuPath.
 
-#### KRONOS embeddings
+#### KRONOS2 embeddings
 
 When `enable_kronos=true`:
 
-- `kronosembeddings/sample_kronos_embeddings.csv` -- per-cell KRONOS embedding
-  vectors.
-- `kronosembeddings/sample_kronos_embeddings_marker_report.txt` -- marker
-  matching report for the KRONOS run.
-- `cellmeasurement/sample.geojson` (or `.geojson.gz`) -- same output path as
-  cellmeasurement annotations, with `kronos_emb_*` features merged into each
-  matched cell.
+- `cellmeasurement/sample.geojson` (or `.geojson.gz`) -- same output path as the
+  cellmeasurement annotations, with 768 `kronos_emb_*` measurements added to
+  every cell. This is the **only** embedding artefact: the separate CSV that
+  earlier versions wrote held the same vectors twice, so it has been dropped.
+- `kronos2embeddings/sample_marker_report.txt` -- per-channel record of the name
+  given to KRONOS2, any mappings applied, and any markers outside the model's
+  vocabulary.
+
+Embedding row _i_ corresponds to cell feature _i_ in the input GeoJSON, so the
+join is exact by construction. Re-running clears any previous `kronos_emb_*`
+keys first, so embeddings are replaced rather than accumulated.
+
+Note that 768 float measurements per cell is a substantial addition to the
+GeoJSON. `gzip_geojson` (on by default) keeps this manageable.
 
 #### Segmentation report
 

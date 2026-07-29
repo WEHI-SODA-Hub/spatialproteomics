@@ -1,0 +1,81 @@
+name: kronos2embeddings
+description: Extract KRONOS2 foundation-model embeddings for each segmented cell
+keywords:
+  - spatial proteomics
+  - foundation model
+  - embeddings
+  - single cell
+  - kronos
+tools:
+  - kronos2:
+      description: |
+        KRONOS2 is a marker-aware vision transformer for multiplexed spatial
+        proteomics. It produces a 768-d CLS embedding per patch. The
+        marker-aware per-marker z-score lives inside the model
+        (`model.preprocess`), so callers supply patches scaled only by the
+        image dtype's divisor and never reimplement the normalisation.
+      homepage: https://huggingface.co/MahmoodLab/KRONOS2
+      documentation: https://huggingface.co/MahmoodLab/KRONOS2
+      licence: ["CC-BY-NC-ND-4.0"]
+      identifier: ""
+
+input:
+  - - meta:
+        type: map
+        description: |
+          Groovy Map containing sample information, e.g. `[ id:'sample1' ]`
+    - tiff:
+        type: file
+        description: Multiplexed image whose channels are the panel markers
+        pattern: "*.{tif,tiff,ome.tif,ome.tiff}"
+    - geojson:
+        type: file
+        description: |
+          Cell annotations from CELLMEASUREMENT. These polygons define the cells:
+          embedding row i corresponds to cell feature i, so the join back is
+          exact by construction rather than by spatial matching.
+        pattern: "*.geojson{,.gz}"
+    - nuclear_channel:
+        type: string
+        description: |
+          Channel to treat as the nuclear stain, passed to the model as
+          `preferred_dapi`. This is KRONOS2's only marker-alias mechanism, so a
+          slide stained with DRAQ5 or Hoechst needs it to receive DAPI
+          normalisation stats instead of the default ones.
+  - kronos2_model:
+      type: directory
+      description: |
+        A full KRONOS2 snapshot directory. The whole snapshot is required, not a
+        subset: the loader inserts it on sys.path and imports the bundled
+        `dinov2` package.
+
+output:
+  - annotations:
+      - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - "*.geojson{,.gz}":
+          type: file
+          description: |
+            The input annotations with a `kronos_emb_<i>` measurement added per
+            cell. Any embeddings from a previous run are cleared first, so
+            re-running replaces rather than accumulates columns.
+          pattern: "*.geojson{,.gz}"
+  - marker_report:
+      - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - "*_marker_report.txt":
+          type: file
+          description: |
+            Per-channel record of the name given to KRONOS2, any mappings
+            applied, and any markers outside the model's vocabulary.
+          pattern: "*_marker_report.txt"
+  - versions:
+      - versions.yml:
+          type: file
+          description: File containing software versions
+          pattern: "versions.yml"
+
+authors:
+  - "@mikemcka"

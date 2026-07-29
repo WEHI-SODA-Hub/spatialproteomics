@@ -9,3 +9,12 @@ testing*
 null/
 .nf-test*
 *.egg-info
+
+# KRONOS2 model assets and anything derived from them.
+# MahmoodLab/KRONOS2 is CC-BY-NC-ND-4.0 (NoDerivatives), so the marker
+# vocabulary and any table generated from it must not be redistributed
+# from this public repo. Generate them locally with bin/kronos2_list_markers.py.
+kronos2_marker_vocabulary.csv
+kronos2_markers.md
+marker_metadata.csv
+KRONOS2/

@@ -188,12 +188,16 @@ If no token is provided, CellSAM uses the bundled default model.
 | `cellsam_model_path`               | Path to a custom CellSAM model checkpoint. If `null` the built-in default model is used (default: `null`). |
 | `cellsam_min_area`                 | Minimum cell area in square pixels; smaller objects are discarded (default: `0`).                          |
 
-### KRONOS embeddings
+### KRONOS2 embeddings
 
-KRONOS is an optional embedding step that runs after cell measurement and
-writes per-cell embeddings plus a merged GeoJSON with KRONOS features.
+KRONOS2 is an optional step that runs after cell measurement and writes a
+768-dimensional embedding for every cell back into the cellmeasurement GeoJSON.
 
-To enable KRONOS:
+Cells are taken from the CELLMEASUREMENT GeoJSON polygons, so embedding row _i_
+always corresponds to cell feature _i_ -- the join is exact by construction
+rather than by spatial matching.
+
+To enable KRONOS2:
 
 ```bash
 nextflow run WEHI-SODA-Hub/sp_segment \
@@ -201,27 +205,80 @@ nextflow run WEHI-SODA-Hub/sp_segment \
    --input samplesheet.csv \
    --outdir <OUTDIR> \
    --enable_kronos true \
-   --kronos_model_path /path/to/kronos_model_dir \
-   --kronos_marker_metadata /path/to/marker_metadata.csv
+   --kronos_model_path /path/to/KRONOS2
 ```
 
-Channel names are matched case-insensitively to KRONOS marker metadata. Use
-`kronos_marker_mapping` when image channel names need explicit remapping.
+#### Obtaining the model
 
-#### KRONOS embedding parameters
+The weights are gated on Hugging Face. Request access, then download the
+**full** snapshot -- the loader adds the directory to `sys.path` and imports the
+bundled `dinov2` package, so a hand-picked subset of files will not work:
 
-| Parameter Name              | Description                                                                                                                     |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `enable_kronos`             | Enable the KRONOS embedding step entirely (default: `false`).                                                                   |
-| `kronos_model_path`         | **Required** path to the directory containing the pre-trained KRONOS `.pt` checkpoint.                                          |
-| `kronos_marker_metadata`    | **Required** path to a CSV file mapping marker channel names to KRONOS input slots.                                             |
-| `kronos_config_path`        | Path to a KRONOS YAML config file overriding default model settings (default: `null`).                                          |
-| `kronos_patch_size`         | Size in pixels of the square patch extracted around each cell for embedding (default: `64`).                                    |
-| `kronos_batch_size`         | Number of patches processed per inference batch (default: `32`).                                                                |
-| `kronos_num_workers`        | Number of PyTorch DataLoader worker processes (default: `4`).                                                                   |
-| `kronos_max_value`          | Maximum pixel intensity used for per-channel normalisation (default: `65535`).                                                  |
-| `kronos_marker_mapping`     | JSON string or path mapping pipeline channel names to KRONOS marker names. Uses identity mapping when `null` (default: `null`). |
-| `kronos_distance_threshold` | Maximum distance in pixels between a cell centroid and its matched nucleus; larger gaps are left unmatched (default: `5.0`).    |
+```bash
+hf auth login
+hf download MahmoodLab/KRONOS2 --local-dir /path/to/KRONOS2 --exclude "demo_image/*"
+```
+
+**Do not stage the weights under a path the container also uses**, such as
+`/opt`. Nextflow bind-mounts an input's parent directory into the container to
+make it visible, so a host `/opt` shadows the container's own `/opt/conda` and
+its Python disappears. The failure is reported as:
+
+```
+/usr/bin/env: 'python3': No such file or directory
+```
+
+from an image that demonstrably has `python3`, which points nowhere near the
+cause. Somewhere like `/data/KRONOS2` or a project directory is safe. This
+applies to any process input, not just KRONOS2 -- `/opt` is simply the common
+case, because conda-based images live there.
+
+No marker metadata file is needed: KRONOS2 carries its own 288-marker vocabulary
+and applies the marker-aware z-score internally.
+
+#### Marker names must match exactly
+
+KRONOS2 matches marker names on a **separator-insensitive key with no alias or
+fuzzy step** (`CD-8`, `CD_8` and `CD8` all match; `Cytokeritin` does not match
+`CYTOKERATIN`). An unmatched marker is not dropped -- it is normalised with
+_default_ statistics, which silently degrades that channel.
+
+The run therefore **fails by default** when any marker is unmatched, listing the
+offending names. Most are naming variants rather than new biology, so the fix is
+usually a mapping file:
+
+```json
+{
+  "Collagen 4": "COLLAGENiv",
+  "Cytokeritin": "CYTOKERATIN",
+  "VISA": "VISTA"
+}
+```
+
+Pass it with `--kronos_marker_mapping /path/to/marker_mapping.json`. Mapping is
+applied only to the names handed to the model; stored channel names and the
+GeoJSON are untouched. See
+[examples/kronos_marker_mapping.json](examples/kronos_marker_mapping.json).
+
+The nuclear stain is a special case: it is passed as `preferred_dapi`, which is
+KRONOS2's **only** alias mechanism. The samplesheet's `nuclear_channel` is used
+automatically, so a slide stained with `DRAQ5` or `Hoechst2` still receives DAPI
+statistics.
+
+#### KRONOS2 embedding parameters
+
+| Parameter Name                | Description                                                                                                                                                                             |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `enable_kronos`               | Enable the KRONOS2 embedding step (default: `false`).                                                                                                                                   |
+| `kronos_model_path`           | **Required** path to a full KRONOS2 snapshot directory (or a Hugging Face repo id).                                                                                                     |
+| `kronos_patch_size`           | Side length in pixels of the square patch centred on each cell (default: `64`).                                                                                                         |
+| `kronos_batch_size`           | Patches per inference batch (default: `16`). KRONOS2 runs fp32 and cuBLAS picks batch-dependent kernels, so changing this shifts embeddings slightly; `16` reproduces published values. |
+| `kronos_num_workers`          | PyTorch DataLoader worker processes (default: `4`).                                                                                                                                     |
+| `kronos_max_value`            | Override the intensity divisor. Unset (default) derives it from the image dtype -- `uint8`=255, `uint16`=65535, float=400 -- matching KRONOS2's own scaling factor.                     |
+| `kronos_marker_mapping`       | JSON file or inline JSON mapping channel names onto KRONOS2 vocabulary names (default: `null`).                                                                                         |
+| `kronos_nuclear_marker`       | Override the nuclear stain used as `preferred_dapi`. Defaults to the samplesheet's `nuclear_channel`.                                                                                   |
+| `kronos_isolate_cell`         | Zero pixels outside the target cell so each embedding describes that cell rather than its surrounding neighbourhood (default: `true`).                                                  |
+| `kronos_allow_novel_defaults` | Proceed when markers fall outside the vocabulary, accepting default normalisation stats (default: `false`).                                                                             |
 
 ### SOPA patching parameters
 

@@ -1,0 +1,30 @@
+name: kronos2embeddings
+channels:
+  - conda-forge
+dependencies:
+  - python =3.11
+  - numpy
+  - pandas
+  - tifffile >=2023.0
+  - zarr >=2.16
+  # Pillow fills the per-cell polygon footprints. rasterio/GDAL was used for
+  # this originally, but it is a heavy geospatial stack for filling one small
+  # polygon per patch, and its libtiff pulled in a symbol clash with the conda
+  # libjpeg (undefined symbol: jpeg12_write_raw_data).
+  - pillow >=10
+  - pip
+  - pip:
+      # Pins taken verbatim from MahmoodLab/KRONOS2's own requirements.txt --
+      # the model is fp32 and documented as bit-exact under these versions, so
+      # they should not be relaxed without re-validating embeddings.
+      - --extra-index-url https://download.pytorch.org/whl/cu124
+      - torch ==2.6.0
+      - xformers ==0.0.29.post3
+      - transformers ==4.56.0
+      - timm ==1.0.19
+      - omegaconf >=2.3.0
+      - huggingface_hub >=0.28.1
+      - safetensors
+      # xFormers probes for Triton at import and needs setuptools present;
+      # without it the probe logs a caught traceback that reads as a failure.
+      - setuptools >=70

@@ -3,6 +3,74 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Changed
+
+- **KRONOS1 has been replaced by KRONOS2.** `bin/kronos_embeddings.py` and the
+  `KRONOSEMBEDDINGS` module are removed; embeddings are now 768-d rather than 384-d.
+  Outputs from the two versions are not comparable.
+
+- **KRONOS now runs once at the top level**, not three times inside the Mesmer,
+  Cellpose and CellSAM subworkflows. A cohort-wide operator inside a per-segmenter
+  subworkflow only sees that segmenter's samples, which made any pooled statistic
+  unsound.
+
+- **Cell patches are isolated to the target cell.** Pixels outside the cell polygon
+  are zeroed, so an embedding describes that cell rather than the ~18 um
+  neighbourhood a 64 px box spans. Disable with `--kronos_isolate_cell false`.
+
+- **The intensity divisor is derived from the image dtype** (uint8=255, uint16=65535,
+  float=400) instead of a hardcoded 65535, matching KRONOS2's own scaling factor. A
+  float32 image was previously divided by 65535 rather than 400.
+
+- **The nuclear channel is passed to the model** as `preferred_dapi`. This is
+  KRONOS2's only marker-alias mechanism, so slides stained with DRAQ5 or Hoechst
+  previously received default normalisation statistics.
+
+- `kronos_batch_size` now defaults to `16` (was `32`), which reproduces the published
+  values. KRONOS2 runs fp32 and cuBLAS picks batch-dependent kernels.
+
+- **The per-cell embeddings CSV is no longer written.** It duplicated the vectors
+  already merged into the GeoJSON, which is now the only embedding artefact.
+
+### Added
+
+- `bin/kronos2_common.py`, a shared scaffold for per-cell foundation-model
+  extraction, so a future encoder does not become a second copy of the script.
+- A Wave-built container pinned by digest
+  (`community.wave.seqera.io/library/kronos2embeddings:70590359503eec08`),
+  carrying torch 2.6.0+cu124. Verified to reproduce a standalone run's
+  embeddings to cosine 1.000000.
+- `kronos_nuclear_marker`, `kronos_isolate_cell` and `kronos_allow_novel_defaults`
+  parameters; `test_mesmer_kronos2` profile.
+- Unmatched markers now fail the run by default. KRONOS2 matches names exactly with
+  no alias or fuzzy step, so a naming variant such as `Cytokeritin` would otherwise be
+  normalised with default statistics silently. Use `--kronos_marker_mapping` to
+  resolve them, or `--kronos_allow_novel_defaults` to accept the fallback.
+
+- Per-cell footprints are filled with Pillow rather than rasterio, dropping the
+  GDAL stack (which pulled a conda libtiff/libjpeg symbol clash into the
+  container). The two rasterisers differ slightly at the cell boundary:
+  embeddings shift by cosine 0.99974, roughly 15x less than the cell-isolation
+  change above, and less than rasterio's own two `all_touched` modes differ
+  from each other.
+
+### Removed
+
+- `kronos_marker_metadata` -- KRONOS2 carries its own 288-marker vocabulary.
+- `kronos_config_path` -- KRONOS2 has no equivalent config file.
+- `kronos_distance_threshold` -- the centroid-matching fallback it configured was
+  never implemented; cells now join by GeoJSON feature order.
+
+### Fixed
+
+- Stub runs of the Cellpose path failed with `For input string: ""`. The
+  `SOPA_PATCHIFYIMAGE` stub wrote an empty patch-count file that the caller parses
+  with `.toInteger()`.
+- `KRONOSEMBEDDINGS` passed `--nv` unconditionally, which is invalid under Docker.
+  The replacement selects `--nv` or `--gpus all` by container engine.
+
 ## v0.4.0 - 2026-04-20
 
 ### Changed

@@ -1,0 +1,3 @@
+marker_name,compartment,family,compartment_desc,family_desc,marker_full_name,mean,std,pretraining
+FoxA1,nucleus,transcription_factor,nuclear protein,Transcription factor,Forkhead box protein A1,,,no
+NaKATPase,membrane,metabolic_transporter,membrane protein,Metabolic transporter,Sodium/potassium-transporting ATPase subunit alpha-1,,,no
