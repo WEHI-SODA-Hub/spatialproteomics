@@ -12,6 +12,7 @@ workflow SOPA_CELLPOSE {
     take:
     ch_patches // channel: [ (meta, zarr, index, n_patches, nuclear_channel, membrane_channels) ]
     ch_spatial_data // channel: [ (meta, zarr) ]
+    ch_cellpose_models // channel: value, path to the staged Cellpose weights directory
 
     main:
 
@@ -21,7 +22,8 @@ workflow SOPA_CELLPOSE {
     // Run SOPA segmentation with cellpose
     //
     SOPA_SEGMENTATIONCELLPOSE(
-        ch_patches
+        ch_patches,
+        ch_cellpose_models
     )
     ch_versions = ch_versions.mix(SOPA_SEGMENTATIONCELLPOSE.out.versions.first())
 

@@ -24,6 +24,12 @@ input:
         The input channel containing TIFF files with nuclear and membrane channel information
         Structure: [ val(meta), path(tiff), val(nuclear_channel), val(membrane_channels) ]
       pattern: "*.{tiff,tif}"
+  - ch_cellpose_models:
+      type: channel
+      description: |
+        Value channel holding the directory of staged Cellpose model weights,
+        shared by every patch task
+        Structure: [ path(cellpose_models) ]
 output:
   - annotations:
       type: file

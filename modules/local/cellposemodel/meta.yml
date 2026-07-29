@@ -1,0 +1,37 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/meta-schema.json
+name: "cellposemodel"
+description: Fetch the Cellpose model weights once per run and emit them as a staged directory for segmentation tasks to share
+keywords:
+  - cellpose
+  - segmentation
+  - model
+  - weights
+  - cache
+tools:
+  - "cellpose":
+      description: "A generalist algorithm for cellular segmentation"
+      homepage: "https://www.cellpose.org"
+      documentation: "https://cellpose.readthedocs.io"
+      licence: ["BSD-3-Clause"]
+input:
+  - - _trigger:
+        type: value
+        description: |
+          Any value; present only so that the weights are not fetched on runs
+          that do not use Cellpose. Pass a constant so the `-resume` cache key
+          is stable.
+output:
+  - models:
+      - "cellpose_models":
+          type: directory
+          description: Directory containing the downloaded Cellpose model weights
+          pattern: "cellpose_models"
+  - versions:
+      - "versions.yml":
+          type: file
+          description: File containing software versions
+          pattern: "versions.yml"
+authors:
+  - "@mikemcka"
+maintainers:
+  - "@mikemcka"

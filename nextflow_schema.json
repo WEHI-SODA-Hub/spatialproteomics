@@ -139,6 +139,13 @@
                     "format": "file-path",
                     "description": "Path to a pre-trained Cellpose model.",
                     "fa_icon": "fas fa-file-upload"
+                },
+                "cellpose_models_dir": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "Directory holding pre-staged Cellpose model weights. If set, the pipeline uses it instead of downloading them.",
+                    "help_text": "Point this at a shared copy of the Cellpose model cache (the directory holding e.g. `cpsam`) to skip the download entirely. Recommended on clusters where compute nodes have no outbound network access.",
+                    "fa_icon": "fas fa-folder-open"
                 }
             }
         },
