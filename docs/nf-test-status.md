@@ -128,7 +128,39 @@ explanation — but that is a guess, not a finding.
   `CELLSAMSEGMENT` in CI. The current CI is unaffected: `conf/test.config`
   points at `cellpose_samplesheet.csv`, so it never reaches those processes.
 
+- No `.github/workflows/nf-test.yml` exists, deliberately. `.nf-core.yml` lists
+  it under `lint.files_exist`, so lint expects it absent; adding one also turns
+  on the `actions_nf_test` check, which requires the standard `push` /
+  `pull_request` / `release` triggers. There is no way to add the workflow in a
+  deliberately-inert state and keep lint green — so it goes in when the suite is
+  green, not before.
+
 - Cellpose weights are staged once per run by `CELLPOSEMODEL`, and
-  `--cellpose_models_dir` skips the download entirely. Cache that directory in
-  CI keyed on the sopa container tag.
+  `--cellpose_models_dir` skips the download entirely. Cache that directory
+  keyed on the sopa container tag — this is the one part of the workflow that is
+  not boilerplate:
+
+  ```yaml
+  - name: Restore Cellpose model cache
+    id: cellpose-cache
+    uses: actions/cache@v4
+    with:
+      path: ${{ env.CELLPOSE_MODELS_DIR }}
+      key: cellpose-models-${{ env.CELLPOSE_CONTAINER }}
+
+  - name: Fetch Cellpose model weights
+    if: steps.cellpose-cache.outputs.cache-hit != 'true'
+    run: |
+      mkdir -p "${CELLPOSE_MODELS_DIR}"
+      docker run --rm -u "$(id -u):$(id -g)" \
+        -e CELLPOSE_LOCAL_MODELS_PATH=/models \
+        -v "${CELLPOSE_MODELS_DIR}:/models" \
+        "${CELLPOSE_CONTAINER}" \
+        python -c "from cellpose import models; models.CellposeModel(gpu=False)"
+  ```
+
+  `tests/nextflow.config` already reads `CELLPOSE_MODELS_DIR` from the
+  environment, so setting it is all the wiring needed. Key the cache on the
+  container tag: new container, new cellpose, new weights.
+
 - CellSAM has no equivalent yet; see (2).

@@ -74,10 +74,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `cellpose_models_dir` parameter, pointing at a pre-staged Cellpose model
   cache so sites with no outbound network on compute nodes skip the download.
 
-- `.github/workflows/nf-test.yml`, running the snapshot suite. Manual-dispatch
-  only for now: three tests remain known-red for undiagnosed reasons, recorded
-  in `docs/nf-test-status.md` along with what is and is not established about
-  them.
+- A `CELLPOSE_MODELS_DIR` hook in `tests/nextflow.config`. Export it and the
+  sopa tests reuse a pre-staged Cellpose cache instead of re-fetching 1.2 GB per
+  run, which is what makes the suite tractable to run locally.
 
 - `docs/nf-test-status.md`, recording the state of the test suite — what was
   repaired, and for the rest what is known versus assumed. Notably, whether
