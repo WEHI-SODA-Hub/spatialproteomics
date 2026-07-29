@@ -118,9 +118,17 @@ explanation — but that is a guess, not a finding.
 
 ## Before enabling nf-test in CI
 
-- `process_gpu` tasks request a GPU via `accelerator = 1`. GitHub's
-  `ubuntu-latest` has none. Establish what Nextflow does there before running
-  any test that touches `CELLSAMSEGMENT` or `MESMERSEGMENT` in CI.
+- `process_gpu` tasks request a GPU via `accelerator = 1`, which Nextflow's
+  Docker executor turns into `--gpus all`. This is intended — CellSAM and
+  KRONOS2 are meant to run on the GPU and do so today. The only two processes
+  carrying that label are `CELLSAMSEGMENT` and `KRONOS2EMBEDDINGS`;
+  `MESMERSEGMENT` is `process_multi` and does not request one.
+
+  It matters here only because GitHub's `ubuntu-latest` has no GPU. Establish
+  what Nextflow does there before running any test that touches
+  `CELLSAMSEGMENT` in CI. The current CI is unaffected: `conf/test.config`
+  points at `cellpose_samplesheet.csv`, so it never reaches those processes.
+
 - Cellpose weights are staged once per run by `CELLPOSEMODEL`, and
   `--cellpose_models_dir` skips the download entirely. Cache that directory in
   CI keyed on the sopa container tag.
