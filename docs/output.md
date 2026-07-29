@@ -70,7 +70,7 @@ When `enable_kronos=true`:
   given to KRONOS2, any mappings applied, and any markers outside the model's
   vocabulary.
 
-Embedding row *i* corresponds to cell feature *i* in the input GeoJSON, so the
+Embedding row _i_ corresponds to cell feature _i_ in the input GeoJSON, so the
 join is exact by construction. Re-running clears any previous `kronos_emb_*`
 keys first, so embeddings are replaced rather than accumulated.
 

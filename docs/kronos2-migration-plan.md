@@ -8,14 +8,14 @@
 
 ## 1. Decisions (locked)
 
-| Decision | Choice |
-|---|---|
+| Decision            | Choice                                                                       |
+| ------------------- | ---------------------------------------------------------------------------- |
 | Retirement strategy | **Hard replace** — KRONOS1 script + module deleted; there is only one KRONOS |
-| Patch semantics | **Isolate the target cell** — zero all pixels not belonging to the cell |
-| Scaling divisor | **Derived from dtype** (uint8→255, uint16→65535, float→400) |
-| Nuclear hint | **Plumbed through** to `model.preprocess(preferred_dapi=...)` |
-| Novel markers | **Full prepare/pool graph**, built now |
-| Modality | **Fluorescence only** (COMET / CODEX / OPAL) — MIBI is out of scope |
+| Patch semantics     | **Isolate the target cell** — zero all pixels not belonging to the cell      |
+| Scaling divisor     | **Derived from dtype** (uint8→255, uint16→65535, float→400)                  |
+| Nuclear hint        | **Plumbed through** to `model.preprocess(preferred_dapi=...)`                |
+| Novel markers       | **Full prepare/pool graph**, built now                                       |
+| Modality            | **Fluorescence only** (COMET / CODEX / OPAL) — MIBI is out of scope          |
 
 Two behaviour changes ship together and are **not** backward-comparable with existing v1 outputs: the model (384-d → 768-d) and the patch content (neighbourhood box → isolated cell). This is accepted — hard replace means there was no comparability to preserve.
 
@@ -23,7 +23,7 @@ Two behaviour changes ship together and are **not** backward-comparable with exi
 
 ## 2. What gets simpler — and what does not
 
-*Revised 2026-07-28 after reading the actual model code (`marker_utils.py`, `modeling_kronos2.py`). An earlier draft of this section was wrong about D3; the correction is below.*
+_Revised 2026-07-28 after reading the actual model code (`marker_utils.py`, `modeling_kronos2.py`). An earlier draft of this section was wrong about D3; the correction is below._
 
 - **D1 (unmatched markers dropped)** — **gone.** v2 takes marker **names**; nothing is dropped. Unknown markers fall back to a default `(mean, std)` rather than being removed from the tensor. `--marker-metadata` disappears entirely.
 
@@ -33,24 +33,24 @@ Two behaviour changes ship together and are **not** backward-comparable with exi
 
   `marker_match_key` only collapses separators (`- _ : ( ) space . /` and `α→a`). Verified against the real 288-marker vocabulary:
 
-  | Channel name | match key | in vocab? |
-  |---|---|---|
-  | `CD8` | `cd8` | yes |
-  | `HLA-DR` | `hladr` | yes |
-  | `a-SMA` | `asma` | yes |
-  | `PanCK` | `panck` | yes |
-  | `CD8_141Pr` | `cd8141pr` | **no — novel** |
-  | `dsDNA_89Y` | `dsdna89y` | **no — novel** |
-  | `Hoechst1` | `hoechst1` | **no — novel** |
+  | Channel name | match key   | in vocab?      |
+  | ------------ | ----------- | -------------- |
+  | `CD8`        | `cd8`       | yes            |
+  | `HLA-DR`     | `hladr`     | yes            |
+  | `a-SMA`      | `asma`      | yes            |
+  | `PanCK`      | `panck`     | yes            |
+  | `CD8_141Pr`  | `cd8141pr`  | **no — novel** |
+  | `dsDNA_89Y`  | `dsdna89y`  | **no — novel** |
+  | `Hoechst1`   | `hoechst1`  | **no — novel** |
   | `Collagen 4` | `collagen4` | **no — novel** |
 
-  **Consequence:** spelling variants, typos, and per-cycle stain names (`Hoechst1`, `DAPI-01`) land in the *novel* bucket. This does not lose data the way v1's dropping did, but it means name normalisation is **our** responsibility, not the model's.
+  **Consequence:** spelling variants, typos, and per-cycle stain names (`Hoechst1`, `DAPI-01`) land in the _novel_ bucket. This does not lose data the way v1's dropping did, but it means name normalisation is **our** responsibility, not the model's.
 
   **Action:** carry the alias step forward rather than deleting it — `kronos_marker_mapping` (user JSON) is **retained**. Applied only to the names handed to KRONOS2, never to stored channel names, matching CORAL's scoped exception.
 
   **Scope note (2026-07-28):** KRONOS is used on **fluorescence data only** (COMET / CODEX / OPAL), not MIBI. Isotope-tagged names (`CD8_141Pr`) are therefore out of scope, and the proposed `kronos_strip_isotope` parameter is **dropped**. Should MIBI support ever be wanted, the isotope regex `_\d+[a-z]*$` is the one-line addition.
 
-- **D5 (nuclear hint)** — **promoted from nice-to-have to essential.** `preferred_dapi` is the *only* alias mechanism in the entire model:
+- **D5 (nuclear hint)** — **promoted from nice-to-have to essential.** `preferred_dapi` is the _only_ alias mechanism in the entire model:
 
   ```python
   if clean_marker_name(m) == dapi: key = "dapi"
@@ -147,7 +147,7 @@ This is a better structure independently of the barrier — KRONOS is segmenter-
 
 **Why a preflight process:** it moves the "you have a novel marker with no CSV row" error **before** any per-sample work runs, matching CORAL's pre-flight stage (`src/coral/features/prepare.py:152-177`).
 
-**Confirmed: PREFLIGHT needs no model, no weights, no torch, no GPU.** `marker_utils.py` (4 kB) is self-contained pure-pandas — `clean_marker_name`, `marker_match_key`, `build_marker_index`, `load_marker_stats` — and the vocabulary is the plain `marker_metadata.csv` (288 rows). Both are downloadable without the 440 MB checkpoint. So novelty classification uses the model's *own* code without instantiating the model. Vendor these two files (or read them from `kronos_model_path`); never reimplement the matcher.
+**Confirmed: PREFLIGHT needs no model, no weights, no torch, no GPU.** `marker_utils.py` (4 kB) is self-contained pure-pandas — `clean_marker_name`, `marker_match_key`, `build_marker_index`, `load_marker_stats` — and the vocabulary is the plain `marker_metadata.csv` (288 rows). Both are downloadable without the 440 MB checkpoint. So novelty classification uses the model's _own_ code without instantiating the model. Vendor these two files (or read them from `kronos_model_path`); never reimplement the matcher.
 
 Staging every TIFF into `PREFLIGHT` is cheap on a shared filesystem (Nextflow symlinks rather than copies) and only channel-name metadata is read — no pixel decode. Mirrors the existing `bin/extract_markers.py` pattern.
 
@@ -253,14 +253,14 @@ Grounded in the real 49-marker CODEX cHL panel and the real 288-marker KRONOS2 v
 
 All four unmatched markers are **already in the vocabulary under a different spelling**:
 
-| Panel name | match key | in vocab? | actually is | resolution |
-|---|---|---|---|---|
-| `Collagen 4` | `collagen4` | no | `COLLAGENiv` | **mapping** |
-| `Cytokeritin` | `cytokeritin` | no | `CYTOKERATIN` (typo in panel) | **mapping** |
-| `VISA` | `visa` | no | `VISTA` | **mapping** |
-| `DAPI-01` | `dapi01` | no | `DAPI` | **`--kronos_nuclear_marker`** |
+| Panel name    | match key     | in vocab? | actually is                   | resolution                    |
+| ------------- | ------------- | --------- | ----------------------------- | ----------------------------- |
+| `Collagen 4`  | `collagen4`   | no        | `COLLAGENiv`                  | **mapping**                   |
+| `Cytokeritin` | `cytokeritin` | no        | `CYTOKERATIN` (typo in panel) | **mapping**                   |
+| `VISA`        | `visa`        | no        | `VISTA`                       | **mapping**                   |
+| `DAPI-01`     | `dapi01`      | no        | `DAPI`                        | **`--kronos_nuclear_marker`** |
 
-**Zero `additional_markers.csv` rows are needed for this panel.** Getting this wrong is silently harmful, not an error: writing a CSV row for `Cytokeritin` gives it *data-derived* stats and a *live-computed* BioLinkBERT embedding, instead of the *pretrained* stats and embedding it would inherit by mapping to `CYTOKERATIN`. Strictly worse, and invisible.
+**Zero `additional_markers.csv` rows are needed for this panel.** Getting this wrong is silently harmful, not an error: writing a CSV row for `Cytokeritin` gives it _data-derived_ stats and a _live-computed_ BioLinkBERT embedding, instead of the _pretrained_ stats and embedding it would inherit by mapping to `CYTOKERATIN`. Strictly worse, and invisible.
 
 **Therefore PREFLIGHT must emit ranked suggestions for every novel marker**, and the docs must present mapping as the first resort. Suggestions can reuse CORAL's ranking (`src/coral/markers/normalize.py:157` — substring containment, then shared prefix, then `difflib` ratio), which on this panel returns exactly the right answer for all four. Advisory only, never auto-applied — an auto-applied fuzzy match is the `CD24 → CD4` bug the model authors deliberately designed out.
 
@@ -280,7 +280,7 @@ sample,run_backsub,run_mesmer,tiff,nuclear_channel,membrane_channels
 cHL_01,true,true,/data/cHL_01.ome.tiff,DAPI-01,Cytokeritin:CD45
 ```
 
-`nuclear_channel` now does double duty: the segmenter input, *and* the default `preferred_dapi` for KRONOS2.
+`nuclear_channel` now does double duty: the segmenter input, _and_ the default `preferred_dapi` for KRONOS2.
 
 ### 2. Params
 
@@ -300,9 +300,9 @@ params {
 
 ```json
 {
-  "Collagen 4":  "COLLAGENiv",
+  "Collagen 4": "COLLAGENiv",
   "Cytokeritin": "CYTOKERATIN",
-  "VISA":        "VISTA"
+  "VISA": "VISTA"
 }
 ```
 
@@ -346,17 +346,17 @@ KRONOS2 preflight — 1 sample, 49 channels
 
 ### KRONOS2PREFLIGHT — once, `process_single`, **no model, no torch**
 
-| | |
-|---|---|
-| Input | `.collect()` of all `[meta, tiff]`; optional `additional_markers.csv` |
-| Reads | TIFF **metadata only** (OME-XML → ImageJ → numbered fallback) |
-| Does | Reads `marker_metadata.csv` + `marker_utils.py` from `kronos_model_path`; applies `marker_match_key` to the union of channel names (after alias/isotope normalisation, section 2); classifies novel markers; validates CSV rows |
-| Output | `novel_markers.json`, `preflight_report.txt` |
+|            |                                                                                                                                                                                                                                 |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Input      | `.collect()` of all `[meta, tiff]`; optional `additional_markers.csv`                                                                                                                                                           |
+| Reads      | TIFF **metadata only** (OME-XML → ImageJ → numbered fallback)                                                                                                                                                                   |
+| Does       | Reads `marker_metadata.csv` + `marker_utils.py` from `kronos_model_path`; applies `marker_match_key` to the union of channel names (after alias/isotope normalisation, section 2); classifies novel markers; validates CSV rows |
+| Output     | `novel_markers.json`, `preflight_report.txt`                                                                                                                                                                                    |
 | Fails when | A novel marker has no CSV row, or a row leaves a required text column blank, or `kronos_additional_markers` is null and novel markers exist and `kronos_allow_novel_defaults` is false — each error naming the offending marker |
 
 Required text columns (user-supplied; they feed BioLinkBERT and cannot be invented): `marker_name, compartment, family, family_desc, marker_full_name`. `mean`/`std` are left blank for us to fill.
 
-**Two hard constraints, read off `modeling_kronos2.py:88-154` — both reject *before* any state change, so they are cheap to validate in PREFLIGHT:**
+**Two hard constraints, read off `modeling_kronos2.py:88-154` — both reject _before_ any state change, so they are cheap to validate in PREFLIGHT:**
 
 1. **Novel markers must reuse an existing `compartment` and `family`.** A new category has no row in the model's fixed embedding tables and raises `ValueError`. The allowed sets, extracted from the real `marker_metadata.csv`:
 
@@ -371,11 +371,11 @@ PREFLIGHT should validate both up front so the user learns at minute zero, not a
 
 ### KRONOS2PREPARE — per sample, `process_medium`, **no model**
 
-| | |
-|---|---|
-| Input | `[meta, tiff, wc_mask]` + `novel_markers.json` |
-| Does | For each novel marker present on this slide: take the region's pixels, scale by the dtype divisor to `[0,1]`, compute `(n, mean, var)` with `ddof=1` |
-| Output | `<sample>_partials.json` — `{sample, region_key, scaling, stats: {marker: {n, mean, var}}}` |
+|        |                                                                                                                                                      |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Input  | `[meta, tiff, wc_mask]` + `novel_markers.json`                                                                                                       |
+| Does   | For each novel marker present on this slide: take the region's pixels, scale by the dtype divisor to `[0,1]`, compute `(n, mean, var)` with `ddof=1` |
+| Output | `<sample>_partials.json` — `{sample, region_key, scaling, stats: {marker: {n, mean, var}}}`                                                          |
 
 Pure numpy, no GPU, no model. Mirrors `Kronos2Extractor.prepare_slide` (`src/coral/features/kronos2.py:192-243`).
 
@@ -392,11 +392,11 @@ Fills **only blank** `mean`/`std` cells — a user-supplied value is never overw
 
 ### KRONOS2EMBEDDINGS — per sample, `process_gpu`, model on GPU
 
-| | |
-|---|---|
-| Input | `[meta, tiff, wc_mask, geojson]` + filled `additional_markers.csv` (optional) |
-| Does | `register_additional_markers(csv)` if present → centroids → isolated patches → `model.preprocess(...)` → `model(t, markers)` → 768-d CLS |
-| Output | merged GeoJSON (`*.geojson{,.gz}`) + `_marker_report.txt` — **no CSV** |
+|        |                                                                                                                                          |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Input  | `[meta, tiff, wc_mask, geojson]` + filled `additional_markers.csv` (optional)                                                            |
+| Does   | `register_additional_markers(csv)` if present → centroids → isolated patches → `model.preprocess(...)` → `model(t, markers)` → 768-d CLS |
+| Output | merged GeoJSON (`*.geojson{,.gz}`) + `_marker_report.txt` — **no CSV**                                                                   |
 
 Core loop, per `src/coral/features/kronos2.py:245-381`:
 
@@ -473,7 +473,7 @@ v1 emitted both a `*_kronos_embeddings.csv` and a GeoJSON carrying the same vect
 
 `--output-geojson` becomes the primary output path; the marker report derives its name from it rather than from the CSV path (v1 did `args.output.replace(".csv", "_marker_report.txt")`, which must be rewritten).
 
-**Size, for the record.** 768 floats per cell as JSON keys is roughly 29 KB/cell uncompressed — ~2.9 GB at 100k cells, ~29 GB at 1M, before `gzip_geojson` (typically 3-4× reduction). This is 2× the v1 384-d payload. If it becomes unworkable on a large slide, the fallback is to inline a reduced set (first *k* PCs) and write full vectors separately — deliberately **not** built now, since it adds back the second-artefact problem this decision removes.
+**Size, for the record.** 768 floats per cell as JSON keys is roughly 29 KB/cell uncompressed — ~2.9 GB at 100k cells, ~29 GB at 1M, before `gzip_geojson` (typically 3-4× reduction). This is 2× the v1 384-d payload. If it becomes unworkable on a large slide, the fallback is to inline a reduced set (first _k_ PCs) and write full vectors separately — deliberately **not** built now, since it adds back the second-artefact problem this decision removes.
 
 **Keep from v1**, both genuinely good and easy to lose in a rewrite:
 
@@ -509,14 +509,14 @@ kronos2_list_markers.py --model-path $KRONOS2_MODEL_DIR --check CD8,FoxA1,HLA-DR
 
 ### 11.2 Nothing is committed — generate locally (decided 2026-07-28)
 
-`MahmoodLab/KRONOS2` is **CC-BY-NC-ND-4.0**. The *NoDerivatives* clause makes committing a vocabulary table derived from their `marker_metadata.csv` into this **public** repo a redistribution question we do not need to have. So:
+`MahmoodLab/KRONOS2` is **CC-BY-NC-ND-4.0**. The _NoDerivatives_ clause makes committing a vocabulary table derived from their `marker_metadata.csv` into this **public** repo a redistribution question we do not need to have. So:
 
 - **No vendored artefacts.** `assets/kronos2_marker_vocabulary.csv` and `docs/kronos2_markers.md` are **not** created.
 - The generator reads `marker_metadata.csv` from the user's own `kronos_model_path` and writes wherever they point it — a private location, an internal wiki, or the run's `--outdir`.
 - `.gitignore` blocks `kronos2_marker_vocabulary.csv`, `kronos2_markers.md`, `marker_metadata.csv`, and `KRONOS2/` so a generated copy can never be committed by accident.
 - Public docs **link** to the HF model page rather than mirroring its contents.
 
-**This deletes the drift problem rather than managing it.** An earlier draft had a whole subsection on revision hashes and preflight drift warnings, needed only because a committed copy could go stale. Generating from the user's own model directory means the list is *by construction* the version they are running. That subsection is gone.
+**This deletes the drift problem rather than managing it.** An earlier draft had a whole subsection on revision hashes and preflight drift warnings, needed only because a committed copy could go stale. Generating from the user's own model directory means the list is _by construction_ the version they are running. That subsection is gone.
 
 **What public docs may still state**, because it is an API constraint rather than a copy of their dataset — a user physically cannot author a valid `additional_markers.csv` without it:
 
@@ -526,20 +526,20 @@ kronos2_list_markers.py --model-path $KRONOS2_MODEL_DIR --check CD8,FoxA1,HLA-DR
 
 This is the same reasoning as documenting an enum's permitted values. The 288-row stats table itself stays unmirrored.
 
-**Still fine to commit:** `docs/examples/kronos_marker_mapping.json` and `docs/examples/additional_markers.csv`. These are *user-authored config*, not copies of KRONOS2 data — between them they name five markers, in the same way any config example names the API values it uses.
+**Still fine to commit:** `docs/examples/kronos_marker_mapping.json` and `docs/examples/additional_markers.csv`. These are _user-authored config_, not copies of KRONOS2 data — between them they name five markers, in the same way any config example names the API values it uses.
 
 ---
 
 ## 12. Testing
 
-| Test | Covers |
-|---|---|
-| `nf-test` stub for each of the 4 modules | Wiring without weights — runs in CI |
-| `conf/test_mesmer_kronos2.config` | Full path; needs `KRONOS2_MODEL_DIR`, so gated to a manual/nightly workflow |
-| Synthetic panel `DAPI` + `CD45` | The **zero-novel-markers early exit** — the common path |
-| Synthetic panel + one nonsense channel name | The novel path: preflight → prepare → pool → register |
-| `tests/data/comet/additional_markers.csv` | Fixture with text columns filled, `mean`/`std` blank |
-| Unit test on the pooling function | Pooled `(mean, std)` equals `np.concatenate` of the inputs — CORAL's own doctest (`additional.py:337-348`) transfers directly |
+| Test                                        | Covers                                                                                                                        |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `nf-test` stub for each of the 4 modules    | Wiring without weights — runs in CI                                                                                           |
+| `conf/test_mesmer_kronos2.config`           | Full path; needs `KRONOS2_MODEL_DIR`, so gated to a manual/nightly workflow                                                   |
+| Synthetic panel `DAPI` + `CD45`             | The **zero-novel-markers early exit** — the common path                                                                       |
+| Synthetic panel + one nonsense channel name | The novel path: preflight → prepare → pool → register                                                                         |
+| `tests/data/comet/additional_markers.csv`   | Fixture with text columns filled, `mean`/`std` blank                                                                          |
+| Unit test on the pooling function           | Pooled `(mean, std)` equals `np.concatenate` of the inputs — CORAL's own doctest (`additional.py:337-348`) transfers directly |
 
 The last one is worth having as a plain pytest: it is pure arithmetic, needs no weights, and is the piece most likely to be silently wrong.
 
@@ -551,12 +551,12 @@ Also add the missing `tests/data/comet/kronos_marker_metadata.csv` situation to 
 
 Four reviewable PRs rather than one large one:
 
-| PR | Contents | Reviewable without weights? |
-|---|---|---|
-| 1 | Hoist KRONOS out of the 3 subworkflows to top level; **no behaviour change**, still v1 | Yes — pure refactor, existing tests must pass unchanged |
-| 2 | Delete v1; add `kronos2_common.py` + `KRONOS2EMBEDDINGS`; dtype divisor, nuclear hint, cell isolation; params + schema + docs | Stub tests yes; numbers need weights |
-| 3 | `KRONOS2PREFLIGHT` + novel-marker detection and fail-fast | Yes (stub + unit) |
-| 4 | `KRONOS2PREPARE` + `KRONOS2POOLSTATS` + `register_additional_markers` | Pooling unit test yes; end-to-end needs weights |
+| PR  | Contents                                                                                                                      | Reviewable without weights?                             |
+| --- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| 1   | Hoist KRONOS out of the 3 subworkflows to top level; **no behaviour change**, still v1                                        | Yes — pure refactor, existing tests must pass unchanged |
+| 2   | Delete v1; add `kronos2_common.py` + `KRONOS2EMBEDDINGS`; dtype divisor, nuclear hint, cell isolation; params + schema + docs | Stub tests yes; numbers need weights                    |
+| 3   | `KRONOS2PREFLIGHT` + novel-marker detection and fail-fast                                                                     | Yes (stub + unit)                                       |
+| 4   | `KRONOS2PREPARE` + `KRONOS2POOLSTATS` + `register_additional_markers`                                                         | Pooling unit test yes; end-to-end needs weights         |
 
 PR 1 being a pure refactor is the point — it makes the v2 diff in PR 2 readable, and it can be validated against the existing test suite before any model risk is introduced.
 

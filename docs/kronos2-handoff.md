@@ -62,6 +62,7 @@ omission is exactly what let the backsub-UUID defect through the first time.
    points at `community.wave.seqera.io/library/kronos2embeddings:PLACEHOLDER`.
    Build it via Seqera Wave from the module's `environment.yml` (as KRONOS1's
    was) and pin the digest. Two gotchas found the hard way:
+
    - The reference must be **fully qualified**, or `docker.registry = 'quay.io'`
      in `nextflow.config` silently rewrites it and you get a 401 from quay.
    - A **pip**-based build additionally needs `libexpat1` (rasterio) and
@@ -76,18 +77,18 @@ omission is exactly what let the backsub-UUID defect through the first time.
 
 ## Local environment built today
 
-| Component | Detail |
-|---|---|
-| WSL2 | Ubuntu 24.04, systemd PID 1, `/dev/dxg` present |
-| Java | OpenJDK 21 (Nextflow supports 17–21; the Windows JDK 25 is out of range) |
-| Nextflow | 24.04.2, pinned to the CI matrix |
-| nf-test | 0.9.5 |
-| Docker | 29.1.3 + nvidia-container-toolkit, GPU verified in-container |
-| KRONOS2 weights | `/opt/KRONOS2` (421 MB, full snapshot minus `demo_image/`) |
-| KRONOS2 venv | `/opt/k2env` (torch 2.6.0+cu124) |
-| Test image | `kronos2embeddings:local2` (9.45 GB, local only) |
-| Cellpose model | `/opt/cellpose_models` (1.2 GB `cpsam`) |
-| Repo clone | `/root/sp_segment` — run from here, **not** `/mnt/c` |
+| Component       | Detail                                                                   |
+| --------------- | ------------------------------------------------------------------------ |
+| WSL2            | Ubuntu 24.04, systemd PID 1, `/dev/dxg` present                          |
+| Java            | OpenJDK 21 (Nextflow supports 17–21; the Windows JDK 25 is out of range) |
+| Nextflow        | 24.04.2, pinned to the CI matrix                                         |
+| nf-test         | 0.9.5                                                                    |
+| Docker          | 29.1.3 + nvidia-container-toolkit, GPU verified in-container             |
+| KRONOS2 weights | `/opt/KRONOS2` (421 MB, full snapshot minus `demo_image/`)               |
+| KRONOS2 venv    | `/opt/k2env` (torch 2.6.0+cu124)                                         |
+| Test image      | `kronos2embeddings:local2` (9.45 GB, local only)                         |
+| Cellpose model  | `/opt/cellpose_models` (1.2 GB `cpsam`)                                  |
+| Repo clone      | `/root/sp_segment` — run from here, **not** `/mnt/c`                     |
 
 Two things that will bite if forgotten:
 
@@ -102,13 +103,13 @@ Two things that will bite if forgotten:
    `sopa:2.1.11-cellpose`, but the 1.2 GB `cpsam` checkpoint is fetched from
    `cellpose.org` at runtime by each of ~18 tasks. This caused a CI failure on
    this PR (`HTTP 429`) and a local `PytorchStreamReader failed reading zip
-   archive` from a truncated download. Caching it cut the `sopa_segment` test
+archive` from a truncated download. Caching it cut the `sopa_segment` test
    from 1548 s to 239 s. It also makes snapshots drift over time: unmodified
    `dev` fails its own committed snapshot in this environment.
 
 2. **`cellpose_model_type` is a no-op.** The container ships cellpose 4.0.8,
    which logs `model_type argument is not used in v4.0.1+. Ignoring this
-   argument` and always uses `cpsam`. The `cyto3` default has been silently
+argument` and always uses `cpsam`. The `cyto3` default has been silently
    discarded on every run, so past results attributed to cyto3 were cpsam.
 
 3. **Stub runs were broken for the whole Cellpose path** — fixed here, since it

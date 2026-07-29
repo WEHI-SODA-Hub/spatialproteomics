@@ -193,8 +193,8 @@ If no token is provided, CellSAM uses the bundled default model.
 KRONOS2 is an optional step that runs after cell measurement and writes a
 768-dimensional embedding for every cell back into the cellmeasurement GeoJSON.
 
-Cells are taken from the CELLMEASUREMENT GeoJSON polygons, so embedding row *i*
-always corresponds to cell feature *i* -- the join is exact by construction
+Cells are taken from the CELLMEASUREMENT GeoJSON polygons, so embedding row _i_
+always corresponds to cell feature _i_ -- the join is exact by construction
 rather than by spatial matching.
 
 To enable KRONOS2:
@@ -241,7 +241,7 @@ and applies the marker-aware z-score internally.
 KRONOS2 matches marker names on a **separator-insensitive key with no alias or
 fuzzy step** (`CD-8`, `CD_8` and `CD8` all match; `Cytokeritin` does not match
 `CYTOKERATIN`). An unmatched marker is not dropped -- it is normalised with
-*default* statistics, which silently degrades that channel.
+_default_ statistics, which silently degrades that channel.
 
 The run therefore **fails by default** when any marker is unmatched, listing the
 offending names. Most are naming variants rather than new biology, so the fix is
@@ -267,16 +267,16 @@ statistics.
 
 #### KRONOS2 embedding parameters
 
-| Parameter Name                | Description                                                                                                                                                                            |
-| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `enable_kronos`               | Enable the KRONOS2 embedding step (default: `false`).                                                                                                                                  |
-| `kronos_model_path`           | **Required** path to a full KRONOS2 snapshot directory (or a Hugging Face repo id).                                                                                                    |
-| `kronos_patch_size`           | Side length in pixels of the square patch centred on each cell (default: `64`).                                                                                                        |
+| Parameter Name                | Description                                                                                                                                                                             |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `enable_kronos`               | Enable the KRONOS2 embedding step (default: `false`).                                                                                                                                   |
+| `kronos_model_path`           | **Required** path to a full KRONOS2 snapshot directory (or a Hugging Face repo id).                                                                                                     |
+| `kronos_patch_size`           | Side length in pixels of the square patch centred on each cell (default: `64`).                                                                                                         |
 | `kronos_batch_size`           | Patches per inference batch (default: `16`). KRONOS2 runs fp32 and cuBLAS picks batch-dependent kernels, so changing this shifts embeddings slightly; `16` reproduces published values. |
-| `kronos_num_workers`          | PyTorch DataLoader worker processes (default: `4`).                                                                                                                                    |
+| `kronos_num_workers`          | PyTorch DataLoader worker processes (default: `4`).                                                                                                                                     |
 | `kronos_max_value`            | Override the intensity divisor. Unset (default) derives it from the image dtype -- `uint8`=255, `uint16`=65535, float=400 -- matching KRONOS2's own scaling factor.                     |
-| `kronos_marker_mapping`       | JSON file or inline JSON mapping channel names onto KRONOS2 vocabulary names (default: `null`).                                                                                        |
-| `kronos_nuclear_marker`       | Override the nuclear stain used as `preferred_dapi`. Defaults to the samplesheet's `nuclear_channel`.                                                                                  |
+| `kronos_marker_mapping`       | JSON file or inline JSON mapping channel names onto KRONOS2 vocabulary names (default: `null`).                                                                                         |
+| `kronos_nuclear_marker`       | Override the nuclear stain used as `preferred_dapi`. Defaults to the samplesheet's `nuclear_channel`.                                                                                   |
 | `kronos_isolate_cell`         | Zero pixels outside the target cell so each embedding describes that cell rather than its surrounding neighbourhood (default: `true`).                                                  |
 | `kronos_allow_novel_defaults` | Proceed when markers fall outside the vocabulary, accepting default normalisation stats (default: `false`).                                                                             |
 
