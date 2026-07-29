@@ -11,7 +11,7 @@
                     ]
                 ],
                 "1": [
-                    "versions.yml:md5,636013292e68cc0ec53c84d815aafaf1"
+                    "versions.yml:md5,07f151659f95fdb4ea04ecc024ed3411"
                 ],
                 "cellpose_boundaries": [
                     [
@@ -22,11 +22,11 @@
                     ]
                 ],
                 "versions": [
-                    "versions.yml:md5,636013292e68cc0ec53c84d815aafaf1"
+                    "versions.yml:md5,07f151659f95fdb4ea04ecc024ed3411"
                 ]
             }
         ],
-        "timestamp": "2026-07-29T18:01:27.244337553",
+        "timestamp": "2026-07-30T00:06:08.281617401",
         "meta": {
             "nf-test": "0.9.5",
             "nextflow": "24.04.2"

@@ -11,7 +11,7 @@
                     ]
                 ],
                 "1": [
-                    "versions.yml:md5,8cfa7bbbe0940fcc528b1bf4b9f3ab36"
+                    "versions.yml:md5,3f88a0a9f27b109084e72b6c31fb5960"
                 ],
                 "cellpose_parquet": [
                     [
@@ -22,11 +22,11 @@
                     ]
                 ],
                 "versions": [
-                    "versions.yml:md5,8cfa7bbbe0940fcc528b1bf4b9f3ab36"
+                    "versions.yml:md5,3f88a0a9f27b109084e72b6c31fb5960"
                 ]
             }
         ],
-        "timestamp": "2026-07-29T18:01:36.97033722",
+        "timestamp": "2026-07-30T00:06:13.675350979",
         "meta": {
             "nf-test": "0.9.5",
             "nextflow": "24.04.2"
