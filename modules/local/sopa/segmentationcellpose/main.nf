@@ -11,8 +11,8 @@ process SOPA_SEGMENTATIONCELLPOSE {
 
     conda "${moduleDir}/environment.yml"
     container "${workflow.containerEngine == 'apptainer' && !task.ext.singularity_pull_docker_container
-        ? 'docker://community.wave.seqera.io/library/python_pip_sopacellpose_cellpose:06f04d6833aa089b'
-        : 'community.wave.seqera.io/library/python_pip_sopacellpose_cellpose:06f04d6833aa089b'}"
+        ? 'docker://community.wave.seqera.io/library/python_pip_sopacellpose_cellpose:2bb51160896b005b'
+        : 'community.wave.seqera.io/library/python_pip_sopacellpose_cellpose:2bb51160896b005b'}"
 
     input:
     tuple val(meta), path(zarr), val(index), val(n_patches), val(nuclear_channel), val(membrane_channel)
