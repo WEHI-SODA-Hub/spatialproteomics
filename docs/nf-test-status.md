@@ -7,10 +7,9 @@ and what is not, so nobody has to re-derive it.
 
 ## Repaired
 
-The broken test and the `backgroundsubtract` snapshot are committed. The
-regenerated snapshots land separately, once the phase-2 verification described
-below has passed — a regenerated snapshot that has only been checked by the run
-that wrote it is not evidence of anything.
+All of the below are committed. Every regenerated snapshot was reproduced by a
+second run without `--update-snapshot` before landing — a snapshot checked only
+by the run that wrote it is not evidence of anything.
 
 | Test                                                  | Was                                                                        |
 | ----------------------------------------------------- | -------------------------------------------------------------------------- |
