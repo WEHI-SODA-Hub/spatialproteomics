@@ -58,16 +58,14 @@ omission is exactly what let the backsub-UUID defect through the first time.
 
 ## Blocked on you
 
-1. **The container is a placeholder.** `modules/local/kronos2embeddings/main.nf`
-   points at `community.wave.seqera.io/library/kronos2embeddings:PLACEHOLDER`.
-   Build it via Seqera Wave from the module's `environment.yml` (as KRONOS1's
-   was) and pin the digest. Two gotchas found the hard way:
-
-   - The reference must be **fully qualified**, or `docker.registry = 'quay.io'`
-     in `nextflow.config` silently rewrites it and you get a 401 from quay.
-   - A **pip**-based build additionally needs `libexpat1` (rasterio) and
-     `procps` (Nextflow's `ps` metrics). The conda `environment.yml` is fine
-     as-is because conda-forge rasterio bundles its own libs.
+1. ~~**The container is a placeholder.**~~ **Done.** Built with the Wave CLI and
+   pinned: `community.wave.seqera.io/library/kronos2embeddings:70590359503eec08`.
+   Wave's anonymous tier publishes to the community registry, so no Seqera
+   account was needed. Verified to carry torch 2.6.0+cu124 with a working CUDA
+   runtime, and to reproduce a standalone run to cosine 1.000000. Two gotchas
+   found the hard way: the reference must stay **fully qualified** or
+   `docker.registry='quay.io'` rewrites it into a 401; and rasterio was dropped
+   for Pillow after its conda libtiff clashed with libjpeg under Nextflow.
 
 2. **Rotate the DeepCell token** — it was pasted in plaintext during this
    session. It is registered as a Nextflow secret in WSL
