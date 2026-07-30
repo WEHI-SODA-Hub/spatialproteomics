@@ -17,11 +17,6 @@ include { imNotification            } from '../../nf-core/utils_nfcore_pipeline'
 include { UTILS_NFCORE_PIPELINE     } from '../../nf-core/utils_nfcore_pipeline'
 include { UTILS_NEXTFLOW_PIPELINE   } from '../../nf-core/utils_nextflow_pipeline'
 
-// Built-in cellpose models, as reported by `cellpose.models.MODEL_NAMES` in
-// the pinned container (cellpose 4.2.1.1). Anything else given to
-// cellpose_pretrained_model is treated as a path to a custom model.
-def CELLPOSE_BUILTIN_MODELS = ['cpsam_v2', 'cpsam', 'cpdino', 'cpdino-vitb']
-
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     SUBWORKFLOW TO INITIALISE PIPELINE
@@ -71,12 +66,17 @@ workflow PIPELINE_INITIALISATION {
     //
     // Fail before any compute on a model that cannot be resolved.
     //
+    // Built-in cellpose models, as reported by `cellpose.models.MODEL_NAMES` in
+    // the pinned container (cellpose 4.2.1.1). Anything else given to
+    // cellpose_pretrained_model is treated as a path to a custom model.
+    //
     // cellpose_pretrained_model takes either a built-in model name or a path to
     // a custom model, so only validate as a path when it is not a known name.
     // Cellpose does not error on a --pretrained-model path that does not exist:
     // it falls back to its built-in weights, so a typo produced a full,
     // plausible, silently-wrong run.
     //
+    def CELLPOSE_BUILTIN_MODELS = ['cpsam_v2', 'cpsam', 'cpdino', 'cpdino-vitb']
     if (params.cellpose_pretrained_model
         && !CELLPOSE_BUILTIN_MODELS.contains(params.cellpose_pretrained_model)
         && !file(params.cellpose_pretrained_model).exists()) {
