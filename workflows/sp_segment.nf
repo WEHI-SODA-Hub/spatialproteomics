@@ -114,19 +114,25 @@ workflow SP_SEGMENT {
     // sited any lower would fetch the weights up to four times and could not
     // guarantee that every patch task in a run read the same file.
     //
-    // The trigger channel is the Cellpose samplesheet reduced to a constant:
-    // `.first()` emits nothing when no sample runs Cellpose, so Mesmer- and
-    // CellSAM-only runs never pay the ~1.2 GB download, and mapping to a
+    // The trigger channel is the Cellpose samplesheet reduced to the model
+    // name: `.first()` emits nothing when no sample runs Cellpose, so Mesmer-
+    // and CellSAM-only runs never pay the multi-GB download, and mapping to a
     // constant keeps the `-resume` cache key independent of which sample
-    // happened to arrive first.
+    // happened to arrive first. Using the model name as that constant means
+    // changing the model correctly invalidates the cached download.
+    //
+    // A custom model path is loaded directly by cellpose and needs no download,
+    // so in that case an empty staged directory is enough.
     //
     if (params.cellpose_models_dir) {
         ch_cellpose_models = Channel.value(file(params.cellpose_models_dir, checkIfExists: true))
+    } else if (file(params.cellpose_pretrained_model).exists()) {
+        ch_cellpose_models = Channel.value(file(params.cellpose_pretrained_model).parent)
     } else {
         CELLPOSEMODEL(
             ch_cellpose_samplesheet.with_backsub
                 .mix(ch_cellpose_samplesheet.no_backsub)
-                .map { 'cellpose' }
+                .map { params.cellpose_pretrained_model }
                 .first()
         )
         // This is a value channel, because the trigger above is one and

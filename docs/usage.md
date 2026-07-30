@@ -151,15 +151,60 @@ The following Mesmer parameters can be set:
 
 ### Cellpose parameters
 
-| Parameter Name              | Description                                                                     |
-| --------------------------- | ------------------------------------------------------------------------------- |
-| cellpose_diameter           | Diameter of cells in pixels for cellpose.                                       |
-| cellpose_min_area           | Minimum area of cells in square pixels for cellpose.                            |
-| cellpose_flow_threshold     | Flow threshold for cellpose.                                                    |
-| cellpose_cellprob_threshold | Cell probability threshold for cellpose.                                        |
-| cellpose_model_type         | Cellpose model to use for segmentation (e.g., nuclei, cyto, cyto2, cyto3 etc.). |
-| cellpose_pretrained_model   | Path to a pre-trained Cellpose model.                                           |
-| cellpose_models_dir         | Directory of pre-staged Cellpose weights; skips the download entirely.          |
+| Parameter Name              | Description                                                            |
+| --------------------------- | ---------------------------------------------------------------------- |
+| cellpose_diameter           | Diameter of cells in pixels for cellpose.                              |
+| cellpose_min_area           | Minimum area of cells in square pixels for cellpose.                   |
+| cellpose_flow_threshold     | Flow threshold for cellpose.                                           |
+| cellpose_cellprob_threshold | Cell probability threshold for cellpose.                               |
+| cellpose_pretrained_model   | Model to segment with: a built-in name or a path to a custom model.    |
+| cellpose_models_dir         | Directory of pre-staged Cellpose weights; skips the download entirely. |
+
+`cellpose_model_type` has been **removed**. Cellpose 4 ignores `--model-type`
+(it logs `model_type argument is not used in v4.0.1+`), and sopa only reads it
+on the cellpose<4 code path, so the old `cyto3` default was silently discarded
+on every run — results attributed to `cyto3` were actually `cpsam`. Setting it
+now raises an error rather than being ignored again. Use
+`cellpose_pretrained_model`.
+
+#### Choosing a model
+
+| Model         | Notes                                                                              |
+| ------------- | ---------------------------------------------------------------------------------- |
+| `cpsam_v2`    | **Default.** The current Cellpose-SAM model.                                       |
+| `cpsam`       | The previous Cellpose-SAM model. Use for continuity with pre-cellpose-4.2 results. |
+| `cpdino`      | DINOv3 backbone (ViT-L, ~303M parameters), added in cellpose 4.2.                  |
+| `cpdino-vitb` | Smaller ViT-B DINOv3 variant.                                                      |
+
+Anything that is not one of those names is treated as a path to your own
+trained model, and is passed to cellpose untouched.
+
+How far apart are they? Measured on the synthetic COMET test image (119 cells),
+against the pre-upgrade pipeline:
+
+| Run                              | cells | foreground IoU | cells at IoU >= 0.90 |
+| -------------------------------- | ----- | -------------- | -------------------- |
+| `cpsam` on the upgraded pipeline | 119   | 0.9987         | 119/119 (100%)       |
+| `cpsam_v2`                       | 119   | 0.9552         | 112/119 (94%)        |
+| `cpdino`                         | 123   | 0.9251         | 106/119 (89%)        |
+
+The first row is the useful one: upgrading cellpose, sopa and the device while
+holding the model fixed is effectively a no-op, so any difference you see comes
+from the model you choose, not from the upgrade. Note this is a small synthetic
+image — enough to show the models differ, not enough to say which is better for
+your tissue.
+
+The DINO models need Meta's `dinov3` package. The pinned container carries it,
+and only its architecture code is used, so Meta's gated backbone weights are not
+required. See `CITATIONS.md` for the licence terms, which apply if you
+redistribute the container or publish results using those models.
+
+#### GPU
+
+Cellpose segmentation runs on the GPU. Sopa warns that cellpose >=4 "can be slow
+without a GPU", and `SOPA_SEGMENTATIONCELLPOSE` carries the `process_gpu` label
+so one is requested. On a machine without a GPU, override that label — the
+models still run on CPU, just slowly.
 
 #### Cellpose model weights
 
@@ -170,26 +215,34 @@ sample — which caused HTTP 429 rate limiting and truncated downloads. The stag
 copy is also reused by `-resume`.
 
 On a cluster, or anywhere compute nodes have no outbound network, point the
-pipeline at a shared copy instead:
+pipeline at a shared copy instead.
+
+> **Do not put the cache under `/opt`.** Nextflow bind-mounts the host
+> directory containing a staged input, so `--cellpose_models_dir /opt/...`
+> mounts the host's `/opt` over the container's, hiding `/opt/conda` where the
+> Cellpose image is installed. Every task then fails with
+> `sopa: command not found`. The pipeline rejects this at startup rather than
+> letting you discover it that way.
 
 ```bash
 nextflow run WEHI-SODA-Hub/sp_segment --cellpose_models_dir /shared/cellpose_models ...
 ```
 
-That directory is the Cellpose model cache — the one holding `cpsam`. To
-populate it once on a login node:
+That directory is the Cellpose model cache. Populate it once on a login node,
+naming the model you intend to run:
 
 ```bash
 CELLPOSE_LOCAL_MODELS_PATH=/shared/cellpose_models \
-  python -c "from cellpose import models; models.CellposeModel(gpu=False)"
+  python -c "from cellpose import models; models.CellposeModel(gpu=False, pretrained_model='cpsam_v2')"
 ```
 
 Note that this pins _where_ the weights come from, not _which_ weights: the
 container is pinned but cellpose.org serves whatever is current, so results are
 only reproducible over time against a fixed `--cellpose_models_dir`.
 
-`cellpose_pretrained_model` and `cellpose_models_dir` are both checked for
-existence before the pipeline starts any work. Cellpose silently falls back to
+`cellpose_pretrained_model` and `cellpose_models_dir` are both checked before
+the pipeline starts any work — the former only as a path when it is not a
+built-in model name. Cellpose silently falls back to
 its built-in weights when given a `--pretrained-model` path that does not exist,
 so a typo previously produced a complete and plausible but wrong run.
 

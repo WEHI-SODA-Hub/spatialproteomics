@@ -3,12 +3,16 @@
  * directory, so that segmentation tasks read a file instead of each hitting
  * cellpose.org.
  *
- * Without this, every patch task downloads the ~1.2 GB `cpsam` checkpoint
- * itself: a typical run made ~18 identical requests, which has produced both
- * HTTP 429 rate limiting in CI and truncated downloads locally
+ * Without this, every patch task downloads the multi-GB checkpoint itself: a
+ * typical run made ~18 identical requests, which has produced both HTTP 429
+ * rate limiting in CI and truncated downloads locally
  * (`PytorchStreamReader failed reading zip archive`). Staging it once also
  * means `-resume` reuses it across runs, and that every patch task in a run
  * provably reads the same weights.
+ *
+ * Takes the model name so it fetches whatever `cellpose_pretrained_model`
+ * selects. Only built-in names reach this process; a custom model path is
+ * loaded directly by cellpose and needs no download.
  *
  * The container is pinned but the weights are not -- cellpose.org serves
  * whatever is current -- so this does not make results reproducible across
@@ -20,11 +24,11 @@ process CELLPOSEMODEL {
 
     conda "${moduleDir}/environment.yml"
     container "${workflow.containerEngine == 'apptainer' && !task.ext.singularity_pull_docker_container
-        ? 'docker://quentinblampey/sopa:2.1.11-cellpose'
-        : 'docker.io/quentinblampey/sopa:2.1.11-cellpose'}"
+        ? 'docker://community.wave.seqera.io/library/python_pip_sopacellpose_cellpose:2bb51160896b005b'
+        : 'community.wave.seqera.io/library/python_pip_sopacellpose_cellpose:2bb51160896b005b'}"
 
     input:
-    val _trigger
+    val model
 
     output:
     path "cellpose_models", emit: models
@@ -34,10 +38,16 @@ process CELLPOSEMODEL {
     """
     mkdir -p cellpose_models
 
+    # Fetch the model this run will actually segment with, not cellpose's
+    # default. Those differ: cellpose 4.2 defaults to cpsam_v2 while sopa
+    # forces cpsam when --pretrained-model is unset, so downloading the default
+    # would stage a file segmentation never asks for and silently leave every
+    # patch task to fetch its own.
+    #
     # cellpose resolves its model directory at import time, so this must be set
     # before the interpreter starts.
     export CELLPOSE_LOCAL_MODELS_PATH=\$PWD/cellpose_models
-    python -c "from cellpose import models; models.CellposeModel(gpu=False)"
+    python -c "from cellpose import models; models.CellposeModel(gpu=False, pretrained_model='${model}')"
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
@@ -48,7 +58,7 @@ process CELLPOSEMODEL {
     stub:
     """
     mkdir -p cellpose_models
-    touch cellpose_models/cpsam
+    touch cellpose_models/${model}
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

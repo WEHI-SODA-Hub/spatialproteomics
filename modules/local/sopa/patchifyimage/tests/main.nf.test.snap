@@ -9,14 +9,13 @@
                         },
                         "patches_file_image:md5,7c5aba41f53293b712fd86d08ed5b36e",
                         [
-                            ".zattrs:md5,37c0eabf77e69009a9f0c878e69ea262",
-                            ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
-                            "shapes.parquet:md5,b7144210319d46dfcd545b9a59368d79"
+                            "shapes.parquet:md5,69e707b2722c2e83f5d7b0e507d95bcd",
+                            "zarr.json:md5,41794a46835cfd9cc1ada843bf21e42f"
                         ]
                     ]
                 ],
                 "1": [
-                    "versions.yml:md5,19c09bc973a415d2ab3673bc1f8dc96b"
+                    "versions.yml:md5,11341948db2808b223cc6f74b48dcc90"
                 ],
                 "patches": [
                     [
@@ -25,18 +24,17 @@
                         },
                         "patches_file_image:md5,7c5aba41f53293b712fd86d08ed5b36e",
                         [
-                            ".zattrs:md5,37c0eabf77e69009a9f0c878e69ea262",
-                            ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
-                            "shapes.parquet:md5,b7144210319d46dfcd545b9a59368d79"
+                            "shapes.parquet:md5,69e707b2722c2e83f5d7b0e507d95bcd",
+                            "zarr.json:md5,41794a46835cfd9cc1ada843bf21e42f"
                         ]
                     ]
                 ],
                 "versions": [
-                    "versions.yml:md5,19c09bc973a415d2ab3673bc1f8dc96b"
+                    "versions.yml:md5,11341948db2808b223cc6f74b48dcc90"
                 ]
             }
         ],
-        "timestamp": "2026-07-29T18:01:11.332786479",
+        "timestamp": "2026-07-30T00:05:57.464043805",
         "meta": {
             "nf-test": "0.9.5",
             "nextflow": "24.04.2"
@@ -55,7 +53,7 @@
                     ]
                 ],
                 "1": [
-                    "versions.yml:md5,19c09bc973a415d2ab3673bc1f8dc96b"
+                    "versions.yml:md5,11341948db2808b223cc6f74b48dcc90"
                 ],
                 "patches": [
                     [
@@ -67,11 +65,11 @@
                     ]
                 ],
                 "versions": [
-                    "versions.yml:md5,19c09bc973a415d2ab3673bc1f8dc96b"
+                    "versions.yml:md5,11341948db2808b223cc6f74b48dcc90"
                 ]
             }
         ],
-        "timestamp": "2026-07-29T18:01:19.303973157",
+        "timestamp": "2026-07-30T00:06:02.997345528",
         "meta": {
             "nf-test": "0.9.5",
             "nextflow": "24.04.2"

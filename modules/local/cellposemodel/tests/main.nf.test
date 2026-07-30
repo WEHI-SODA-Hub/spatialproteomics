@@ -8,8 +8,8 @@ nextflow_process {
     tag "modules_local"
     tag "cellposemodel"
 
-    // Stub only: the real process downloads ~1.2 GB from cellpose.org, and the
-    // weights are unpinned upstream so their md5 is not snapshottable anyway.
+    // Stub only: the real process downloads multiple GB from cellpose.org, and
+    // the weights are unpinned upstream so their md5 is not snapshottable.
 
     test("cellposemodel - stub") {
 
@@ -18,7 +18,7 @@ nextflow_process {
         when {
             process {
                 """
-                input[0] = 'cellpose'
+                input[0] = 'cpsam_v2'
                 """
             }
         }

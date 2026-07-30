@@ -10,131 +10,136 @@
                         [
                             [
                                 [
-                                    "0.parquet:md5,4a6747973bb75ee97447fd29df81250c",
-                                    "1.parquet:md5,24f3ca0efdca9ccde276c8ee523a61b7",
-                                    "2.parquet:md5,b3c1ae2907f6602619f4f0c0d97b8af4",
-                                    "3.parquet:md5,853320ff4e25af116c81409f4d71b4ae",
-                                    "4.parquet:md5,e145d165c692c925c557b4e5bbb6f24a",
-                                    "5.parquet:md5,37df5f6bc17f2ce180de2a99d0a75780",
-                                    "6.parquet:md5,49178fd79ba02f32c9299ac36b79e008",
-                                    "7.parquet:md5,8914b485d8bdca6360e80cf6015445cf",
-                                    "8.parquet:md5,41d7d6327666d7c982db00f3005f7ed7"
+                                    "0.parquet:md5,a87466f553760b13b5cd0d8d28fd3936",
+                                    "1.parquet:md5,a70e84e81a474a28af4d6924ac9852e3",
+                                    "2.parquet:md5,2756ad28463b4705d81f617eba6a7690",
+                                    "3.parquet:md5,9570006deedc85ce670cd9235df40071",
+                                    "4.parquet:md5,b79d9156ef6d7b00c74b32b31204803a",
+                                    "5.parquet:md5,d6670803749ac7364e0ae75e447a47f6",
+                                    "6.parquet:md5,11391a79e323cb66ea6aa891f7503b81",
+                                    "7.parquet:md5,58cdd3c82bcf2bb8c403306bde9e6fad",
+                                    "8.parquet:md5,bf99a1aeee1c8e31eba8ff75f83111f6"
                                 ],
                                 "patches_file_image:md5,7c5aba41f53293b712fd86d08ed5b36e"
                             ],
-                            ".zattrs:md5,5b1624cbfb8945c68cb2c81560b6c34a",
-                            ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
                             [
-                                ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
                                 [
-                                    ".zattrs:md5,6eb7f30f2fd06c5545b10ef449c4dfe2",
-                                    ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
                                     [
-                                        ".zarray:md5,693c1a6da0b95db2dcbeef6cdd71799b",
                                         [
                                             [
-                                                "0:md5,145adf06fce482a5962026e847ba34bc"
+                                                [
+                                                    "0:md5,ad1d574cad101bbd8c1b7eea78e11b11"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,fbc5cb9ada63fac23708ec558973b592"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,ad1d574cad101bbd8c1b7eea78e11b11"
+                                                ]
                                             ]
                                         ],
-                                        [
-                                            [
-                                                "0:md5,bda4a0f66e52d9e7010d7315fe223723"
-                                            ]
-                                        ],
-                                        [
-                                            [
-                                                "0:md5,145adf06fce482a5962026e847ba34bc"
-                                            ]
-                                        ]
+                                        "zarr.json:md5,b5cc67ac579a24f7c1963dbe53dedcf1"
                                     ],
                                     [
-                                        ".zarray:md5,d0b0a330e9253e2f8f5371781c776278",
                                         [
                                             [
-                                                "0:md5,5bad6c314a4c2a971a866c29f26737bb"
+                                                [
+                                                    "0:md5,f205b41f21c7fafb14fb4c9243280d9e"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,b691124e3b9e8207febed5c1a0ce12e9"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,f205b41f21c7fafb14fb4c9243280d9e"
+                                                ]
                                             ]
                                         ],
-                                        [
-                                            [
-                                                "0:md5,e0f5c1b3f64c87c25e4a7b86f1667927"
-                                            ]
-                                        ],
-                                        [
-                                            [
-                                                "0:md5,5bad6c314a4c2a971a866c29f26737bb"
-                                            ]
-                                        ]
+                                        "zarr.json:md5,74402fd2b9029b554fcfaf45350cfe28"
                                     ],
                                     [
-                                        ".zarray:md5,52ff9c3163107de97ee187763db1ae23",
                                         [
                                             [
-                                                "0:md5,598ed11b166b832625be3f2ddbd6ecd2"
+                                                [
+                                                    "0:md5,98ef9dc11f22cc931fee7b9e169837dc"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,1c8e07824785e15afb7597de17af2220"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,98ef9dc11f22cc931fee7b9e169837dc"
+                                                ]
                                             ]
                                         ],
-                                        [
-                                            [
-                                                "0:md5,78866146a797efe42b527b15d26ab90e"
-                                            ]
-                                        ],
-                                        [
-                                            [
-                                                "0:md5,598ed11b166b832625be3f2ddbd6ecd2"
-                                            ]
-                                        ]
+                                        "zarr.json:md5,f7510277ca1f9696f932fdc2497df47a"
                                     ],
                                     [
-                                        ".zarray:md5,51793604f7aa317fb8b81244e07e021e",
                                         [
                                             [
-                                                "0:md5,cc8fab9e913769032dd5403aea144cf7"
+                                                [
+                                                    "0:md5,42152c64399fe03dfad62aec553afd6e"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,26a371a3566831ac3c94a99d26462d37"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,42152c64399fe03dfad62aec553afd6e"
+                                                ]
                                             ]
                                         ],
-                                        [
-                                            [
-                                                "0:md5,78ddb0bb5197b0ce35fcfd9d549ee7fa"
-                                            ]
-                                        ],
-                                        [
-                                            [
-                                                "0:md5,cc8fab9e913769032dd5403aea144cf7"
-                                            ]
-                                        ]
+                                        "zarr.json:md5,8eedd97783403d639f7406ca42ddd8d5"
                                     ],
                                     [
-                                        ".zarray:md5,9fe13f0f19532d31d6ef189dd85135a2",
                                         [
                                             [
-                                                "0:md5,f5a4b64cd322ed6cb509fb338d78bbc9"
+                                                [
+                                                    "0:md5,d130dae149bf4fbc38a13f7c8066481c"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,ccf5fe08d9b63a5d97e1e486890c8d2c"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,d130dae149bf4fbc38a13f7c8066481c"
+                                                ]
                                             ]
                                         ],
-                                        [
-                                            [
-                                                "0:md5,0c5dc99a0d1979df7d498a20555f9057"
-                                            ]
-                                        ],
-                                        [
-                                            [
-                                                "0:md5,f5a4b64cd322ed6cb509fb338d78bbc9"
-                                            ]
-                                        ]
-                                    ]
-                                ]
+                                        "zarr.json:md5,a09348fbbc1a94e9f5e75e6a520e7c9e"
+                                    ],
+                                    "zarr.json:md5,f5d1273909f0eff327a7210e7779e0d5"
+                                ],
+                                "zarr.json:md5,457126c0639af2eba0140851c39c1aad"
                             ],
                             [
-                                ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
                                 [
-                                    ".zattrs:md5,37c0eabf77e69009a9f0c878e69ea262",
-                                    ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
-                                    "shapes.parquet:md5,4bb0003cd3135236723901e5a2864c99"
+                                    "shapes.parquet:md5,45f198a7cfd8bb0d3a400b094db91693",
+                                    "zarr.json:md5,41794a46835cfd9cc1ada843bf21e42f"
                                 ],
                                 [
-                                    ".zattrs:md5,37c0eabf77e69009a9f0c878e69ea262",
-                                    ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
-                                    "shapes.parquet:md5,b7144210319d46dfcd545b9a59368d79"
-                                ]
+                                    "shapes.parquet:md5,69e707b2722c2e83f5d7b0e507d95bcd",
+                                    "zarr.json:md5,41794a46835cfd9cc1ada843bf21e42f"
+                                ],
+                                "zarr.json:md5,457126c0639af2eba0140851c39c1aad"
                             ],
-                            "zmetadata:md5,de568dce6924e52a7c25150fb5768b33"
+                            "zarr.json:md5,30f19fe6e8e63d6316c3c730eb21c9d0"
                         ]
                     ]
                 ],
@@ -143,28 +148,28 @@
                         {
                             "id": "test"
                         },
-                        "test_whole-cell.tiff:md5,64c2d4bee525ed8f9ac38b6bee290bec"
+                        "test_whole-cell.tiff:md5,158ead9e2b87b8edb8dd97a68dd4b773"
                     ]
                 ],
                 "2": [
+                    "versions.yml:md5,00c78a84d8e13c2a9159863098a37a28",
                     "versions.yml:md5,49a1720f2a84a49cdc275753a0520d9b",
-                    "versions.yml:md5,6a3b91ba67e84aeb9eb9c3965363c5ac",
-                    "versions.yml:md5,886b81c4ac10fcf574bb5842a7088304",
-                    "versions.yml:md5,9d57548309c95ae9e205acde40c4fc09"
+                    "versions.yml:md5,945a21da2135454e0e736b3d7d6cee79",
+                    "versions.yml:md5,99c3dd3bc2bdcdd11e49b7c31aa33a6b"
                 ],
                 "tiff": [
                     [
                         {
                             "id": "test"
                         },
-                        "test_whole-cell.tiff:md5,64c2d4bee525ed8f9ac38b6bee290bec"
+                        "test_whole-cell.tiff:md5,158ead9e2b87b8edb8dd97a68dd4b773"
                     ]
                 ],
                 "versions": [
+                    "versions.yml:md5,00c78a84d8e13c2a9159863098a37a28",
                     "versions.yml:md5,49a1720f2a84a49cdc275753a0520d9b",
-                    "versions.yml:md5,6a3b91ba67e84aeb9eb9c3965363c5ac",
-                    "versions.yml:md5,886b81c4ac10fcf574bb5842a7088304",
-                    "versions.yml:md5,9d57548309c95ae9e205acde40c4fc09"
+                    "versions.yml:md5,945a21da2135454e0e736b3d7d6cee79",
+                    "versions.yml:md5,99c3dd3bc2bdcdd11e49b7c31aa33a6b"
                 ],
                 "zarr": [
                     [
@@ -174,137 +179,142 @@
                         [
                             [
                                 [
-                                    "0.parquet:md5,4a6747973bb75ee97447fd29df81250c",
-                                    "1.parquet:md5,24f3ca0efdca9ccde276c8ee523a61b7",
-                                    "2.parquet:md5,b3c1ae2907f6602619f4f0c0d97b8af4",
-                                    "3.parquet:md5,853320ff4e25af116c81409f4d71b4ae",
-                                    "4.parquet:md5,e145d165c692c925c557b4e5bbb6f24a",
-                                    "5.parquet:md5,37df5f6bc17f2ce180de2a99d0a75780",
-                                    "6.parquet:md5,49178fd79ba02f32c9299ac36b79e008",
-                                    "7.parquet:md5,8914b485d8bdca6360e80cf6015445cf",
-                                    "8.parquet:md5,41d7d6327666d7c982db00f3005f7ed7"
+                                    "0.parquet:md5,a87466f553760b13b5cd0d8d28fd3936",
+                                    "1.parquet:md5,a70e84e81a474a28af4d6924ac9852e3",
+                                    "2.parquet:md5,2756ad28463b4705d81f617eba6a7690",
+                                    "3.parquet:md5,9570006deedc85ce670cd9235df40071",
+                                    "4.parquet:md5,b79d9156ef6d7b00c74b32b31204803a",
+                                    "5.parquet:md5,d6670803749ac7364e0ae75e447a47f6",
+                                    "6.parquet:md5,11391a79e323cb66ea6aa891f7503b81",
+                                    "7.parquet:md5,58cdd3c82bcf2bb8c403306bde9e6fad",
+                                    "8.parquet:md5,bf99a1aeee1c8e31eba8ff75f83111f6"
                                 ],
                                 "patches_file_image:md5,7c5aba41f53293b712fd86d08ed5b36e"
                             ],
-                            ".zattrs:md5,5b1624cbfb8945c68cb2c81560b6c34a",
-                            ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
                             [
-                                ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
                                 [
-                                    ".zattrs:md5,6eb7f30f2fd06c5545b10ef449c4dfe2",
-                                    ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
                                     [
-                                        ".zarray:md5,693c1a6da0b95db2dcbeef6cdd71799b",
                                         [
                                             [
-                                                "0:md5,145adf06fce482a5962026e847ba34bc"
+                                                [
+                                                    "0:md5,ad1d574cad101bbd8c1b7eea78e11b11"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,fbc5cb9ada63fac23708ec558973b592"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,ad1d574cad101bbd8c1b7eea78e11b11"
+                                                ]
                                             ]
                                         ],
-                                        [
-                                            [
-                                                "0:md5,bda4a0f66e52d9e7010d7315fe223723"
-                                            ]
-                                        ],
-                                        [
-                                            [
-                                                "0:md5,145adf06fce482a5962026e847ba34bc"
-                                            ]
-                                        ]
+                                        "zarr.json:md5,b5cc67ac579a24f7c1963dbe53dedcf1"
                                     ],
                                     [
-                                        ".zarray:md5,d0b0a330e9253e2f8f5371781c776278",
                                         [
                                             [
-                                                "0:md5,5bad6c314a4c2a971a866c29f26737bb"
+                                                [
+                                                    "0:md5,f205b41f21c7fafb14fb4c9243280d9e"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,b691124e3b9e8207febed5c1a0ce12e9"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,f205b41f21c7fafb14fb4c9243280d9e"
+                                                ]
                                             ]
                                         ],
-                                        [
-                                            [
-                                                "0:md5,e0f5c1b3f64c87c25e4a7b86f1667927"
-                                            ]
-                                        ],
-                                        [
-                                            [
-                                                "0:md5,5bad6c314a4c2a971a866c29f26737bb"
-                                            ]
-                                        ]
+                                        "zarr.json:md5,74402fd2b9029b554fcfaf45350cfe28"
                                     ],
                                     [
-                                        ".zarray:md5,52ff9c3163107de97ee187763db1ae23",
                                         [
                                             [
-                                                "0:md5,598ed11b166b832625be3f2ddbd6ecd2"
+                                                [
+                                                    "0:md5,98ef9dc11f22cc931fee7b9e169837dc"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,1c8e07824785e15afb7597de17af2220"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,98ef9dc11f22cc931fee7b9e169837dc"
+                                                ]
                                             ]
                                         ],
-                                        [
-                                            [
-                                                "0:md5,78866146a797efe42b527b15d26ab90e"
-                                            ]
-                                        ],
-                                        [
-                                            [
-                                                "0:md5,598ed11b166b832625be3f2ddbd6ecd2"
-                                            ]
-                                        ]
+                                        "zarr.json:md5,f7510277ca1f9696f932fdc2497df47a"
                                     ],
                                     [
-                                        ".zarray:md5,51793604f7aa317fb8b81244e07e021e",
                                         [
                                             [
-                                                "0:md5,cc8fab9e913769032dd5403aea144cf7"
+                                                [
+                                                    "0:md5,42152c64399fe03dfad62aec553afd6e"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,26a371a3566831ac3c94a99d26462d37"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,42152c64399fe03dfad62aec553afd6e"
+                                                ]
                                             ]
                                         ],
-                                        [
-                                            [
-                                                "0:md5,78ddb0bb5197b0ce35fcfd9d549ee7fa"
-                                            ]
-                                        ],
-                                        [
-                                            [
-                                                "0:md5,cc8fab9e913769032dd5403aea144cf7"
-                                            ]
-                                        ]
+                                        "zarr.json:md5,8eedd97783403d639f7406ca42ddd8d5"
                                     ],
                                     [
-                                        ".zarray:md5,9fe13f0f19532d31d6ef189dd85135a2",
                                         [
                                             [
-                                                "0:md5,f5a4b64cd322ed6cb509fb338d78bbc9"
+                                                [
+                                                    "0:md5,d130dae149bf4fbc38a13f7c8066481c"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,ccf5fe08d9b63a5d97e1e486890c8d2c"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,d130dae149bf4fbc38a13f7c8066481c"
+                                                ]
                                             ]
                                         ],
-                                        [
-                                            [
-                                                "0:md5,0c5dc99a0d1979df7d498a20555f9057"
-                                            ]
-                                        ],
-                                        [
-                                            [
-                                                "0:md5,f5a4b64cd322ed6cb509fb338d78bbc9"
-                                            ]
-                                        ]
-                                    ]
-                                ]
+                                        "zarr.json:md5,a09348fbbc1a94e9f5e75e6a520e7c9e"
+                                    ],
+                                    "zarr.json:md5,f5d1273909f0eff327a7210e7779e0d5"
+                                ],
+                                "zarr.json:md5,457126c0639af2eba0140851c39c1aad"
                             ],
                             [
-                                ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
                                 [
-                                    ".zattrs:md5,37c0eabf77e69009a9f0c878e69ea262",
-                                    ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
-                                    "shapes.parquet:md5,4bb0003cd3135236723901e5a2864c99"
+                                    "shapes.parquet:md5,45f198a7cfd8bb0d3a400b094db91693",
+                                    "zarr.json:md5,41794a46835cfd9cc1ada843bf21e42f"
                                 ],
                                 [
-                                    ".zattrs:md5,37c0eabf77e69009a9f0c878e69ea262",
-                                    ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
-                                    "shapes.parquet:md5,b7144210319d46dfcd545b9a59368d79"
-                                ]
+                                    "shapes.parquet:md5,69e707b2722c2e83f5d7b0e507d95bcd",
+                                    "zarr.json:md5,41794a46835cfd9cc1ada843bf21e42f"
+                                ],
+                                "zarr.json:md5,457126c0639af2eba0140851c39c1aad"
                             ],
-                            "zmetadata:md5,de568dce6924e52a7c25150fb5768b33"
+                            "zarr.json:md5,30f19fe6e8e63d6316c3c730eb21c9d0"
                         ]
                     ]
                 ]
             }
         ],
-        "timestamp": "2026-07-29T18:44:55.390477082",
+        "timestamp": "2026-07-30T00:13:07.743681143",
         "meta": {
             "nf-test": "0.9.5",
             "nextflow": "24.04.2"
@@ -610,131 +620,136 @@
                         [
                             [
                                 [
-                                    "0.parquet:md5,1d2c1c87753d2309c573ddfc3172cc89",
-                                    "1.parquet:md5,09f4e03fa7315b55617d6efca6673530",
-                                    "2.parquet:md5,979aac9045f6d47d25253d9e25c8b8ba",
-                                    "3.parquet:md5,94e867c31d131edd0dac23e6739bf9d6",
-                                    "4.parquet:md5,14353d5cb3dad58f08fee6e9b30c9249",
-                                    "5.parquet:md5,050cf6705e9ac6e0c053ee586953853a",
-                                    "6.parquet:md5,18a3366b2cdcbf4dc61bab61ca97e796",
-                                    "7.parquet:md5,02371670452a0742eddeb01ba96e99d5",
-                                    "8.parquet:md5,4d292caa381a54949733b06c9d6f907f"
+                                    "0.parquet:md5,dcd2bdf452b30339beede41baec3bcd3",
+                                    "1.parquet:md5,1712e61563e768d359fb8c9e767a6932",
+                                    "2.parquet:md5,bc77c8b1974bb6e18bd59a54f92e0a7a",
+                                    "3.parquet:md5,eebfbc2d1446f98039c389389696cdd5",
+                                    "4.parquet:md5,82dbe72582f32a65918439ccb30f0e4f",
+                                    "5.parquet:md5,beb6adfbcf5ff463b25ee44bc9c8b6cf",
+                                    "6.parquet:md5,1809f26b3e0f88ffe83764b39281fc16",
+                                    "7.parquet:md5,a72e59d71553f6ff047dd5e971aec237",
+                                    "8.parquet:md5,d591719713eaa2bbb11b985a0ae68a80"
                                 ],
                                 "patches_file_image:md5,7c5aba41f53293b712fd86d08ed5b36e"
                             ],
-                            ".zattrs:md5,5b1624cbfb8945c68cb2c81560b6c34a",
-                            ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
                             [
-                                ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
                                 [
-                                    ".zattrs:md5,6eb7f30f2fd06c5545b10ef449c4dfe2",
-                                    ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
                                     [
-                                        ".zarray:md5,693c1a6da0b95db2dcbeef6cdd71799b",
                                         [
                                             [
-                                                "0:md5,145adf06fce482a5962026e847ba34bc"
+                                                [
+                                                    "0:md5,ad1d574cad101bbd8c1b7eea78e11b11"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,fbc5cb9ada63fac23708ec558973b592"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,ad1d574cad101bbd8c1b7eea78e11b11"
+                                                ]
                                             ]
                                         ],
-                                        [
-                                            [
-                                                "0:md5,bda4a0f66e52d9e7010d7315fe223723"
-                                            ]
-                                        ],
-                                        [
-                                            [
-                                                "0:md5,145adf06fce482a5962026e847ba34bc"
-                                            ]
-                                        ]
+                                        "zarr.json:md5,b5cc67ac579a24f7c1963dbe53dedcf1"
                                     ],
                                     [
-                                        ".zarray:md5,d0b0a330e9253e2f8f5371781c776278",
                                         [
                                             [
-                                                "0:md5,5bad6c314a4c2a971a866c29f26737bb"
+                                                [
+                                                    "0:md5,f205b41f21c7fafb14fb4c9243280d9e"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,b691124e3b9e8207febed5c1a0ce12e9"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,f205b41f21c7fafb14fb4c9243280d9e"
+                                                ]
                                             ]
                                         ],
-                                        [
-                                            [
-                                                "0:md5,e0f5c1b3f64c87c25e4a7b86f1667927"
-                                            ]
-                                        ],
-                                        [
-                                            [
-                                                "0:md5,5bad6c314a4c2a971a866c29f26737bb"
-                                            ]
-                                        ]
+                                        "zarr.json:md5,74402fd2b9029b554fcfaf45350cfe28"
                                     ],
                                     [
-                                        ".zarray:md5,52ff9c3163107de97ee187763db1ae23",
                                         [
                                             [
-                                                "0:md5,598ed11b166b832625be3f2ddbd6ecd2"
+                                                [
+                                                    "0:md5,98ef9dc11f22cc931fee7b9e169837dc"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,1c8e07824785e15afb7597de17af2220"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,98ef9dc11f22cc931fee7b9e169837dc"
+                                                ]
                                             ]
                                         ],
-                                        [
-                                            [
-                                                "0:md5,78866146a797efe42b527b15d26ab90e"
-                                            ]
-                                        ],
-                                        [
-                                            [
-                                                "0:md5,598ed11b166b832625be3f2ddbd6ecd2"
-                                            ]
-                                        ]
+                                        "zarr.json:md5,f7510277ca1f9696f932fdc2497df47a"
                                     ],
                                     [
-                                        ".zarray:md5,51793604f7aa317fb8b81244e07e021e",
                                         [
                                             [
-                                                "0:md5,cc8fab9e913769032dd5403aea144cf7"
+                                                [
+                                                    "0:md5,42152c64399fe03dfad62aec553afd6e"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,26a371a3566831ac3c94a99d26462d37"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,42152c64399fe03dfad62aec553afd6e"
+                                                ]
                                             ]
                                         ],
-                                        [
-                                            [
-                                                "0:md5,78ddb0bb5197b0ce35fcfd9d549ee7fa"
-                                            ]
-                                        ],
-                                        [
-                                            [
-                                                "0:md5,cc8fab9e913769032dd5403aea144cf7"
-                                            ]
-                                        ]
+                                        "zarr.json:md5,8eedd97783403d639f7406ca42ddd8d5"
                                     ],
                                     [
-                                        ".zarray:md5,9fe13f0f19532d31d6ef189dd85135a2",
                                         [
                                             [
-                                                "0:md5,f5a4b64cd322ed6cb509fb338d78bbc9"
+                                                [
+                                                    "0:md5,d130dae149bf4fbc38a13f7c8066481c"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,ccf5fe08d9b63a5d97e1e486890c8d2c"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,d130dae149bf4fbc38a13f7c8066481c"
+                                                ]
                                             ]
                                         ],
-                                        [
-                                            [
-                                                "0:md5,0c5dc99a0d1979df7d498a20555f9057"
-                                            ]
-                                        ],
-                                        [
-                                            [
-                                                "0:md5,f5a4b64cd322ed6cb509fb338d78bbc9"
-                                            ]
-                                        ]
-                                    ]
-                                ]
+                                        "zarr.json:md5,a09348fbbc1a94e9f5e75e6a520e7c9e"
+                                    ],
+                                    "zarr.json:md5,f5d1273909f0eff327a7210e7779e0d5"
+                                ],
+                                "zarr.json:md5,457126c0639af2eba0140851c39c1aad"
                             ],
                             [
-                                ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
                                 [
-                                    ".zattrs:md5,37c0eabf77e69009a9f0c878e69ea262",
-                                    ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
-                                    "shapes.parquet:md5,fc3ab769e967239ccfb6ca9cec780e59"
+                                    "shapes.parquet:md5,137d85c972deac43498928e658133dcd",
+                                    "zarr.json:md5,41794a46835cfd9cc1ada843bf21e42f"
                                 ],
                                 [
-                                    ".zattrs:md5,37c0eabf77e69009a9f0c878e69ea262",
-                                    ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
-                                    "shapes.parquet:md5,b7144210319d46dfcd545b9a59368d79"
-                                ]
+                                    "shapes.parquet:md5,69e707b2722c2e83f5d7b0e507d95bcd",
+                                    "zarr.json:md5,41794a46835cfd9cc1ada843bf21e42f"
+                                ],
+                                "zarr.json:md5,457126c0639af2eba0140851c39c1aad"
                             ],
-                            "zmetadata:md5,de568dce6924e52a7c25150fb5768b33"
+                            "zarr.json:md5,30f19fe6e8e63d6316c3c730eb21c9d0"
                         ]
                     ]
                 ],
@@ -743,28 +758,28 @@
                         {
                             "id": "test"
                         },
-                        "test_nuclear.tiff:md5,a9b4c304882462721430267d8ffa5260"
+                        "test_nuclear.tiff:md5,5e3086a09e911f0b8f29f4413aafb5ea"
                     ]
                 ],
                 "2": [
+                    "versions.yml:md5,00c78a84d8e13c2a9159863098a37a28",
                     "versions.yml:md5,49a1720f2a84a49cdc275753a0520d9b",
-                    "versions.yml:md5,6a3b91ba67e84aeb9eb9c3965363c5ac",
-                    "versions.yml:md5,886b81c4ac10fcf574bb5842a7088304",
-                    "versions.yml:md5,9d57548309c95ae9e205acde40c4fc09"
+                    "versions.yml:md5,945a21da2135454e0e736b3d7d6cee79",
+                    "versions.yml:md5,99c3dd3bc2bdcdd11e49b7c31aa33a6b"
                 ],
                 "tiff": [
                     [
                         {
                             "id": "test"
                         },
-                        "test_nuclear.tiff:md5,a9b4c304882462721430267d8ffa5260"
+                        "test_nuclear.tiff:md5,5e3086a09e911f0b8f29f4413aafb5ea"
                     ]
                 ],
                 "versions": [
+                    "versions.yml:md5,00c78a84d8e13c2a9159863098a37a28",
                     "versions.yml:md5,49a1720f2a84a49cdc275753a0520d9b",
-                    "versions.yml:md5,6a3b91ba67e84aeb9eb9c3965363c5ac",
-                    "versions.yml:md5,886b81c4ac10fcf574bb5842a7088304",
-                    "versions.yml:md5,9d57548309c95ae9e205acde40c4fc09"
+                    "versions.yml:md5,945a21da2135454e0e736b3d7d6cee79",
+                    "versions.yml:md5,99c3dd3bc2bdcdd11e49b7c31aa33a6b"
                 ],
                 "zarr": [
                     [
@@ -774,137 +789,142 @@
                         [
                             [
                                 [
-                                    "0.parquet:md5,1d2c1c87753d2309c573ddfc3172cc89",
-                                    "1.parquet:md5,09f4e03fa7315b55617d6efca6673530",
-                                    "2.parquet:md5,979aac9045f6d47d25253d9e25c8b8ba",
-                                    "3.parquet:md5,94e867c31d131edd0dac23e6739bf9d6",
-                                    "4.parquet:md5,14353d5cb3dad58f08fee6e9b30c9249",
-                                    "5.parquet:md5,050cf6705e9ac6e0c053ee586953853a",
-                                    "6.parquet:md5,18a3366b2cdcbf4dc61bab61ca97e796",
-                                    "7.parquet:md5,02371670452a0742eddeb01ba96e99d5",
-                                    "8.parquet:md5,4d292caa381a54949733b06c9d6f907f"
+                                    "0.parquet:md5,dcd2bdf452b30339beede41baec3bcd3",
+                                    "1.parquet:md5,1712e61563e768d359fb8c9e767a6932",
+                                    "2.parquet:md5,bc77c8b1974bb6e18bd59a54f92e0a7a",
+                                    "3.parquet:md5,eebfbc2d1446f98039c389389696cdd5",
+                                    "4.parquet:md5,82dbe72582f32a65918439ccb30f0e4f",
+                                    "5.parquet:md5,beb6adfbcf5ff463b25ee44bc9c8b6cf",
+                                    "6.parquet:md5,1809f26b3e0f88ffe83764b39281fc16",
+                                    "7.parquet:md5,a72e59d71553f6ff047dd5e971aec237",
+                                    "8.parquet:md5,d591719713eaa2bbb11b985a0ae68a80"
                                 ],
                                 "patches_file_image:md5,7c5aba41f53293b712fd86d08ed5b36e"
                             ],
-                            ".zattrs:md5,5b1624cbfb8945c68cb2c81560b6c34a",
-                            ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
                             [
-                                ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
                                 [
-                                    ".zattrs:md5,6eb7f30f2fd06c5545b10ef449c4dfe2",
-                                    ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
                                     [
-                                        ".zarray:md5,693c1a6da0b95db2dcbeef6cdd71799b",
                                         [
                                             [
-                                                "0:md5,145adf06fce482a5962026e847ba34bc"
+                                                [
+                                                    "0:md5,ad1d574cad101bbd8c1b7eea78e11b11"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,fbc5cb9ada63fac23708ec558973b592"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,ad1d574cad101bbd8c1b7eea78e11b11"
+                                                ]
                                             ]
                                         ],
-                                        [
-                                            [
-                                                "0:md5,bda4a0f66e52d9e7010d7315fe223723"
-                                            ]
-                                        ],
-                                        [
-                                            [
-                                                "0:md5,145adf06fce482a5962026e847ba34bc"
-                                            ]
-                                        ]
+                                        "zarr.json:md5,b5cc67ac579a24f7c1963dbe53dedcf1"
                                     ],
                                     [
-                                        ".zarray:md5,d0b0a330e9253e2f8f5371781c776278",
                                         [
                                             [
-                                                "0:md5,5bad6c314a4c2a971a866c29f26737bb"
+                                                [
+                                                    "0:md5,f205b41f21c7fafb14fb4c9243280d9e"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,b691124e3b9e8207febed5c1a0ce12e9"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,f205b41f21c7fafb14fb4c9243280d9e"
+                                                ]
                                             ]
                                         ],
-                                        [
-                                            [
-                                                "0:md5,e0f5c1b3f64c87c25e4a7b86f1667927"
-                                            ]
-                                        ],
-                                        [
-                                            [
-                                                "0:md5,5bad6c314a4c2a971a866c29f26737bb"
-                                            ]
-                                        ]
+                                        "zarr.json:md5,74402fd2b9029b554fcfaf45350cfe28"
                                     ],
                                     [
-                                        ".zarray:md5,52ff9c3163107de97ee187763db1ae23",
                                         [
                                             [
-                                                "0:md5,598ed11b166b832625be3f2ddbd6ecd2"
+                                                [
+                                                    "0:md5,98ef9dc11f22cc931fee7b9e169837dc"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,1c8e07824785e15afb7597de17af2220"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,98ef9dc11f22cc931fee7b9e169837dc"
+                                                ]
                                             ]
                                         ],
-                                        [
-                                            [
-                                                "0:md5,78866146a797efe42b527b15d26ab90e"
-                                            ]
-                                        ],
-                                        [
-                                            [
-                                                "0:md5,598ed11b166b832625be3f2ddbd6ecd2"
-                                            ]
-                                        ]
+                                        "zarr.json:md5,f7510277ca1f9696f932fdc2497df47a"
                                     ],
                                     [
-                                        ".zarray:md5,51793604f7aa317fb8b81244e07e021e",
                                         [
                                             [
-                                                "0:md5,cc8fab9e913769032dd5403aea144cf7"
+                                                [
+                                                    "0:md5,42152c64399fe03dfad62aec553afd6e"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,26a371a3566831ac3c94a99d26462d37"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,42152c64399fe03dfad62aec553afd6e"
+                                                ]
                                             ]
                                         ],
-                                        [
-                                            [
-                                                "0:md5,78ddb0bb5197b0ce35fcfd9d549ee7fa"
-                                            ]
-                                        ],
-                                        [
-                                            [
-                                                "0:md5,cc8fab9e913769032dd5403aea144cf7"
-                                            ]
-                                        ]
+                                        "zarr.json:md5,8eedd97783403d639f7406ca42ddd8d5"
                                     ],
                                     [
-                                        ".zarray:md5,9fe13f0f19532d31d6ef189dd85135a2",
                                         [
                                             [
-                                                "0:md5,f5a4b64cd322ed6cb509fb338d78bbc9"
+                                                [
+                                                    "0:md5,d130dae149bf4fbc38a13f7c8066481c"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,ccf5fe08d9b63a5d97e1e486890c8d2c"
+                                                ]
+                                            ],
+                                            [
+                                                [
+                                                    "0:md5,d130dae149bf4fbc38a13f7c8066481c"
+                                                ]
                                             ]
                                         ],
-                                        [
-                                            [
-                                                "0:md5,0c5dc99a0d1979df7d498a20555f9057"
-                                            ]
-                                        ],
-                                        [
-                                            [
-                                                "0:md5,f5a4b64cd322ed6cb509fb338d78bbc9"
-                                            ]
-                                        ]
-                                    ]
-                                ]
+                                        "zarr.json:md5,a09348fbbc1a94e9f5e75e6a520e7c9e"
+                                    ],
+                                    "zarr.json:md5,f5d1273909f0eff327a7210e7779e0d5"
+                                ],
+                                "zarr.json:md5,457126c0639af2eba0140851c39c1aad"
                             ],
                             [
-                                ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
                                 [
-                                    ".zattrs:md5,37c0eabf77e69009a9f0c878e69ea262",
-                                    ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
-                                    "shapes.parquet:md5,fc3ab769e967239ccfb6ca9cec780e59"
+                                    "shapes.parquet:md5,137d85c972deac43498928e658133dcd",
+                                    "zarr.json:md5,41794a46835cfd9cc1ada843bf21e42f"
                                 ],
                                 [
-                                    ".zattrs:md5,37c0eabf77e69009a9f0c878e69ea262",
-                                    ".zgroup:md5,e20297935e73dd0154104d4ea53040ab",
-                                    "shapes.parquet:md5,b7144210319d46dfcd545b9a59368d79"
-                                ]
+                                    "shapes.parquet:md5,69e707b2722c2e83f5d7b0e507d95bcd",
+                                    "zarr.json:md5,41794a46835cfd9cc1ada843bf21e42f"
+                                ],
+                                "zarr.json:md5,457126c0639af2eba0140851c39c1aad"
                             ],
-                            "zmetadata:md5,de568dce6924e52a7c25150fb5768b33"
+                            "zarr.json:md5,30f19fe6e8e63d6316c3c730eb21c9d0"
                         ]
                     ]
                 ]
             }
         ],
-        "timestamp": "2026-07-29T19:11:22.512764705",
+        "timestamp": "2026-07-30T00:15:15.88137061",
         "meta": {
             "nf-test": "0.9.5",
             "nextflow": "24.04.2"

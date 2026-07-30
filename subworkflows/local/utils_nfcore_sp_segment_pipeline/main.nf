@@ -64,17 +64,66 @@ workflow PIPELINE_INITIALISATION {
     )
 
     //
-    // Fail before any compute on a model path that does not exist.
+    // Fail before any compute on a model that cannot be resolved.
     //
-    // Cellpose does not error on a missing --pretrained-model: it falls back to
-    // its built-in weights, so a typo in the path produced a full, plausible,
-    // silently-wrong run.
+    // Built-in cellpose models, as reported by `cellpose.models.MODEL_NAMES` in
+    // the pinned container (cellpose 4.2.1.1). Anything else given to
+    // cellpose_pretrained_model is treated as a path to a custom model.
     //
-    if (params.cellpose_pretrained_model && !file(params.cellpose_pretrained_model).exists()) {
-        error("cellpose_pretrained_model does not exist: ${params.cellpose_pretrained_model}")
+    // cellpose_pretrained_model takes either a built-in model name or a path to
+    // a custom model, so only validate as a path when it is not a known name.
+    // Cellpose does not error on a --pretrained-model path that does not exist:
+    // it falls back to its built-in weights, so a typo produced a full,
+    // plausible, silently-wrong run.
+    //
+    def CELLPOSE_BUILTIN_MODELS = ['cpsam_v2', 'cpsam', 'cpdino', 'cpdino-vitb']
+    if (params.cellpose_pretrained_model
+        && !CELLPOSE_BUILTIN_MODELS.contains(params.cellpose_pretrained_model)
+        && !file(params.cellpose_pretrained_model).exists()) {
+        error(
+            "cellpose_pretrained_model is neither a built-in model name nor an existing path: " +
+            "${params.cellpose_pretrained_model}\n" +
+            "Built-in models: ${CELLPOSE_BUILTIN_MODELS.join(', ')}"
+        )
     }
     if (params.cellpose_models_dir && !file(params.cellpose_models_dir).exists()) {
         error("cellpose_models_dir does not exist: ${params.cellpose_models_dir}")
+    }
+
+    //
+    // A model cache under /opt breaks the container, confusingly.
+    //
+    // Nextflow bind-mounts the host directory holding a staged input, so
+    // --cellpose_models_dir /opt/... mounts the host's /opt over the
+    // container's. The Cellpose image installs into /opt/conda, so that
+    // shadows the interpreter and every task dies with
+    // "sopa: command not found" -- an error that says nothing about the real
+    // cause. /opt is a natural place to put a shared cache, so catch it here.
+    //
+    if (params.cellpose_models_dir && file(params.cellpose_models_dir).toAbsolutePath().toString().startsWith('/opt')) {
+        error(
+            "cellpose_models_dir must not be under /opt: ${params.cellpose_models_dir}\n" +
+            "Nextflow bind-mounts the host directory containing a staged input, which would " +
+            "mount the host's /opt over the container's and hide /opt/conda, where the Cellpose " +
+            "image is installed. Tasks would fail with \"sopa: command not found\".\n" +
+            "Put the cache somewhere else, e.g. /shared/cellpose_models."
+        )
+    }
+
+    //
+    // cellpose_model_type is retired rather than quietly ignored.
+    //
+    // Cellpose >=4.0.1 logs "model_type argument is not used in v4.0.1+" and
+    // discards it, and sopa only reads it on the cellpose<4 path, so the old
+    // 'cyto3' default silently produced cpsam results on every run. Failing is
+    // better than repeating that.
+    //
+    if (params.cellpose_model_type) {
+        error(
+            "cellpose_model_type is no longer supported: cellpose 4 ignores --model-type.\n" +
+            "Use --cellpose_pretrained_model instead " +
+            "(${CELLPOSE_BUILTIN_MODELS.join(', ')}, or a path to a custom model)."
+        )
     }
 
     //

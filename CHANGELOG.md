@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Cellpose is upgraded to 4.2.1.1 and now runs on the GPU.** The container
+  moves to a Wave build carrying sopa 2.2.6, cellpose 4.2.1.1 and Meta's
+  `dinov3`, replacing `sopa:2.1.11-cellpose` (cellpose 4.0.8). Segmentation
+  passes `--gpu` and `SOPA_SEGMENTATIONCELLPOSE` carries `process_gpu`; sopa
+  warns that cellpose >=4 "can be slow without a GPU", and the pipeline had
+  never passed the flag.
+
+  **The upgrade on its own does not move results.** Holding the model at
+  `cpsam` across the old and new stacks gives foreground IoU 0.9987 with every
+  cell matched above 0.90 and mean cell area identical to one decimal place. Any
+  difference you see comes from the model you select.
+
+- **`cellpose_pretrained_model` selects the model and now defaults to
+  `cpsam_v2`** (was `null`). It accepts a built-in name — `cpsam_v2`, `cpsam`,
+  `cpdino`, `cpdino-vitb` — or a path to a custom model. Against the previous
+  pipeline, `cpsam_v2` gives IoU 0.9552 on the same 119 cells and `cpdino`
+  gives 0.9251 while finding 123.
+
+- **`cellpose_model_type` is removed and now raises an error.** Cellpose 4.0.1
+  and later ignore `--model-type`, and sopa only reads it when
+  `pretrained_model` is unset — which never happens on v4, because sopa defaults
+  it to `cpsam`. The `cyto3` default was therefore discarded on every run, and
+  results attributed to cyto3 were cpsam. Failing is better than repeating that
+  silently.
+
 - **Cellpose model weights are fetched once per run** by a new `CELLPOSEMODEL`
   process and staged as an input to every segmentation task. Each patch task
   previously downloaded the ~1.2 GB `cpsam` checkpoint from cellpose.org itself
@@ -70,6 +95,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   already merged into the GeoJSON, which is now the only embedding artefact.
 
 ### Added
+
+- **The `cpdino` and `cpdino-vitb` models are usable.** Cellpose needs Meta's
+  `dinov3` for these, imports it in a bare `try`/`except` that only warns, and
+  then dies with `NameError: name 'dinov3_vitl16' is not defined` when the model
+  is built — after fetching a 1.13 GB checkpoint. The container now carries
+  `dinov3`, pinned to commit `6876159a`; it has no releases or tags, so tracking
+  `main` would have been an unpinned dependency. Only its architecture code is
+  used, because cellpose builds the backbone with `pretrained=False` and loads
+  its own weights, so Meta's gated backbone weights are not required. See
+  `CITATIONS.md` for the licence terms, which apply to redistributing the
+  container.
 
 - `cellpose_models_dir` parameter, pointing at a pre-staged Cellpose model
   cache so sites with no outbound network on compute nodes skip the download.

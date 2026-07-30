@@ -6,4 +6,14 @@ dependencies:
   - python =3.12
   - pip
   - pip:
-      - sopa ==2.1.11
+      # Must match segmentationcellpose: this process stages the weights that
+      # one consumes, so a cellpose version skew here would fetch a checkpoint
+      # segmentation cannot load.
+      - sopa[cellpose] ==2.2.6
+      - cellpose ==4.2.1.1
+      # Meta's dinov3, needed by the cpdino / cpdino-vitb models. Not on
+      # PyPI and it has no releases or tags, so pin the commit -- tracking
+      # `main` would be an unpinned dependency. Only the architecture code
+      # is used: cellpose builds the backbone with pretrained=False and
+      # loads its own checkpoint, so Meta's gated weights are not needed.
+      - https://github.com/facebookresearch/dinov3/archive/6876159a11b4df116f30f667f8c9888617df0751.tar.gz

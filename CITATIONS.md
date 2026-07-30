@@ -10,6 +10,22 @@
 
 ## Pipeline tools
 
+- [Cellpose](https://www.cellpose.org)
+
+  > Stringer C, Wang T, Michaelos M, Pachitariu M. Cellpose: a generalist algorithm for cellular segmentation. Nat Methods. 2021 Jan;18(1):100-106. doi: 10.1038/s41592-020-01018-x.
+
+- [DINOv3](https://github.com/facebookresearch/dinov3)
+
+  Used only by the `cpdino` and `cpdino-vitb` Cellpose models, which build a
+  DINOv3 backbone architecture and load Cellpose's own fine-tuned weights.
+  Meta's pretrained backbone weights are not used and are not required.
+
+  DINOv3 is distributed under the DINOv3 License. The pipeline's Cellpose
+  container redistributes the DINOv3 code, so **a copy of the DINOv3 License
+  Agreement must accompany that container**, and work published using these
+  models must acknowledge the DINOv3 materials. See the licence for the full
+  terms, including its acceptable-use restrictions.
+
 ## Software packaging/containerisation tools
 
 - [Anaconda](https://anaconda.com)
