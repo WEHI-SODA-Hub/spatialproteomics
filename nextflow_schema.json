@@ -139,7 +139,7 @@
                 "cellpose_pretrained_model": {
                     "type": "string",
                     "description": "Cellpose model to segment with: cpsam_v2 (default), cpsam, cpdino, cpdino-vitb, or a path to a custom model.",
-                    "help_text": "Selects the Cellpose model. Accepts either a built-in model name or a filesystem path to your own trained model.\n\nBuilt-in models (cellpose 4.2.1.1):\n\n- `cpsam_v2` — default; the current Cellpose-SAM model.\n- `cpsam` — the previous Cellpose-SAM model. Use this to reproduce results from before this pipeline moved to cellpose 4.2.\n- `cpdino` — DINOv3-backbone model added in cellpose 4.2 (ViT-L, ~303M parameters).\n- `cpdino-vitb` — smaller ViT-B DINOv3 variant.\n\nThe DINO models need Meta's `dinov3` package, which the pinned container carries. Only its architecture code is used — Cellpose builds the backbone with `pretrained=False` and loads its own weights — so Meta's gated backbone weights are not required. Note the DINOv3 licence terms in CITATIONS.md if you redistribute the container or publish results using these models.\n\nA path is passed through untouched, so a custom model is loaded directly and no download occurs. Built-in names are fetched once per run by CELLPOSEMODEL, or read from --cellpose_models_dir if you have a pre-staged copy.",
+                    "help_text": "Selects the Cellpose model. Accepts either a built-in model name or a filesystem path to your own trained model.\n\nBuilt-in models (cellpose 4.2.1.1):\n\n- `cpsam_v2` \u2014 default; the current Cellpose-SAM model.\n- `cpsam` \u2014 the previous Cellpose-SAM model. Use this to reproduce results from before this pipeline moved to cellpose 4.2.\n- `cpdino` \u2014 DINOv3-backbone model added in cellpose 4.2 (ViT-L, ~303M parameters).\n- `cpdino-vitb` \u2014 smaller ViT-B DINOv3 variant.\n\nThe DINO models need Meta's `dinov3` package, which the pinned container carries. Only its architecture code is used \u2014 Cellpose builds the backbone with `pretrained=False` and loads its own weights \u2014 so Meta's gated backbone weights are not required. Note the DINOv3 licence terms in CITATIONS.md if you redistribute the container or publish results using these models.\n\nA path is passed through untouched, so a custom model is loaded directly and no download occurs. Built-in names are fetched once per run by CELLPOSEMODEL, or read from --cellpose_models_dir if you have a pre-staged copy.",
                     "fa_icon": "fas fa-file-upload"
                 },
                 "cellpose_models_dir": {
@@ -148,6 +148,43 @@
                     "description": "Directory holding pre-staged Cellpose model weights. If set, the pipeline uses it instead of downloading them.",
                     "help_text": "Point this at a shared copy of the Cellpose model cache (the directory holding e.g. `cpsam`) to skip the download entirely. Recommended on clusters where compute nodes have no outbound network access.",
                     "fa_icon": "fas fa-folder-open"
+                }
+            }
+        },
+        "cellpose_preprocessing_options": {
+            "title": "Cellpose preprocessing options",
+            "type": "object",
+            "fa_icon": "fas fa-sliders-h",
+            "description": "Intensity preprocessing applied before Cellpose segmentation.",
+            "help_text": "The defaults here make the pipeline match Cellpose's own preprocessing contract: rescale to the 1st and 99th percentiles and nothing else.\n\nsopa adds a gaussian filter and CLAHE of its own, neither of which exists in Cellpose, and both are disabled. All of this normalisation is computed per patch, so leaving sopa's stages on makes a cell's segmentation depend on what else landed in its patch and on the value of `--patch_width_pixel`. See the preprocessing section of `docs/usage.md` for the measurements behind these defaults and for how to restore sopa's behaviour.",
+            "properties": {
+                "cellpose_tile_norm_blocksize": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Block size in pixels for Cellpose's tile-local intensity normalisation. 0 uses Cellpose's whole-patch default.",
+                    "help_text": "Segmentation always runs on patches, and normalisation is computed from the patch, so without this a cell's segmentation depends on what else landed in its patch and changing `--patch_width_pixel` changes results. Patch overlap does not help: it resolves cells straddling a boundary, not differing normalisation.\n\nThis is forwarded as `--method-kwargs '{\"normalize\": {\"tile_norm_blocksize\": N, \"percentile\": [1.0, 99.0]}}'`, which sopa passes into `model.eval`, making the percentile statistics local to each block rather than global to the patch.\n\nChoose a block that comfortably contains many nuclei. At COMET's 0.28 um/px with `--cellpose_diameter 30` (8.4 um cells), 512 px is 143 um, about 17 nuclear diameters. Small blocks are actively harmful: a 128 px (36 um) block spans roughly 4 cell diameters, so in sparse tissue it can contain no nuclei at all and its noise is stretched to the full range. Cellpose only guards a flat block when its 1-99 percentile range falls below 1e-3, which such blocks exceed.\n\nNote this does not normalise across the whole image -- nothing in the patch-parallel design ever sees it.",
+                    "fa_icon": "fas fa-th"
+                },
+                "cellpose_clip_limit": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "sopa's CLAHE clip limit, applied before Cellpose. Defaults to 0 in this pipeline, disabling CLAHE; null restores sopa's default of 0.2.",
+                    "help_text": "sopa runs `skimage.exposure.equalize_adapthist` on each patch before Cellpose sees it. This is sopa's addition, not part of Cellpose -- Cellpose contains no CLAHE code, and its released weights were trained on percentile-normalised input, so this preprocessing is off that contract.\n\nSetting 0 disables CLAHE. Worth testing: CLAHE is the largest single source of patch-dependence in this stack, and on an all-zero patch it expands the image to the full range, which defeats Cellpose's own empty-patch guard.",
+                    "fa_icon": "fas fa-adjust"
+                },
+                "cellpose_clahe_kernel_size": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Kernel size in pixels for sopa's CLAHE. Unset uses skimage's default of patch.shape // 8, which scales with patch_width_pixel.",
+                    "help_text": "Left unset, skimage derives the kernel from the patch: 1/8 of its height and width. The contrast-enhancement length scale therefore moves with `--patch_width_pixel` -- 187 px (52 um) at 1500, 375 px (105 um) at 3000, 750 px (210 um) at 6000 -- so the same tissue is enhanced differently purely because of a patching knob.\n\nPinning an absolute value removes that coupling. cellSAM, which also CLAHEs each block, fixes its kernel at 128 px rather than deriving it from the block size.\n\nHas no effect while `--cellpose_clip_limit` is 0.",
+                    "fa_icon": "fas fa-ruler-combined"
+                },
+                "cellpose_gaussian_sigma": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Sigma for sopa's gaussian smoothing, applied before Cellpose. Defaults to 0 in this pipeline, disabling it; null restores sopa's default of 1.",
+                    "help_text": "Like CLAHE, this is sopa's addition rather than Cellpose's: Cellpose's own smoothing and sharpening parameters (`smooth_radius`, `sharpen_radius`) both default to 0, and it applies neither unless asked.\n\nUnlike CLAHE this is not a source of patch dependence, since a small-sigma convolution is local and only edge reflection differs between patch layouts. Disabling it is therefore about matching Cellpose's preprocessing contract, not about stability. Raise it if your data is noisy enough to need denoising before segmentation.",
+                    "fa_icon": "fas fa-water"
                 }
             }
         },
@@ -704,6 +741,9 @@
         },
         {
             "$ref": "#/$defs/cellpose_options"
+        },
+        {
+            "$ref": "#/$defs/cellpose_preprocessing_options"
         },
         {
             "$ref": "#/$defs/mesmer_options"

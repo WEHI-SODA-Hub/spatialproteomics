@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Cellpose preprocessing now matches Cellpose's own contract: sopa's gaussian
+  filter and CLAHE are both disabled.** Cellpose normalises by rescaling to the 1st
+  and 99th percentiles and does nothing else — it contains no CLAHE code, and
+  Cellpose-SAM was trained on exactly that normalisation. sopa layered two extra
+  stages on top of every patch: `gaussian_filter(sigma=1)` and
+  `equalize_adapthist(clip_limit=0.2)`. New params `cellpose_clip_limit` (`0`),
+  `cellpose_gaussian_sigma` (`0`), `cellpose_clahe_kernel_size` (`null`) and
+  `cellpose_tile_norm_blocksize` (`0`, Cellpose's own default) control them; restore
+  the old behaviour with `--cellpose_clip_limit 0.2 --cellpose_gaussian_sigma 1`.
+
+  Both stages were computed per patch, and CLAHE's kernel is `patch.shape // 8`, so
+  the contrast-enhancement scale tracked `patch_width_pixel` — at COMET's 0.28 µm/px,
+  52 µm at 1500 px, 105 µm at 3000 and 210 µm at 6000 for identical tissue. Measured
+  on a real COMET image, segmenting the same region as part of a 1500 px vs a 3000 px
+  patch and matching cells by IoU, the fraction of cell boundaries surviving a
+  patch-size change (IoU ≥ 0.90) went from 38.6% to 81.9% for `cpsam_v2`, 43.2% to
+  83.9% for `cpsam` and 36.8% to 86.6% for `cpdino`.
+
+  **This changes results and they should not be pooled with earlier runs.** Median
+  cell area falls 23–43% for every model, and cell counts move by +8–35%
+  (`cpsam_v2`), −3–10% (`cpsam`) and +28–54% (`cpdino`) — CLAHE was suppressing
+  detections in the newer models and inflating them in `cpsam`. `cellpose_diameter`
+  needs no adjustment: Cellpose-SAM trained across 0.25×–4× scale, so the smaller
+  cells sit well inside its range.
+
+  Verified end to end on the `test` profile (30 tasks, nine-patch path), and run on a
+  COMET brain-panel ROI with `cpsam_v2`, `cpdino` and cellSAM then inspected in
+  QuPath — all three sensible and closely comparable (1,742 / 1,751 / 1,648 cells),
+  with cellSAM drawing larger boundaries around membrane signal.
+
+  These numbers measure reproducibility, not accuracy; no annotations were scored,
+  and the normalisation measurements are DAPI-only. See
+  [docs/usage.md](docs/usage.md) for the full reasoning.
+
 - **Cellpose is upgraded to 4.2.1.1 and now runs on the GPU.** The container
   moves to a Wave build carrying sopa 2.2.6, cellpose 4.2.1.1 and Meta's
   `dinov3`, replacing `sopa:2.1.11-cellpose` (cellpose 4.0.8). Segmentation
