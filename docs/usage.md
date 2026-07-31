@@ -191,7 +191,8 @@ nothing — use `cellpose_min_area` for that.
 Note `cellpose_min_area` is in **pixels², not microns²**, so it does not track
 `pixel_size_microns`. At COMET's 0.28 µm/px the default 200 px² is 15.7 µm²,
 about a 4.5 µm disc; on a different pixel size the same number means a
-different biological size.
+different biological size. See [Minimum cell area](#minimum-cell-area) — the
+same floor applies on the CellSAM path.
 
 Intensity preprocessing has its own parameter group, **Cellpose preprocessing
 options** — see [Preprocessing](#preprocessing-the-pipeline-matches-cellposes-own-contract)
@@ -543,7 +544,33 @@ If no token is provided, CellSAM uses the bundled default model.
 | `cellsam_gauge_cell_size`          | Automatically estimate cell size from the image before segmentation (default: `false`).                    |
 | `cellsam_low_contrast_enhancement` | Apply contrast enhancement before segmentation for low-contrast images (default: `false`).                 |
 | `cellsam_model_path`               | Path to a custom CellSAM model checkpoint. If `null` the built-in default model is used (default: `null`). |
-| `cellsam_min_area`                 | Minimum cell area in square pixels; smaller objects are discarded (default: `0`).                          |
+| `cellsam_min_area`                 | Minimum cell area in square pixels; smaller objects are discarded (default: `200`, matching Cellpose).     |
+
+#### Minimum cell area
+
+`cellsam_min_area` and `cellpose_min_area` share a default of `200`, so a run is
+not filtered differently just because of which segmenter produced it. Both are
+in **pixels², not microns²** — at COMET's 0.28 µm/px that is 15.7 µm², roughly a
+4.5 µm disc — and both keep cells whose area is greater than or equal to the
+threshold. Set either to `0` to keep every mask.
+
+They measure that area slightly differently, so they are close but not exactly
+interchangeable:
+
+|                     | Measures                                       | Applied                                      |
+| ------------------- | ---------------------------------------------- | -------------------------------------------- |
+| `cellsam_min_area`  | the label's pixel count                        | once, after the whole-slide tiles are merged |
+| `cellpose_min_area` | the vectorised polygon's area, after smoothing | per patch, during segmentation               |
+
+Comparing the two on round and ragged cells, the polygon comes out at 0.93–1.00×
+the pixel count (median 0.99), so `200` cuts at an equivalent ~202 px on the
+Cellpose side. The per-patch timing is safe because `patch_overlap_pixel` means
+a cell truncated at one patch edge appears whole in its neighbour, and the
+full-size copy is the one that survives to be resolved.
+
+Mesmer's `mesmer_min_nuclei_area` is deliberately **not** aligned with these: it
+filters nuclei rather than whole cells, and is applied inside the Mesmer
+container rather than by this pipeline.
 
 ### KRONOS2 embeddings
 

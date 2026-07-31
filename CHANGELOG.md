@@ -49,6 +49,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now caches the converted SIFs between runs, so a green pipeline no longer
   depends on re-pulling ~6 GB from the registries every time.
 
+- **:warning: `cellsam_min_area` now defaults to `200`, matching
+  `cellpose_min_area` (was `0`).** CellSAM ran with no size floor at all while
+  Cellpose dropped anything under 200 px², so the same slide was filtered
+  differently depending only on which segmenter produced it. **This changes
+  CellSAM results:** objects below 200 px² — 15.7 µm² at COMET's 0.28 µm/px,
+  about a 4.5 µm disc — are now discarded as debris. Pass
+  `--cellsam_min_area 0` to restore the old behaviour, and don't pool CellSAM
+  results from before and after.
+
+  The two are directly comparable but not identical: both are in pixels² and
+  both keep cells with area >= the threshold, but CellSAM counts the label's
+  pixels while sopa measures the vectorised, smoothed polygon. Measured across
+  round and ragged cells the polygon is 0.93–1.00× the pixel count (median
+  0.99), so 200 cuts at an equivalent ~202 px on the Cellpose side.
+  `mesmer_min_nuclei_area` is deliberately left alone — it filters nuclei, not
+  whole cells.
+
+- **The Cellpose tuning parameters say what they do.** All four were previously
+  described by restating their own name ("Flow threshold for cellpose"), which
+  gave no indication of which way to turn them. The schema and `docs/usage.md`
+  now give the direction of effect: `cellpose_flow_threshold` higher finds more
+  cells and `0` disables the check outright, `cellpose_cellprob_threshold`
+  lower finds more _and larger_ cells — and so moves cell areas and every
+  intensity measured over them, unlike the flow threshold — and
+  `cellpose_diameter` is only a resize factor (`rescale = 30 / diameter`), so
+  the default of 30 resamples nothing and filters nothing.
+
 - **Cellpose is upgraded to 4.2.1.1 and now runs on the GPU.** The container
   moves to a Wave build carrying sopa 2.2.6, cellpose 4.2.1.1 and Meta's
   `dinov3`, replacing `sopa:2.1.11-cellpose` (cellpose 4.0.8). Segmentation
