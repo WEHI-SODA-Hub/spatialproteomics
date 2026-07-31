@@ -86,8 +86,9 @@ One task was measured pulling the full **1.70 GB in 41 m 38 s**. Another hit the
 `HOME=/root` inside the container and only the work directory is bind-mounted,
 so `$HOME/.deepcell` is container-local and discarded per task. Nothing is
 cached between tasks. `params.deepcell_cache_dir` exists to redirect it and
-defaults to `null`; using it also requires bind-mounting that path into the
-container.
+defaults to `null`; setting it now also binds that path into the container,
+which it previously did not, so the redirect landed in the container's
+ephemeral layer and cached nothing.
 
 This normally succeeds and so has gone unnoticed. It is a poor fit for CI.
 

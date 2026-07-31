@@ -64,6 +64,54 @@ workflow PIPELINE_INITIALISATION {
     )
 
     //
+    // Fail before an hour is spent pulling a container into a full home quota.
+    //
+    // An Apptainer pull writes two things. The finished .img goes to
+    // apptainer.cacheDir, which --container_cache_dir sets. The OCI layer blobs
+    // it is converted from go to $APPTAINER_CACHEDIR -- ~/.apptainer/cache by
+    // default, and several GB per image, which is what actually exhausts a home
+    // quota. Nextflow runs the pull as a plain subprocess of its own JVM, so
+    // that variable comes from the shell that launched the pipeline and no
+    // amount of nextflow.config can redirect it. Checking it is all we can do.
+    //
+    // Only the finished image is retried on failure, so this surfaces as
+    // "Failed to pull singularity image ... disk quota exceeded" after the full
+    // download has already run.
+    //
+    if (workflow.containerEngine in ['apptainer', 'singularity']) {
+        def home_dir   = System.getenv('HOME')
+        def blob_cache = System.getenv('APPTAINER_CACHEDIR') ?: System.getenv('SINGULARITY_CACHEDIR')
+        def under_home = home_dir && (
+            !blob_cache || file(blob_cache).toAbsolutePath().normalize().startsWith(file(home_dir).toAbsolutePath().normalize())
+        )
+        def suggested = params.container_cache_dir
+            ? file(params.container_cache_dir).toAbsolutePath().normalize().parent.resolve('apptainer_cache')
+            : '/path/to/scratch/apptainer_cache'
+        def advice = (
+            "Apptainer unpacks OCI layers into \$APPTAINER_CACHEDIR (currently " +
+            "${blob_cache ?: home_dir + '/.apptainer/cache'}), which is tens of GB for this pipeline's images. " +
+            "Export it to the same filesystem as --container_cache_dir before launching:\n" +
+            "    export APPTAINER_CACHEDIR=${suggested}\n" +
+            "    export SINGULARITY_CACHEDIR=\$APPTAINER_CACHEDIR\n" +
+            "This cannot be set from nextflow.config: Nextflow pulls images from its own process, " +
+            "not from a task."
+        )
+        if (params.container_cache_dir && under_home) {
+            // Opt-in: setting container_cache_dir says the home directory
+            // cannot hold these images, and half of the pull would still land
+            // there. Erroring beats a partial fix that fails identically.
+            error("container_cache_dir is set, but the container layer cache is still under \$HOME.\n" + advice)
+        }
+        else if (under_home && !System.getenv('CI')) {
+            // Not on CI. A GitHub runner's $HOME has no quota and tens of GB
+            // free, so this fires on every run there and says nothing useful --
+            // and a warning that is usually noise is one nobody reads when it
+            // is not. CI=true is set by GitHub Actions, GitLab CI and the rest.
+            log.warn("Container images will be cached under \$HOME. " + advice)
+        }
+    }
+
+    //
     // Fail before any compute on a model that cannot be resolved.
     //
     // Built-in cellpose models, as reported by `cellpose.models.MODEL_NAMES` in

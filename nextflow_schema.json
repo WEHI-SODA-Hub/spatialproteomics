@@ -724,6 +724,13 @@
                     "description": "Base directory for caching DeepCell/CellSAM model weights. The current username is appended automatically.",
                     "fa_icon": "fas fa-database",
                     "help_text": "Set this to redirect the DeepCell model cache away from the home directory. The current username is resolved at runtime and appended, so models are cached at {deepcell_cache_dir}/{username}/.deepcell/models/. Set to null to use $HOME instead."
+                },
+                "container_cache_dir": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "Directory for the Apptainer/Singularity image cache. Set this on any cluster where $HOME has a quota.",
+                    "fa_icon": "fas fa-box",
+                    "help_text": "Sets apptainer.cacheDir and singularity.cacheDir, so converted .img files are written here rather than under the work directory. This covers only half of a pull: Apptainer unpacks the OCI layers it converts from into $APPTAINER_CACHEDIR (default ~/.apptainer/cache), which Nextflow cannot set because it pulls images from its own process rather than from a task. Export APPTAINER_CACHEDIR and SINGULARITY_CACHEDIR to the same filesystem before launching; the pipeline errors at startup if this parameter is set without them."
                 }
             }
         }

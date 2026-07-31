@@ -76,6 +76,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `cellpose_diameter` is only a resize factor (`rescale = 30 / diameter`), so
   the default of 30 resamples nothing and filters nothing.
 
+- **Container images and model weights can be kept off the home directory.** A
+  run on a cluster failed after an hour with
+  `Failed to pull singularity image ... disk quota exceeded`: Apptainer unpacks
+  the OCI layers it converts to SIF into `~/.apptainer/cache`, tens of GB across
+  this pipeline's images, and a home quota does not hold them. A new
+  `container_cache_dir` parameter sets `apptainer.cacheDir`/`singularity.cacheDir`
+  so the converted images land on scratch.
+
+  That covers only half of a pull. The layer cache is `$APPTAINER_CACHEDIR`,
+  which Nextflow reads from the shell that launched it — image pulls run in
+  Nextflow's own process, not in a task, so no config file can redirect it.
+  Setting `container_cache_dir` without exporting it is now a startup error
+  naming the exports to run, and using Apptainer with the layer cache still
+  under `$HOME` warns. Both fire before any download starts.
+  `docs/usage.md` has a "Caches on a cluster" section covering all four caches.
+
+- **`deepcell_cache_dir` is now bind-mounted into the container.** It had never
+  been, and `autoMounts` binds only `$HOME`, `/tmp` and the work directory — so
+  pointing it at scratch redirected `$HOME` inside the container to a path that
+  was not there. The 1.7 GB CellSAM download went to the container's ephemeral
+  layer and every task repeated it, which is the cost the parameter exists to
+  avoid. `MESMERSEGMENT` was affected the same way, with its model-download
+  `flock` file container-local and therefore serialising nothing.
+
 - **Cellpose is upgraded to 4.2.1.1 and now runs on the GPU.** The container
   moves to a Wave build carrying sopa 2.2.6, cellpose 4.2.1.1 and Meta's
   `dinov3`, replacing `sopa:2.1.11-cellpose` (cellpose 4.0.8). Segmentation
