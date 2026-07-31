@@ -153,7 +153,7 @@ The following Mesmer parameters can be set:
 
 | Parameter Name              | Default  | Description                                                                                  |
 | --------------------------- | -------- | -------------------------------------------------------------------------------------------- |
-| cellpose_diameter           | 30       | Expected cell diameter in px. Rescales the image by `30/diameter`; 30 resamples nothing.     |
+| cellpose_diameter           | 30       | How wide your cells are, in px. Rescales the image so they reach the 30 px Cellpose targets. |
 | cellpose_min_area           | 200      | Discard cells below this many px². **Higher = fewer cells**; 0 keeps every mask.             |
 | cellpose_flow_threshold     | 0.4      | Max flow error for a mask to survive. **Higher = more cells** (some ill-shaped); 0 disables. |
 | cellpose_cellprob_threshold | 0.0      | Cell-probability cutoff. **Lower = more and larger cells**; higher = fewer and smaller.      |
@@ -165,28 +165,42 @@ The following Mesmer parameters can be set:
 The two thresholds do different jobs, and only one of them changes your
 measurements:
 
-- **`cellpose_flow_threshold` rejects on shape.** Cellpose rebuilds the flow
-  field each finished mask implies and drops the ones whose error exceeds the
-  threshold, so a mask has to look like something Cellpose's flows would
-  actually produce. Raise it (0.6, 0.8) when cells you can plainly see are
-  being missed; lower it (0.2, 0.3) when you are getting ragged blobs. Setting
-  `0` switches the check off and keeps everything — Cellpose guards the step
-  with `if flow_threshold > 0`. Not used for 3D data.
+- **`cellpose_flow_threshold` rejects on shape.** Nothing stops the network
+  predicting flows that correspond to no real shape, and where it is uncertain
+  it sometimes does. So Cellpose recomputes the flow gradients each finished
+  mask implies, takes the mean squared error against the flows the network
+  predicted, and drops masks whose error exceeds the threshold. Raise it
+  (0.6, 0.8) when cells you can plainly see are being missed; lower it
+  (0.2, 0.3) when you are getting ragged blobs. Setting `0` switches the check
+  off and keeps everything — Cellpose guards the step with
+  `if flow_threshold > 0`. Not used for 3D data.
 
 - **`cellpose_cellprob_threshold` moves the boundaries.** It is the cutoff on
-  the per-pixel cell probability map, so it decides not only which cells exist
-  but where each one ends. Lower it (−1, −2) to pick up faint cells and grow
-  the ones you have; raise it (1, 2) to stop segmenting dim background and
-  shrink them. Because cell areas move, so does every per-cell intensity
-  measured over those masks — treat a change here as a change to your results,
-  not just to your cell count.
+  the third network output, cell probability, and the pixels above it are the
+  ones fed into the dynamics step that forms ROIs — so it decides not only
+  which cells exist but where each one ends. Lower it (−1, −2) to pick up faint
+  cells and grow the ones you have; raise it (1, 2) to stop segmenting dim
+  background and shrink them. Because cell areas move, so does every per-cell
+  intensity measured over those masks — treat a change here as a change to your
+  results, not just to your cell count.
 
-`cellpose_diameter` is mostly a speed knob. Cellpose-SAM was trained on cells
-7.5–120 px across and is largely size-invariant, and the value is only used as
-a resize factor (`rescale = 30 / diameter`), so the default of 30 means
-"segment at native resolution" rather than "my cells are 30 px". Raising it to
-90 downsamples 3× and runs much faster at the cost of small cells. It filters
-nothing — use `cellpose_min_area` for that.
+  It is **not a 0–1 probability**: the values are inputs to a sigmoid centred at
+  zero, so they run from about **−6 to +6** and 0 is the midpoint rather than
+  the floor. Both directions are meaningful and the useful range is wide.
+
+`cellpose_diameter` tells Cellpose the scale of your data. Cellpose resizes the
+image by `rescale = 30 / diameter` before the network sees it — 30 being the
+cell diameter the model targets — and resizes the masks back afterwards, so a
+cell you declare as 60 px is presented to the network at 30. The default of 30
+asserts your cells are already at that scale, which is why it happens to
+resample nothing; that is the consequence, not the meaning.
+
+Cellpose-SAM tolerates diameters from 7.5 to 120 px (mean 30), so unlike earlier
+Cellpose versions this is optional for typical data and getting it somewhat
+wrong is not fatal. It still matters if your cells sit outside that range, and
+Cellpose's own documented use is downsampling very large cells: `90` shrinks the
+image 3× and speeds the run up, at the cost of resolving small objects. It
+filters nothing — use `cellpose_min_area` for that.
 
 Note `cellpose_min_area` is in **pixels², not microns²**, so it does not track
 `pixel_size_microns`. At COMET's 0.28 µm/px the default 200 px² is 15.7 µm²,
