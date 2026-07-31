@@ -41,6 +41,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and the normalisation measurements are DAPI-only. See
   [docs/usage.md](docs/usage.md) for the full reasoning.
 
+- **The Singularity/Apptainer pull timeout is raised from Nextflow's 20 minute
+  default to 1 hour.** That default is sized for the small images most nf-core
+  pipelines pull; ours are 3.5 GB (Cellpose) and 5.8 GB (CellSAM) compressed,
+  with SIF conversion on top of the download. A CI run was lost to a pull being
+  SIGTERMed part-way through (exit 143) and reported as a task failure. CI also
+  now caches the converted SIFs between runs, so a green pipeline no longer
+  depends on re-pulling ~6 GB from the registries every time.
+
 - **Cellpose is upgraded to 4.2.1.1 and now runs on the GPU.** The container
   moves to a Wave build carrying sopa 2.2.6, cellpose 4.2.1.1 and Meta's
   `dinov3`, replacing `sopa:2.1.11-cellpose` (cellpose 4.0.8). Segmentation
