@@ -82,6 +82,28 @@ jobs:
       - name: Clean up Disk space
         uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
 
+      # Reuse the converted SIFs between runs. Without this every job re-pulls
+      # ~6 GB from the Wave and GHCR registries, and a run has already been lost
+      # to a single 230 MB pull stalling for 33 minutes until Nextflow's
+      # pullTimeout killed it (exit 143). Nothing retries a stalled pull -- this
+      # removes most of the opportunities to hit one.
+      #
+      # Keyed on the module files, which is where the container URIs live, so a
+      # container change invalidates it. restore-keys means an unrelated module
+      # edit still restores the previous SIFs and only the changed image is
+      # pulled. GitHub evicts least-recently-used caches past 10 GB per repo, so
+      # a miss degrades to today's behaviour rather than failing.
+      #
+      # Restored after the disk cleanup above, which the several GB of SIFs need.
+      - name: Cache Singularity images
+        if: matrix.profile == 'singularity'
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.singularity
+          key: singularity-${{ hashFiles('modules/**/main.nf') }}
+          restore-keys: |
+            singularity-
+
       - name: Log into Container registry ${{ env.CONTAINER_REGISTRY }}
         uses: docker/login-action@v2
         with:
