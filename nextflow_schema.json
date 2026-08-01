@@ -111,7 +111,7 @@
             "properties": {
                 "cellpose_diameter": {
                     "type": "integer",
-                    "description": "How wide your cells are, in pixels. Cellpose rescales the image so they land at the 30 px it was trained around; the default of 30 says they already do.",
+                    "description": "Diameters of your cells in pixels. Cellpose rescales the image so they land at the 30 px it was trained on.",
                     "help_text": "Tells Cellpose the scale of your data. It is passed to sopa as `--diameter` and on to `model.eval`, which turns it into `rescale = 30. / diameter` — 30 being the model's target cell diameter. The image is resized by that factor before the network sees it, and the masks are resized back afterwards, so a cell you say is 60 px across is presented to the network at 30 px.\n\nThe default of 30 therefore asserts your cells are already at the trained scale, which happens to make `rescale` exactly 1.0 and skip the resampling. That is the consequence of the assertion, not the meaning of the number.\n\nCellpose-SAM tolerates a wide range of scales — trained on cell diameters from 7.5 to 120 px, mean 30 — so unlike earlier Cellpose versions this is optional for typical data, and getting it somewhat wrong is not fatal. Two cases where it still matters:\n\n- **Cells well outside 7.5-120 px.** Set the real diameter so they are brought into the range the model handles.\n- **Very large cells you want segmented faster.** Cellpose's own documented example: `--cellpose_diameter 90` downsamples 3x and speeds the run up, at the cost of resolving small objects.\n\nNote it filters nothing — no cell is ever rejected for being the wrong size. Use `--cellpose_min_area` for that.",
                     "fa_icon": "fas fa-circle"
                 },
@@ -724,6 +724,13 @@
                     "description": "Base directory for caching DeepCell/CellSAM model weights. The current username is appended automatically.",
                     "fa_icon": "fas fa-database",
                     "help_text": "Set this to redirect the DeepCell model cache away from the home directory. The current username is resolved at runtime and appended, so models are cached at {deepcell_cache_dir}/{username}/.deepcell/models/. Set to null to use $HOME instead."
+                },
+                "container_cache_dir": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "Directory for the Apptainer/Singularity image cache. Set this on any cluster where $HOME has a quota.",
+                    "fa_icon": "fas fa-box",
+                    "help_text": "Sets apptainer.cacheDir and singularity.cacheDir, so converted .img files are written here rather than under the work directory. This covers only half of a pull: Apptainer unpacks the OCI layers it converts from into $APPTAINER_CACHEDIR (default ~/.apptainer/cache), which Nextflow cannot set because it pulls images from its own process rather than from a task. Export APPTAINER_CACHEDIR and SINGULARITY_CACHEDIR to the same filesystem before launching; the pipeline errors at startup if this parameter is set without them."
                 }
             }
         }

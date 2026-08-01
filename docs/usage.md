@@ -151,14 +151,14 @@ The following Mesmer parameters can be set:
 
 ### Cellpose parameters
 
-| Parameter Name              | Default  | Description                                                                                  |
-| --------------------------- | -------- | -------------------------------------------------------------------------------------------- |
-| cellpose_diameter           | 30       | How wide your cells are, in px. Rescales the image so they reach the 30 px Cellpose targets. |
-| cellpose_min_area           | 200      | Discard cells below this many px². **Higher = fewer cells**; 0 keeps every mask.             |
-| cellpose_flow_threshold     | 0.4      | Max flow error for a mask to survive. **Higher = more cells** (some ill-shaped); 0 disables. |
-| cellpose_cellprob_threshold | 0.0      | Cell-probability cutoff. **Lower = more and larger cells**; higher = fewer and smaller.      |
-| cellpose_pretrained_model   | cpsam_v2 | Model to segment with: a built-in name or a path to a custom model.                          |
-| cellpose_models_dir         | null     | Directory of pre-staged Cellpose weights; skips the download entirely.                       |
+| Parameter Name              | Default  | Description                                                                                      |
+| --------------------------- | -------- | ------------------------------------------------------------------------------------------------ |
+| cellpose_diameter           | 30       | Diameters of your cells in px. Rescales the image so they land at the 30 px Cellpose trained on. |
+| cellpose_min_area           | 200      | Discard cells below this many px². **Higher = fewer cells**; 0 keeps every mask.                 |
+| cellpose_flow_threshold     | 0.4      | Max flow error for a mask to survive. **Higher = more cells** (some ill-shaped); 0 disables.     |
+| cellpose_cellprob_threshold | 0.0      | Cell-probability cutoff. **Lower = more and larger cells**; higher = fewer and smaller.          |
+| cellpose_pretrained_model   | cpsam_v2 | Model to segment with: a built-in name or a path to a custom model.                              |
+| cellpose_models_dir         | null     | Directory of pre-staged Cellpose weights; skips the download entirely.                           |
 
 #### Tuning the thresholds
 
@@ -737,6 +737,63 @@ automatically — remove the directory once a run has completed successfully.
 | Parameter Name  | Description                         |
 | --------------- | ----------------------------------- |
 | generate_report | Generate segmentation report for QC |
+
+## Caches on a cluster
+
+This pipeline downloads a lot of data that is neither input nor output:
+container images (tens of GB across the Cellpose, Mesmer, CellSAM and KRONOS2
+images), the ~1.2 GB Cellpose checkpoint, and the ~1.7 GB CellSAM/DeepCell
+weights. All of it defaults to your home directory, which on a cluster is
+usually the one filesystem with a quota. A run that fills it dies with
+
+```
+Failed to pull singularity image
+  ...
+  FATAL: ... write /home/.../.apptainer/cache/oci-tmp/tmp_2881498929: disk quota exceeded
+```
+
+after the download has already run — the pull is retried, so this can cost
+hours before it fails.
+
+Put all four caches on scratch:
+
+```bash
+SCRATCH=/vast/scratch/users/$USER
+
+# Apptainer unpacks OCI layers here. This one is an environment variable, not a
+# pipeline parameter: Nextflow pulls images from its own process rather than
+# from a task, so nothing in nextflow.config can redirect it.
+export APPTAINER_CACHEDIR=$SCRATCH/apptainer_cache
+export SINGULARITY_CACHEDIR=$APPTAINER_CACHEDIR
+mkdir -p "$APPTAINER_CACHEDIR"
+
+nextflow run WEHI-SODA-Hub/sp_segment \
+   -profile apptainer,medium \
+   -work-dir $SCRATCH/nextflow/work \
+   --container_cache_dir $SCRATCH/apptainer_images \
+   --cellpose_models_dir $SCRATCH/cellpose_models \
+   --deepcell_cache_dir $SCRATCH/deepcell \
+   --input samplesheet.csv \
+   --outdir <OUTDIR>
+```
+
+| Cache                          | Setting                        | Holds                                                              |
+| ------------------------------ | ------------------------------ | ------------------------------------------------------------------ |
+| Apptainer OCI layers (largest) | `APPTAINER_CACHEDIR` (env var) | Layer blobs unpacked during conversion to SIF                      |
+| Converted container images     | `--container_cache_dir`        | The finished `.img` files Nextflow reuses across runs              |
+| Cellpose weights               | `--cellpose_models_dir`        | Pre-staged checkpoints; skips the download entirely                |
+| DeepCell / CellSAM weights     | `--deepcell_cache_dir`         | `{dir}/{username}/.deepcell/models/`, shared across tasks and runs |
+
+The two container settings are separate because a pull writes two separate
+things, and only one of them is Nextflow's to place. Setting
+`--container_cache_dir` without exporting `APPTAINER_CACHEDIR` leaves the larger
+half in your home directory, so the pipeline treats that combination as an error
+and stops at startup rather than repeating the failure above.
+
+`--deepcell_cache_dir` is bind-mounted into the container automatically.
+Apptainer's `autoMounts` covers only `$HOME`, `/tmp` and the work directory, so
+a path on scratch would otherwise be invisible inside the container and every
+task would re-download the weights.
 
 ### Updating the pipeline
 
