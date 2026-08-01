@@ -151,14 +151,14 @@ The following Mesmer parameters can be set:
 
 ### Cellpose parameters
 
-| Parameter Name              | Default  | Description                                                                                  |
-| --------------------------- | -------- | -------------------------------------------------------------------------------------------- |
-| cellpose_diameter           | 30       | How wide your cells are, in px. Rescales the image so they reach the 30 px Cellpose targets. |
-| cellpose_min_area           | 200      | Discard cells below this many px². **Higher = fewer cells**; 0 keeps every mask.             |
-| cellpose_flow_threshold     | 0.4      | Max flow error for a mask to survive. **Higher = more cells** (some ill-shaped); 0 disables. |
-| cellpose_cellprob_threshold | 0.0      | Cell-probability cutoff. **Lower = more and larger cells**; higher = fewer and smaller.      |
-| cellpose_pretrained_model   | cpsam_v2 | Model to segment with: a built-in name or a path to a custom model.                          |
-| cellpose_models_dir         | null     | Directory of pre-staged Cellpose weights; skips the download entirely.                       |
+| Parameter Name              | Default  | Description                                                                                      |
+| --------------------------- | -------- | ------------------------------------------------------------------------------------------------ |
+| cellpose_diameter           | 30       | Diameters of your cells in px. Rescales the image so they land at the 30 px Cellpose trained on. |
+| cellpose_min_area           | 200      | Discard cells below this many px². **Higher = fewer cells**; 0 keeps every mask.                 |
+| cellpose_flow_threshold     | 0.4      | Max flow error for a mask to survive. **Higher = more cells** (some ill-shaped); 0 disables.     |
+| cellpose_cellprob_threshold | 0.0      | Cell-probability cutoff. **Lower = more and larger cells**; higher = fewer and smaller.          |
+| cellpose_pretrained_model   | cpsam_v2 | Model to segment with: a built-in name or a path to a custom model.                              |
+| cellpose_models_dir         | null     | Directory of pre-staged Cellpose weights; skips the download entirely.                           |
 
 #### Tuning the thresholds
 
