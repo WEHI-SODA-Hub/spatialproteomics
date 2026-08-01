@@ -111,23 +111,27 @@
             "properties": {
                 "cellpose_diameter": {
                     "type": "integer",
-                    "description": "Diameter of cells in pixels for cellpose.",
+                    "description": "How wide your cells are, in pixels. Cellpose rescales the image so they land at the 30 px it was trained around; the default of 30 says they already do.",
+                    "help_text": "Tells Cellpose the scale of your data. It is passed to sopa as `--diameter` and on to `model.eval`, which turns it into `rescale = 30. / diameter` — 30 being the model's target cell diameter. The image is resized by that factor before the network sees it, and the masks are resized back afterwards, so a cell you say is 60 px across is presented to the network at 30 px.\n\nThe default of 30 therefore asserts your cells are already at the trained scale, which happens to make `rescale` exactly 1.0 and skip the resampling. That is the consequence of the assertion, not the meaning of the number.\n\nCellpose-SAM tolerates a wide range of scales — trained on cell diameters from 7.5 to 120 px, mean 30 — so unlike earlier Cellpose versions this is optional for typical data, and getting it somewhat wrong is not fatal. Two cases where it still matters:\n\n- **Cells well outside 7.5-120 px.** Set the real diameter so they are brought into the range the model handles.\n- **Very large cells you want segmented faster.** Cellpose's own documented example: `--cellpose_diameter 90` downsamples 3x and speeds the run up, at the cost of resolving small objects.\n\nNote it filters nothing — no cell is ever rejected for being the wrong size. Use `--cellpose_min_area` for that.",
                     "fa_icon": "fas fa-circle"
                 },
                 "cellpose_min_area": {
                     "type": "number",
-                    "description": "Minimum area of cells in square pixels for cellpose.",
+                    "description": "Discard cells smaller than this many square pixels. Higher keeps fewer cells; 0 keeps every mask.",
+                    "help_text": "sopa's filter rather than Cellpose's: `--min-area`, \"Minimum area (in pixels^2) for a cell to be considered as valid\". It is applied per patch as that patch is segmented, before cells straddling neighbouring patches are resolved.\n\nThe units are **pixels², not microns²**, so it does not follow `--pixel_size_microns`. At COMET's 0.28 um/px the default 200 px² is 15.7 um² — roughly a 4.5 um disc. On a different pixel size the same number means a different biological size, so recompute it.\n\nRaise it to drop debris and segmentation fragments; lower it, or set 0, to keep small or partially-imaged nuclei. It cuts on area alone and knows nothing about shape or confidence — a large piece of junk passes and a genuine small nucleus does not.\n\n`--cellsam_min_area` carries the same default and the same meaning, so switching segmenter does not silently change the size floor. Mesmer's `--mesmer_min_nuclei_area` is a separate setting on nuclei rather than cells and is not aligned with these.",
                     "fa_icon": "fas fa-arrows-alt"
                 },
                 "cellpose_flow_threshold": {
                     "type": "number",
-                    "description": "Flow threshold for cellpose.",
-                    "fa_icon": "fas fa-tachometer-alt"
+                    "description": "Maximum flow error allowed for a mask to be kept. Higher finds more cells, including ill-shaped ones; lower keeps fewer, better-formed ones.",
+                    "fa_icon": "fas fa-tachometer-alt",
+                    "help_text": "Cellpose's shape check, and the reason it exists: nothing stops the network predicting flows that correspond to no real shape, which it occasionally does where it is uncertain. So having formed the masks, Cellpose recomputes the flow gradients each one implies and takes the mean squared error against the flows the network actually predicted. Masks whose error exceeds this threshold are discarded.\n\nIt therefore rejects on *shape* — a mask has to look like something Cellpose's own flows would produce — and never on how confident the network was. That is `--cellpose_cellprob_threshold`.\n\n- Missing cells you can see in the image? **Raise** it (0.6, 0.8). More masks survive, some of them ragged.\n- Getting too many ill-shaped blobs? **Lower** it (0.2, 0.3). Fewer masks, better formed.\n- `0` turns the check off completely and keeps everything: Cellpose guards the step with `if flow_threshold > 0`.\n\nThe default 0.4 is Cellpose's own. Applies in 2D only — Cellpose skips this step for 3D data."
                 },
                 "cellpose_cellprob_threshold": {
                     "type": "number",
-                    "description": "Cell probability threshold for cellpose.",
-                    "fa_icon": "fas fa-check-circle"
+                    "description": "Cutoff on Cellpose's per-pixel cell probability. Lower finds more and larger cells; higher finds fewer and smaller ones.",
+                    "fa_icon": "fas fa-check-circle",
+                    "help_text": "The cutoff on the third of Cellpose's three network outputs — flows in X, flows in Y, and cell probability. Pixels above the cutoff are the ones fed into the dynamics step that forms ROIs, so this decides which pixels are eligible to be cell at all.\n\n**It is not a 0-1 probability.** The values are the inputs to a sigmoid centred at zero, so they run from roughly **-6 to +6**, and 0 is the midpoint, not the floor. Both directions are meaningful and the useful range is wide.\n\nUnlike `--cellpose_flow_threshold`, which only decides whether a finished mask survives, this moves **where each cell's boundary falls**. It therefore shifts cell areas, and every per-cell intensity measured over those masks moves with them. Treat a change here as a change to your measurements, not just to your cell count.\n\n- Missing faint or dim cells? **Lower** it (-1, -2). More cells are found, and the ones you already had grow.\n- Segmenting background or dim debris as cells? **Raise** it (1, 2). Fewer cells, and they shrink.\n\nThe default 0.0 is Cellpose's own."
                 },
                 "cellpose_model_type": {
                     "type": "string",
@@ -318,8 +322,9 @@
                 },
                 "cellsam_min_area": {
                     "type": "integer",
-                    "default": 0,
-                    "description": "Minimum area in pixels for cells/nuclei. Segmented objects smaller than this are removed. Set to 0 to disable.",
+                    "default": 200,
+                    "description": "Discard cells smaller than this many square pixels. Higher keeps fewer cells; 0 disables the filter. Matches cellpose_min_area.",
+                    "help_text": "The same size floor `--cellpose_min_area` applies on the Cellpose path, so a run is not filtered differently just because of which segmenter produced it. Both are in **pixels², not microns²**, and both keep cells whose area is greater than or equal to the threshold.\n\nThe two measure that area slightly differently and are not exactly interchangeable: CellSAM counts the label's pixels, while sopa measures the vectorised polygon after smoothing. Across round and ragged cells the polygon comes out at 0.93-1.00x the pixel count (median 0.99), so 200 here cuts at an equivalent ~202 px on the Cellpose side.\n\nCellSAM applies it once, after the whole-slide tiles have been merged; Cellpose applies it per patch during segmentation. Set 0 to keep every mask, which is what this defaulted to before -- CellSAM ran with no size floor at all while Cellpose had one.",
                     "fa_icon": "fas fa-compress-arrows-alt"
                 }
             }

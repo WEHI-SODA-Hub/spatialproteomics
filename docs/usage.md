@@ -151,14 +151,62 @@ The following Mesmer parameters can be set:
 
 ### Cellpose parameters
 
-| Parameter Name              | Description                                                            |
-| --------------------------- | ---------------------------------------------------------------------- |
-| cellpose_diameter           | Diameter of cells in pixels for cellpose.                              |
-| cellpose_min_area           | Minimum area of cells in square pixels for cellpose.                   |
-| cellpose_flow_threshold     | Flow threshold for cellpose.                                           |
-| cellpose_cellprob_threshold | Cell probability threshold for cellpose.                               |
-| cellpose_pretrained_model   | Model to segment with: a built-in name or a path to a custom model.    |
-| cellpose_models_dir         | Directory of pre-staged Cellpose weights; skips the download entirely. |
+| Parameter Name              | Default  | Description                                                                                  |
+| --------------------------- | -------- | -------------------------------------------------------------------------------------------- |
+| cellpose_diameter           | 30       | How wide your cells are, in px. Rescales the image so they reach the 30 px Cellpose targets. |
+| cellpose_min_area           | 200      | Discard cells below this many px². **Higher = fewer cells**; 0 keeps every mask.             |
+| cellpose_flow_threshold     | 0.4      | Max flow error for a mask to survive. **Higher = more cells** (some ill-shaped); 0 disables. |
+| cellpose_cellprob_threshold | 0.0      | Cell-probability cutoff. **Lower = more and larger cells**; higher = fewer and smaller.      |
+| cellpose_pretrained_model   | cpsam_v2 | Model to segment with: a built-in name or a path to a custom model.                          |
+| cellpose_models_dir         | null     | Directory of pre-staged Cellpose weights; skips the download entirely.                       |
+
+#### Tuning the thresholds
+
+The two thresholds do different jobs, and only one of them changes your
+measurements:
+
+- **`cellpose_flow_threshold` rejects on shape.** Nothing stops the network
+  predicting flows that correspond to no real shape, and where it is uncertain
+  it sometimes does. So Cellpose recomputes the flow gradients each finished
+  mask implies, takes the mean squared error against the flows the network
+  predicted, and drops masks whose error exceeds the threshold. Raise it
+  (0.6, 0.8) when cells you can plainly see are being missed; lower it
+  (0.2, 0.3) when you are getting ragged blobs. Setting `0` switches the check
+  off and keeps everything — Cellpose guards the step with
+  `if flow_threshold > 0`. Not used for 3D data.
+
+- **`cellpose_cellprob_threshold` moves the boundaries.** It is the cutoff on
+  the third network output, cell probability, and the pixels above it are the
+  ones fed into the dynamics step that forms ROIs — so it decides not only
+  which cells exist but where each one ends. Lower it (−1, −2) to pick up faint
+  cells and grow the ones you have; raise it (1, 2) to stop segmenting dim
+  background and shrink them. Because cell areas move, so does every per-cell
+  intensity measured over those masks — treat a change here as a change to your
+  results, not just to your cell count.
+
+  It is **not a 0–1 probability**: the values are inputs to a sigmoid centred at
+  zero, so they run from about **−6 to +6** and 0 is the midpoint rather than
+  the floor. Both directions are meaningful and the useful range is wide.
+
+`cellpose_diameter` tells Cellpose the scale of your data. Cellpose resizes the
+image by `rescale = 30 / diameter` before the network sees it — 30 being the
+cell diameter the model targets — and resizes the masks back afterwards, so a
+cell you declare as 60 px is presented to the network at 30. The default of 30
+asserts your cells are already at that scale, which is why it happens to
+resample nothing; that is the consequence, not the meaning.
+
+Cellpose-SAM tolerates diameters from 7.5 to 120 px (mean 30), so unlike earlier
+Cellpose versions this is optional for typical data and getting it somewhat
+wrong is not fatal. It still matters if your cells sit outside that range, and
+Cellpose's own documented use is downsampling very large cells: `90` shrinks the
+image 3× and speeds the run up, at the cost of resolving small objects. It
+filters nothing — use `cellpose_min_area` for that.
+
+Note `cellpose_min_area` is in **pixels², not microns²**, so it does not track
+`pixel_size_microns`. At COMET's 0.28 µm/px the default 200 px² is 15.7 µm²,
+about a 4.5 µm disc; on a different pixel size the same number means a
+different biological size. See [Minimum cell area](#minimum-cell-area) — the
+same floor applies on the CellSAM path.
 
 Intensity preprocessing has its own parameter group, **Cellpose preprocessing
 options** — see [Preprocessing](#preprocessing-the-pipeline-matches-cellposes-own-contract)
@@ -510,7 +558,33 @@ If no token is provided, CellSAM uses the bundled default model.
 | `cellsam_gauge_cell_size`          | Automatically estimate cell size from the image before segmentation (default: `false`).                    |
 | `cellsam_low_contrast_enhancement` | Apply contrast enhancement before segmentation for low-contrast images (default: `false`).                 |
 | `cellsam_model_path`               | Path to a custom CellSAM model checkpoint. If `null` the built-in default model is used (default: `null`). |
-| `cellsam_min_area`                 | Minimum cell area in square pixels; smaller objects are discarded (default: `0`).                          |
+| `cellsam_min_area`                 | Minimum cell area in square pixels; smaller objects are discarded (default: `200`, matching Cellpose).     |
+
+#### Minimum cell area
+
+`cellsam_min_area` and `cellpose_min_area` share a default of `200`, so a run is
+not filtered differently just because of which segmenter produced it. Both are
+in **pixels², not microns²** — at COMET's 0.28 µm/px that is 15.7 µm², roughly a
+4.5 µm disc — and both keep cells whose area is greater than or equal to the
+threshold. Set either to `0` to keep every mask.
+
+They measure that area slightly differently, so they are close but not exactly
+interchangeable:
+
+|                     | Measures                                       | Applied                                      |
+| ------------------- | ---------------------------------------------- | -------------------------------------------- |
+| `cellsam_min_area`  | the label's pixel count                        | once, after the whole-slide tiles are merged |
+| `cellpose_min_area` | the vectorised polygon's area, after smoothing | per patch, during segmentation               |
+
+Comparing the two on round and ragged cells, the polygon comes out at 0.93–1.00×
+the pixel count (median 0.99), so `200` cuts at an equivalent ~202 px on the
+Cellpose side. The per-patch timing is safe because `patch_overlap_pixel` means
+a cell truncated at one patch edge appears whole in its neighbour, and the
+full-size copy is the one that survives to be resolved.
+
+Mesmer's `mesmer_min_nuclei_area` is deliberately **not** aligned with these: it
+filters nuclei rather than whole cells, and is applied inside the Mesmer
+container rather than by this pipeline.
 
 ### KRONOS2 embeddings
 
