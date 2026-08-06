@@ -1,0 +1,73 @@
+nextflow_process {
+
+    name "Test Process KRONOS2EMBEDDINGS"
+    script "../main.nf"
+    process "KRONOS2EMBEDDINGS"
+
+    tag "modules"
+    tag "modules_local"
+    tag "kronos2embeddings"
+
+    // Stub only. A real run needs the gated KRONOS2 snapshot (KRONOS2_MODEL_DIR)
+    // and a GPU, neither of which CI has -- see conf/test_mesmer_kronos2.config.
+    // These cover the process contract and its output declarations; the channel
+    // and marker logic is covered by tests/python/test_kronos2_common.py.
+
+    test("kronos2embeddings - stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'test' ], // meta map
+                    file('${projectDir}/tests/data/comet/synthetic_multichannel.tif'),
+                    file('${projectDir}/tests/data/comet/synthetic_multichannel.tif'),
+                    'DAPI'
+                ]
+                input[1] = file('${projectDir}/tests/data/comet')
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out).match() }
+            )
+        }
+
+    }
+
+    test("kronos2embeddings - stub - exclude markers") {
+
+        options "-stub"
+
+        when {
+            params {
+                kronos_exclude_markers = 'TRITC'
+            }
+            process {
+                """
+                input[0] = [
+                    [ id:'test' ], // meta map
+                    file('${projectDir}/tests/data/comet/synthetic_multichannel.tif'),
+                    file('${projectDir}/tests/data/comet/synthetic_multichannel.tif'),
+                    'DAPI'
+                ]
+                input[1] = file('${projectDir}/tests/data/comet')
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out).match() }
+            )
+        }
+
+    }
+
+}

@@ -23,7 +23,7 @@ Usage:
         --output-geojson sample.geojson.gz \
         [--patch-size 64] [--batch-size 16] \
         [--marker-mapping map.json] [--nuclear-marker DAPI-01] \
-        [--no-isolate-cell]
+        [--exclude-marker Autofluorescence] [--no-isolate-cell]
 """
 
 import argparse
@@ -45,6 +45,7 @@ from kronos2_common import (
     numpy_collate,
     read_cells,
     scaling_factor,
+    select_channels,
     write_geojson_with_embeddings,
     write_marker_report,
 )
@@ -180,6 +181,21 @@ def main():
     )
     parser.add_argument("--marker-mapping", default=None)
     parser.add_argument(
+        "--exclude-marker",
+        dest="exclude_markers",
+        action="append",
+        default=None,
+        metavar="NAME",
+        help="Do not show this channel to KRONOS2, so it contributes nothing to "
+        "the embedding; repeatable. Affects this step only -- the channel stays "
+        "in the image and keeps any measurements already written for it. "
+        "Matched exactly and case sensitively against the image's own channel "
+        "names, before --marker-mapping. For channels that are not markers -- "
+        "autofluorescence, blanks, empty cycles -- where no mapping can help. "
+        "Unlike --allow-novel-defaults, which still feeds the channel to the "
+        "model, this one never reaches it. A name matching no channel fails.",
+    )
+    parser.add_argument(
         "--nuclear-marker",
         default=None,
         help="Channel to treat as the nuclear stain; the model's only alias "
@@ -205,10 +221,31 @@ def main():
     # --- channels + marker names ------------------------------------------
     channel_names = get_channel_names(args.tiff)
     log(f"Found {len(channel_names)} channels")
+
+    try:
+        keep_indices, kept_names, excluded = select_channels(
+            channel_names, args.exclude_markers or [], protect=args.nuclear_marker
+        )
+    except ValueError as exc:
+        log(f"ERROR: {exc}")
+        sys.exit(1)
+    if excluded:
+        log(
+            f"  not showing KRONOS2 {len(excluded)} channel(s): {excluded} "
+            "(they stay in the image; this affects the embedding only)"
+        )
+    log(
+        f"  embedding {len(kept_names)} of {len(channel_names)} channels: "
+        f"{kept_names}"
+    )
+    if len(kept_names) == 1:
+        log("WARNING: only 1 channel left to embed")
+
     mapping = load_marker_mapping(args.marker_mapping)
-    markers, applied = apply_marker_mapping(channel_names, mapping)
+    markers, applied = apply_marker_mapping(kept_names, mapping)
     if applied:
         log(f"  applied {len(applied)} marker mapping(s)")
+    log(f"  markers given to KRONOS2: {markers}")
 
     # --- cells -------------------------------------------------------------
     log(f"Reading cells from {args.geojson}")
@@ -216,11 +253,19 @@ def main():
     log(f"  {len(features)} cells")
 
     # --- image -------------------------------------------------------------
-    reader = ChannelReader(args.tiff, list(range(len(channel_names))))
+    reader = ChannelReader(args.tiff, keep_indices)
+    if len(channel_names) != reader.n_channels:
+        log(
+            f"ERROR: {len(channel_names)} channel names for a "
+            f"{reader.n_channels}-channel image; names and channel indices "
+            "cannot be aligned, so markers would describe the wrong pixels"
+        )
+        sys.exit(1)
     divisor = args.max_value if args.max_value else scaling_factor(reader.dtype)
     log(
-        f"  image {reader.n_channels}x{reader.height}x{reader.width} "
-        f"dtype={reader.dtype} divisor={divisor} access={reader.mode}"
+        f"  image {len(reader.channels)}/{reader.n_channels} channels "
+        f"{reader.height}x{reader.width} dtype={reader.dtype} "
+        f"divisor={divisor} layout={reader.layout} access={reader.mode}"
     )
 
     # --- model -------------------------------------------------------------
@@ -234,21 +279,34 @@ def main():
             f"vocabulary and will use DEFAULT normalisation stats: {unseen}"
         )
         report_extra.append("Novel markers (default stats used):\n  " + "\n  ".join(unseen))
+
+    # Written before the gate below can exit: a failing run is exactly when the
+    # report is most useful, since it is where the channel names to map or
+    # exclude are listed.
+    if args.marker_report:
+        write_marker_report(
+            args.marker_report,
+            args.tiff,
+            channel_names,
+            markers,
+            applied,
+            report_extra,
+            keep_indices=keep_indices,
+        )
+
+    if unseen:
         if args.allow_novel_defaults:
             log(f"WARNING: {msg}")
         else:
             log(f"ERROR: {msg}")
             log(
                 "  Most novel markers are naming variants, not new biology -- "
-                "map them onto vocabulary names with --marker-mapping. Re-run "
-                "with --allow-novel-defaults to accept default stats instead."
+                "map them onto vocabulary names with --marker-mapping. Channels "
+                "that are not markers at all (autofluorescence, blanks, empty "
+                "cycles) can be dropped with --exclude-marker. Re-run with "
+                "--allow-novel-defaults to accept default stats instead."
             )
             sys.exit(1)
-
-    if args.marker_report:
-        write_marker_report(
-            args.marker_report, args.tiff, channel_names, markers, applied, report_extra
-        )
 
     # --- extract -----------------------------------------------------------
     if not features:
@@ -263,7 +321,8 @@ def main():
     )
     log(
         f"Extracting {len(dataset)} cell patches "
-        f"(patch={args.patch_size}, isolate={args.isolate}, batch={args.batch_size})"
+        f"(patch={args.patch_size}, channels={len(reader.channels)}, "
+        f"isolate={args.isolate}, batch={args.batch_size})"
     )
     embeddings = extract(
         model,

@@ -387,6 +387,12 @@
                     "fa_icon": "fas fa-exchange-alt",
                     "help_text": "Provide a JSON string like '{\"CD3e\": \"CD3E\", \"PanCK\": \"PANCK\"}' to manually resolve marker name mismatches between your image channels and the KRONOS metadata. KRONOS performs case-insensitive matching automatically, so only provide mappings for markers that truly differ in name."
                 },
+                "kronos_exclude_markers": {
+                    "type": "string",
+                    "description": "Comma-separated list of channels not to show KRONOS2, so they contribute nothing to the embedding, e.g. 'Autofluorescence'. Case sensitive, and matched against the image's own channel names before any marker mapping is applied.",
+                    "fa_icon": "fas fa-eye-slash",
+                    "help_text": "Scoped to the embedding step alone: the channel is simply never read, so it stays in the image, remains available to every other process, and keeps any intensity measurements CELLMEASUREMENT wrote for it. Nothing is deleted. Use it for channels that are not markers at all -- autofluorescence, blanks, empty cycles -- where no mapping can help. Contrast `kronos_allow_novel_defaults`, which still feeds an out-of-vocabulary channel to the model, normalised with default statistics. A name matching no channel fails the run and lists the channels that are present, and the nuclear channel cannot be skipped because it is the model's `preferred_dapi`. KRONOS2 attends across the whole channel set, so changing this list changes every cell's embedding -- hold it constant across a cohort."
+                },
                 "kronos_nuclear_marker": {
                     "type": "string",
                     "description": "Channel to treat as the nuclear stain. This is the model's only marker-alias mechanism, so a DRAQ5/Hoechst slide needs it to receive DAPI stats. Defaults to the samplesheet nuclear_channel.",

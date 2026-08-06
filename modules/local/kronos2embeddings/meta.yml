@@ -69,7 +69,8 @@ output:
           type: file
           description: |
             Per-channel record of the name given to KRONOS2, any mappings
-            applied, and any markers outside the model's vocabulary.
+            applied, any channels excluded from the embedding, and any markers
+            outside the model's vocabulary.
           pattern: "*_marker_report.txt"
   - versions:
       - versions.yml:
