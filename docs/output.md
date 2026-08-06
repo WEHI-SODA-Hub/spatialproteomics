@@ -67,8 +67,11 @@ When `enable_kronos=true`:
   every cell. This is the **only** embedding artefact: the separate CSV that
   earlier versions wrote held the same vectors twice, so it has been dropped.
 - `kronos2embeddings/sample_marker_report.txt` -- per-channel record of the name
-  given to KRONOS2, any mappings applied, and any markers outside the model's
-  vocabulary.
+  given to KRONOS2, any mappings applied, any channels withheld with
+  `kronos_exclude_markers`, and any markers outside the model's vocabulary. The
+  header gives the embedded/not-shown split, so the number of channels the model
+  actually saw is on the first line. It is written even when the run then fails
+  on an unmatched marker, because that is when it is most useful.
 
 Embedding row _i_ corresponds to cell feature _i_ in the input GeoJSON, so the
 join is exact by construction. Re-running clears any previous `kronos_emb_*`

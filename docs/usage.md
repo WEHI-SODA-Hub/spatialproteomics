@@ -663,6 +663,42 @@ KRONOS2's **only** alias mechanism. The samplesheet's `nuclear_channel` is used
 automatically, so a slide stained with `DRAQ5` or `Hoechst2` still receives DAPI
 statistics.
 
+#### Channels that are not markers
+
+Some channels carry no biology at all -- autofluorescence, a blank, an empty
+cycle. No mapping can resolve those, and `kronos_allow_novel_defaults` is the
+wrong instrument because it still _feeds_ the channel to the model, normalised
+with default statistics. Withhold it instead:
+
+```bash
+--kronos_exclude_markers 'Autofluorescence'
+```
+
+**This affects the embedding step and nothing else.** The channel is simply never
+read by KRONOS2, so it contributes nothing to the embedding -- but it stays in
+the image, remains available to segmentation and every other process, and keeps
+whatever intensity measurements CELLMEASUREMENT wrote for it in the GeoJSON.
+Nothing is deleted from your data. Contrast `remove_markers`, which really does
+strip channels out of the background-subtracted image.
+
+Names are comma separated, case sensitive, and matched against the image's own
+channel names **before** any mapping is applied -- so name `Autofluorescence`,
+not whatever you might have mapped it to. A name matching no channel fails the
+run and lists the channels that are present, and the nuclear channel cannot be
+withheld because it is the model's `preferred_dapi`. Every withheld channel is
+recorded in `_marker_report.txt`.
+
+Two things to watch:
+
+- KRONOS2 attends across the whole channel set, so excluding one channel changes
+  the embedding of every _other_ channel too. Keep the exclusion list constant
+  across a cohort; embeddings computed from different channel sets are not
+  comparable.
+- On the background-subtraction paths KRONOS2 receives the **post-backsub**
+  image, so `remove_markers` has already been applied to it. The two options
+  therefore operate on different channel lists, and naming the same channel in
+  both makes the KRONOS2 run fail with "no such channel".
+
 #### KRONOS2 embedding parameters
 
 | Parameter Name                | Description                                                                                                                                                                             |
@@ -674,6 +710,7 @@ statistics.
 | `kronos_num_workers`          | PyTorch DataLoader worker processes (default: `4`).                                                                                                                                     |
 | `kronos_max_value`            | Override the intensity divisor. Unset (default) derives it from the image dtype -- `uint8`=255, `uint16`=65535, float=400 -- matching KRONOS2's own scaling factor.                     |
 | `kronos_marker_mapping`       | JSON file or inline JSON mapping channel names onto KRONOS2 vocabulary names (default: `null`).                                                                                         |
+| `kronos_exclude_markers`      | Comma-separated channels not shown to KRONOS2, so they contribute nothing to the embedding, e.g. `Autofluorescence` (default: `null`). The image and all other outputs are untouched.   |
 | `kronos_nuclear_marker`       | Override the nuclear stain used as `preferred_dapi`. Defaults to the samplesheet's `nuclear_channel`.                                                                                   |
 | `kronos_isolate_cell`         | Zero pixels outside the target cell so each embedding describes that cell rather than its surrounding neighbourhood (default: `true`).                                                  |
 | `kronos_allow_novel_defaults` | Proceed when markers fall outside the vocabulary, accepting default normalisation stats (default: `false`).                                                                             |

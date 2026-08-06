@@ -189,6 +189,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`kronos_exclude_markers`, which withholds channels from KRONOS2 so they
+  contribute nothing to the embedding.** A COMET panel's `Autofluorescence`
+  channel is not a marker and is not in the 288-marker vocabulary, so the run
+  failed with only one escape -- `kronos_allow_novel_defaults` -- which still
+  _feeds_ the channel to the model, normalised with default statistics, the
+  opposite of what is wanted. This is scoped to the embedding step and deletes
+  nothing: the reader opens only the kept channel indices, so a withheld channel
+  is never read, while it stays in the image, remains available to every other
+  process, and keeps the intensity measurements CELLMEASUREMENT wrote for it.
+  (Contrast `remove_markers`, which does strip channels out of the
+  background-subtracted image.) Names are comma separated and case sensitive,
+  matched against the image's own channel names before any
+  `kronos_marker_mapping`; a name matching nothing fails the run and lists what
+  is present, and the nuclear channel cannot be withheld because it is the
+  model's `preferred_dapi`. The marker report shows withheld channels in place.
+  **KRONOS2 attends across the channel set, so this changes every channel's
+  embedding** -- hold the list constant across a cohort.
+
 - **The `cpdino` and `cpdino-vitb` models are usable.** Cellpose needs Meta's
   `dinov3` for these, imports it in a bare `try`/`except` that only warns, and
   then dies with `NameError: name 'dinov3_vitl16' is not defined` when the model
@@ -242,6 +260,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **:warning: KRONOS2 embedded one channel's pixels under every marker's name on
+  OME-TIFFs that store each channel as its own 2D series.** `ChannelReader` sized
+  itself from `series[0]` alone, so an 8-series image read as 1 channel while the
+  patch buffer was still sized from the 8-name marker list -- and numpy broadcast
+  that single channel across all eight. The run completed, reported the right
+  channel count, and produced 768-d vectors computed from eight copies of DAPI.
+  The layout is now detected up front and each channel read from its own series,
+  the reader refuses to return fewer channels than were asked of it, and the run
+  fails if the channel-name count and the image's channel count disagree.
+  **Embeddings produced from such images by earlier versions are invalid and must
+  be regenerated.** The COMET `_fixed` images written by the inForm unmixing
+  export are affected.
+- A channel whose OME `Channel` element carried neither `Name` nor `ID` was
+  dropped from the marker list but not from the image the reader opened, sliding
+  every later marker onto the wrong channel. Names are now built positionally,
+  with one entry per channel always.
 - Stub runs of the Cellpose path failed with `For input string: ""`. The
   `SOPA_PATCHIFYIMAGE` stub wrote an empty patch-count file that the caller parses
   with `.toInteger()`.
