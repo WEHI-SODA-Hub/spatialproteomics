@@ -23,6 +23,30 @@ from shapely import wkb
 from typing import Annotated
 
 
+# Narrowest first. rasterio.features.rasterize supports uint8/16/32 but not
+# uint64, so uint32 is the widest label type available here.
+LABEL_DTYPES = (np.uint16, np.uint32)
+
+
+def select_label_dtype(n_labels: int) -> np.dtype:
+    """
+    Picks the narrowest dtype that can hold ``n_labels`` 1-based label IDs.
+
+    Label IDs are stored as pixel values, so a dtype too narrow for the largest
+    ID silently truncates the segmentation: rasterize() does not raise, it caps
+    at the dtype maximum and every geometry past that point is lost.
+    """
+    for dtype in LABEL_DTYPES:
+        if n_labels <= np.iinfo(dtype).max:
+            return np.dtype(dtype)
+
+    widest = np.dtype(LABEL_DTYPES[-1])
+    raise ValueError(
+        f"{n_labels} geometries exceeds the {np.iinfo(widest).max} label "
+        f"limit of {widest.name} masks."
+    )
+
+
 def get_image_dimensions(tiff_path: Path) -> tuple[int, int]:
     """
     Extracts image dimensions from the OME-TIFF metadata.
@@ -67,6 +91,9 @@ def main(
     # Create incrementing IDs for each geometry (1-based as 0 is background)
     ids = [id for id in range(1, len(geometries) + 1)]
 
+    # Widen the label type when there are more cells than uint16 can index.
+    label_dtype = select_label_dtype(len(geometries))
+
     # Get X and Y dimensions from the TIFF file
     (size_x, size_y) = get_image_dimensions(tiff_path)
 
@@ -84,8 +111,18 @@ def main(
             width=size_x,
             height=size_y
         ),
-        dtype=np.uint16,
+        dtype=label_dtype,
         all_touched=True  # Fill shapes
+    )
+
+    # stdout carries the TIFF, so diagnostics go to stderr. Shapes are drawn in
+    # order and later ones overwrite earlier ones, so a fully occluded cell can
+    # legitimately drop out; a large shortfall means something is wrong.
+    max_label = int(mask.max())
+    print(
+        f"Rasterised {len(geometries)} geometries as {label_dtype.name}; "
+        f"max label {max_label}",
+        file=sys.stderr,
     )
 
     # Write TIFF output
