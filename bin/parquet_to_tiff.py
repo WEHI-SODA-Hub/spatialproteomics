@@ -23,18 +23,20 @@ from shapely import wkb
 from typing import Annotated
 
 
-# Narrowest first. rasterio.features.rasterize supports uint8/16/32 but not
-# uint64, so uint32 is the widest label type available here.
+# Narrowest first. rasterize() has no uint64, so uint32 is the widest here.
 LABEL_DTYPES = (np.uint16, np.uint32)
+
+# Label masks are long runs of a repeated ID, so deflate shrinks them ~90x.
+MASK_COMPRESSION = "zlib"
+MASK_COMPRESSION_ARGS = {"level": 1}
 
 
 def select_label_dtype(n_labels: int) -> np.dtype:
     """
     Picks the narrowest dtype that can hold ``n_labels`` 1-based label IDs.
 
-    Label IDs are stored as pixel values, so a dtype too narrow for the largest
-    ID silently truncates the segmentation: rasterize() does not raise, it caps
-    at the dtype maximum and every geometry past that point is lost.
+    Label IDs are pixel values, so too narrow a dtype silently drops cells:
+    rasterize() does not raise, it caps at the dtype maximum.
     """
     for dtype in LABEL_DTYPES:
         if n_labels <= np.iinfo(dtype).max:
@@ -115,9 +117,7 @@ def main(
         all_touched=True  # Fill shapes
     )
 
-    # stdout carries the TIFF, so diagnostics go to stderr. Shapes are drawn in
-    # order and later ones overwrite earlier ones, so a fully occluded cell can
-    # legitimately drop out; a large shortfall means something is wrong.
+    # stdout carries the TIFF, so diagnostics go to stderr.
     max_label = int(mask.max())
     print(
         f"Rasterised {len(geometries)} geometries as {label_dtype.name}; "
@@ -126,7 +126,12 @@ def main(
     )
 
     # Write TIFF output
-    imwrite(sys.stdout.buffer, np.flipud(mask))
+    imwrite(
+        sys.stdout.buffer,
+        np.flipud(mask),
+        compression=MASK_COMPRESSION,
+        compressionargs=MASK_COMPRESSION_ARGS,
+    )
 
 
 if __name__ == "__main__":

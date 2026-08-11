@@ -14,7 +14,14 @@ import pytest
 import rasterio.features
 from shapely.geometry import box
 
-from parquet_to_tiff import LABEL_DTYPES, select_label_dtype
+import tifffile
+
+from parquet_to_tiff import (
+    LABEL_DTYPES,
+    MASK_COMPRESSION,
+    MASK_COMPRESSION_ARGS,
+    select_label_dtype,
+)
 
 UINT16_MAX = np.iinfo(np.uint16).max  # 65535
 UINT32_MAX = np.iinfo(np.uint32).max
@@ -83,3 +90,23 @@ def test_selected_dtype_preserves_every_label():
     assert mask.dtype == np.uint32
     assert mask.max() == n
     assert len(np.unique(mask)) - 1 == n
+
+
+# ----------------------------------------------------------------------------
+# compression
+# ----------------------------------------------------------------------------
+
+
+def test_mask_compression_is_lossless_and_smaller(tmp_path):
+    """These masks are written to and re-read from shared scratch, so raw byte
+    count is the cost. Compression must not change a single label."""
+    mask = _rasterize(5000, np.uint32)
+    path = tmp_path / "mask.tiff"
+
+    tifffile.imwrite(
+        path, mask,
+        compression=MASK_COMPRESSION, compressionargs=MASK_COMPRESSION_ARGS,
+    )
+
+    assert path.stat().st_size < mask.nbytes
+    assert np.array_equal(tifffile.imread(path), mask)
