@@ -29,8 +29,8 @@ jobs:
 
   pytest:
     # Unit tests for the bin/ scripts. Deliberately dependency-light: these cover
-    # the pure logic (channel naming, exclusion, the marker report, label dtype
-    # selection), so they need no torch, no GPU and no gated model weights, and
+    # the pure logic (channel naming, exclusion, the marker report, the label
+    # dtype), so they need no torch, no GPU and no gated model weights, and
     # run in seconds. The geo stack is here only because bin/parquet_to_tiff.py
     # imports it at module level; all of it is plain wheels.
     runs-on: ubuntu-latest

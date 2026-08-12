@@ -23,30 +23,15 @@ from shapely import wkb
 from typing import Annotated
 
 
-# Narrowest first. rasterize() has no uint64, so uint32 is the widest here.
-LABEL_DTYPES = (np.uint16, np.uint32)
+# Label IDs are pixel values, so the dtype has to index every cell. uint32
+# covers 4.29e9 cells -- orders of magnitude past any real slide -- so one wide
+# dtype avoids the silent truncation uint16 hits beyond 65535 cells (rasterize()
+# caps at the dtype maximum, it never raises). rasterize() has no uint64.
+LABEL_DTYPE = np.uint32
 
 # Label masks are long runs of a repeated ID, so deflate shrinks them ~90x.
 MASK_COMPRESSION = "zlib"
 MASK_COMPRESSION_ARGS = {"level": 1}
-
-
-def select_label_dtype(n_labels: int) -> np.dtype:
-    """
-    Picks the narrowest dtype that can hold ``n_labels`` 1-based label IDs.
-
-    Label IDs are pixel values, so too narrow a dtype silently drops cells:
-    rasterize() does not raise, it caps at the dtype maximum.
-    """
-    for dtype in LABEL_DTYPES:
-        if n_labels <= np.iinfo(dtype).max:
-            return np.dtype(dtype)
-
-    widest = np.dtype(LABEL_DTYPES[-1])
-    raise ValueError(
-        f"{n_labels} geometries exceeds the {np.iinfo(widest).max} label "
-        f"limit of {widest.name} masks."
-    )
 
 
 def get_image_dimensions(tiff_path: Path) -> tuple[int, int]:
@@ -93,8 +78,14 @@ def main(
     # Create incrementing IDs for each geometry (1-based as 0 is background)
     ids = [id for id in range(1, len(geometries) + 1)]
 
-    # Widen the label type when there are more cells than uint16 can index.
-    label_dtype = select_label_dtype(len(geometries))
+    # Guard the (physically implausible) case of more cells than uint32 can
+    # index, so we never silently truncate the way uint16 did.
+    if len(geometries) > np.iinfo(LABEL_DTYPE).max:
+        raise ValueError(
+            f"{len(geometries)} geometries exceeds the "
+            f"{np.iinfo(LABEL_DTYPE).max} label limit of "
+            f"{np.dtype(LABEL_DTYPE).name} masks."
+        )
 
     # Get X and Y dimensions from the TIFF file
     (size_x, size_y) = get_image_dimensions(tiff_path)
@@ -113,14 +104,14 @@ def main(
             width=size_x,
             height=size_y
         ),
-        dtype=label_dtype,
+        dtype=LABEL_DTYPE,
         all_touched=True  # Fill shapes
     )
 
     # stdout carries the TIFF, so diagnostics go to stderr.
     max_label = int(mask.max())
     print(
-        f"Rasterised {len(geometries)} geometries as {label_dtype.name}; "
+        f"Rasterised {len(geometries)} geometries as {mask.dtype.name}; "
         f"max label {max_label}",
         file=sys.stderr,
     )

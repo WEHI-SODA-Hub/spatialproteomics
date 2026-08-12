@@ -10,17 +10,15 @@ Pure python -- no pipeline run required.
 """
 
 import numpy as np
-import pytest
 import rasterio.features
 from shapely.geometry import box
 
 import tifffile
 
 from parquet_to_tiff import (
-    LABEL_DTYPES,
+    LABEL_DTYPE,
     MASK_COMPRESSION,
     MASK_COMPRESSION_ARGS,
-    select_label_dtype,
 )
 
 UINT16_MAX = np.iinfo(np.uint16).max  # 65535
@@ -40,34 +38,14 @@ def _rasterize(n, dtype):
 
 
 # ----------------------------------------------------------------------------
-# dtype selection
+# the label dtype
 # ----------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize(
-    "n_labels, expected",
-    [
-        (0, "uint16"),
-        (1, "uint16"),
-        (UINT16_MAX - 1, "uint16"),
-        (UINT16_MAX, "uint16"),  # boundary: still fits
-        (UINT16_MAX + 1, "uint32"),  # boundary: must widen
-        (200_000, "uint32"),
-        (UINT32_MAX, "uint32"),
-    ],
-)
-def test_select_label_dtype_picks_narrowest_that_fits(n_labels, expected):
-    assert select_label_dtype(n_labels).name == expected
-
-
-def test_select_label_dtype_rejects_counts_beyond_widest_dtype():
-    with pytest.raises(ValueError, match="exceeds the"):
-        select_label_dtype(UINT32_MAX + 1)
-
-
-def test_label_dtypes_are_ordered_narrowest_first():
-    sizes = [np.dtype(dt).itemsize for dt in LABEL_DTYPES]
-    assert sizes == sorted(sizes)
+def test_label_dtype_indexes_far_more_cells_than_any_real_slide():
+    """uint32 is the wide fixed choice: 4.29e9 IDs, well past any real mask."""
+    assert np.dtype(LABEL_DTYPE).name == "uint32"
+    assert np.iinfo(LABEL_DTYPE).max == UINT32_MAX
 
 
 # ----------------------------------------------------------------------------
@@ -76,16 +54,16 @@ def test_label_dtypes_are_ordered_narrowest_first():
 
 
 def test_uint16_silently_truncates_beyond_its_maximum():
-    """Documents the failure mode: no exception, just missing cells."""
+    """Documents the failure mode uint32 avoids: no exception, missing cells."""
     mask = _rasterize(UINT16_MAX + 2, np.uint16)
 
     assert mask.max() == UINT16_MAX
     assert len(np.unique(mask)) - 1 == UINT16_MAX  # two labels lost, silently
 
 
-def test_selected_dtype_preserves_every_label():
+def test_label_dtype_preserves_every_label_past_uint16():
     n = UINT16_MAX + 2
-    mask = _rasterize(n, select_label_dtype(n))
+    mask = _rasterize(n, LABEL_DTYPE)
 
     assert mask.dtype == np.uint32
     assert mask.max() == n
