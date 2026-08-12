@@ -30,10 +30,6 @@ from skimage.draw import polygon as draw_polygon
 from shapely.geometry import Polygon
 from shapely.ops import unary_union
 
-# Label masks are long runs of a repeated ID, so deflate shrinks them ~90x.
-MASK_COMPRESSION = "zlib"
-MASK_COMPRESSION_ARGS = {"level": 1}
-
 
 def enforce_min_area(mask, min_area):
     """Remove labels whose final pixel area is below min_area."""
@@ -436,10 +432,7 @@ def main():
 
     if n_labels == 0:
         print("No labels found — writing input unchanged.")
-        tifffile.imwrite(
-            args.output_mask, mask,
-            compression=MASK_COMPRESSION, compressionargs=MASK_COMPRESSION_ARGS,
-        )
+        tifffile.imwrite(args.output_mask, mask)
         sys.exit(0)
 
     print(f"Using smoothing method: {args.method}")
@@ -468,10 +461,7 @@ def main():
     print(f"Labels after smoothing: {n_after} (lost {n_labels - n_after})")
 
     print(f"Writing smoothed mask: {args.output_mask}")
-    tifffile.imwrite(
-        args.output_mask, smoothed,
-        compression=MASK_COMPRESSION, compressionargs=MASK_COMPRESSION_ARGS,
-    )
+    tifffile.imwrite(args.output_mask, smoothed)
     print("Done.")
 
 
