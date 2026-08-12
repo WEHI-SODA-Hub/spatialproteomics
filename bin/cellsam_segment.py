@@ -11,6 +11,13 @@ from cellSAM.cellsam_pipeline import cellsam_pipeline
 import cellSAM
 
 
+# This is an intermediate mask, smoothed downstream, so compress it: label masks
+# are long runs of a repeated ID and deflate shrinks them ~90x. Only the final
+# smoothed mask is left uncompressed for viewers.
+MASK_COMPRESSION = "zlib"
+MASK_COMPRESSION_ARGS = {"level": 1}
+
+
 def _local_tag_name(tag):
     '''Return XML tag name without namespace.'''
     return tag.split('}', 1)[-1]
@@ -397,7 +404,10 @@ def main():
         mask = remove_small_cells(mask, args.min_area)
 
     # Save segmentation mask
-    tifffile.imwrite(args.output, mask.astype(np.uint32))
+    tifffile.imwrite(
+        args.output, mask.astype(np.uint32),
+        compression=MASK_COMPRESSION, compressionargs=MASK_COMPRESSION_ARGS,
+    )
     print(f"Segmentation mask saved to {args.output}")
 
 
