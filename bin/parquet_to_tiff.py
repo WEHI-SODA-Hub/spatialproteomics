@@ -23,6 +23,17 @@ from shapely import wkb
 from typing import Annotated
 
 
+# Label IDs are pixel values, so the dtype has to index every cell. uint32
+# covers 4.29e9 cells -- orders of magnitude past any real slide -- so one wide
+# dtype avoids the silent truncation uint16 hits beyond 65535 cells (rasterize()
+# caps at the dtype maximum, it never raises). rasterize() has no uint64.
+LABEL_DTYPE = np.uint32
+
+# Label masks are long runs of a repeated ID, so deflate shrinks them ~90x.
+MASK_COMPRESSION = "zlib"
+MASK_COMPRESSION_ARGS = {"level": 1}
+
+
 def get_image_dimensions(tiff_path: Path) -> tuple[int, int]:
     """
     Extracts image dimensions from the OME-TIFF metadata.
@@ -67,6 +78,15 @@ def main(
     # Create incrementing IDs for each geometry (1-based as 0 is background)
     ids = [id for id in range(1, len(geometries) + 1)]
 
+    # Guard the (physically implausible) case of more cells than uint32 can
+    # index, so we never silently truncate the way uint16 did.
+    if len(geometries) > np.iinfo(LABEL_DTYPE).max:
+        raise ValueError(
+            f"{len(geometries)} geometries exceeds the "
+            f"{np.iinfo(LABEL_DTYPE).max} label limit of "
+            f"{np.dtype(LABEL_DTYPE).name} masks."
+        )
+
     # Get X and Y dimensions from the TIFF file
     (size_x, size_y) = get_image_dimensions(tiff_path)
 
@@ -84,12 +104,25 @@ def main(
             width=size_x,
             height=size_y
         ),
-        dtype=np.uint16,
+        dtype=LABEL_DTYPE,
         all_touched=True  # Fill shapes
     )
 
+    # stdout carries the TIFF, so diagnostics go to stderr.
+    max_label = int(mask.max())
+    print(
+        f"Rasterised {len(geometries)} geometries as {mask.dtype.name}; "
+        f"max label {max_label}",
+        file=sys.stderr,
+    )
+
     # Write TIFF output
-    imwrite(sys.stdout.buffer, np.flipud(mask))
+    imwrite(
+        sys.stdout.buffer,
+        np.flipud(mask),
+        compression=MASK_COMPRESSION,
+        compressionargs=MASK_COMPRESSION_ARGS,
+    )
 
 
 if __name__ == "__main__":
