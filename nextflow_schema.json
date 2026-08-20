@@ -189,6 +189,20 @@
                     "description": "Sigma for sopa's gaussian smoothing, applied before Cellpose. Defaults to 0 in this pipeline, disabling it; null restores sopa's default of 1.",
                     "help_text": "Like CLAHE, this is sopa's addition rather than Cellpose's: Cellpose's own smoothing and sharpening parameters (`smooth_radius`, `sharpen_radius`) both default to 0, and it applies neither unless asked.\n\nUnlike CLAHE this is not a source of patch dependence, since a small-sigma convolution is local and only edge reflection differs between patch layouts. Disabling it is therefore about matching Cellpose's preprocessing contract, not about stability. Raise it if your data is noisy enough to need denoising before segmentation.",
                     "fa_icon": "fas fa-water"
+                },
+                "cellpose_normalize_global": {
+                    "type": "boolean",
+                    "description": "Normalise intensity globally across the whole image instead of per patch. Fixes the residual tiling grid that remains after CLAHE/gaussian are off.",
+                    "help_text": "Even with sopa's CLAHE and gaussian disabled, Cellpose still rescales every patch to that patch's own 1-99 percentile, so an identical cell lands on a different scale in a dense versus a sparse patch. That is the residual tile grid.\n\nWhen true, the pipeline computes one [low, high] pair per channel from the whole image (over `cellpose_normalize_percentiles`) and passes it to Cellpose as `--method-kwargs '{\"normalize\": {\"lowhigh\": [[lo, hi], ...]}}'`, so every patch shares the same scale. Bounds are ordered to match the channels Cellpose receives (membrane then nucleus for whole-cell).\n\nAssumes `cellpose_clip_limit = 0`: the bounds are computed on raw intensities, which is what Cellpose sees only while CLAHE is off. Supersedes `cellpose_tile_norm_blocksize` when both are set.",
+                    "fa_icon": "fas fa-globe"
+                },
+                "cellpose_normalize_percentiles": {
+                    "type": "string",
+                    "default": "1,99",
+                    "pattern": "^[0-9.]+,[0-9.]+$",
+                    "description": "Low,high percentiles for the global bounds when cellpose_normalize_global is set. (1, 99) matches Cellpose's own per-patch default.",
+                    "help_text": "Only used when `cellpose_normalize_global` is true. The pair is computed once over the whole image rather than per patch, so the statistics are identical everywhere. Widen (e.g. 0.5,99.9) only if clipping is losing real signal in the brightest or darkest cells.",
+                    "fa_icon": "fas fa-percent"
                 }
             }
         },

@@ -306,15 +306,54 @@ were trained on:
 
 These four parameters form the **Cellpose preprocessing options** group:
 
-| Parameter Name               | Default | Description                                                                            |
-| ---------------------------- | ------- | -------------------------------------------------------------------------------------- |
-| cellpose_gaussian_sigma      | `0`     | sopa's gaussian smoothing sigma. `0` disables it; `null` restores sopa's `1`.          |
-| cellpose_clip_limit          | `0`     | sopa's CLAHE clip limit. `0` disables CLAHE; `null` restores sopa's `0.2`.             |
-| cellpose_clahe_kernel_size   | `null`  | CLAHE kernel in pixels. `null` means `patch.shape // 8`. No effect while CLAHE is off. |
-| cellpose_tile_norm_blocksize | `0`     | Cellpose tile-local normalisation block. `0` is Cellpose's whole-patch default.        |
+| Parameter Name                 | Default | Description                                                                              |
+| ------------------------------ | ------- | ---------------------------------------------------------------------------------------- |
+| cellpose_gaussian_sigma        | `0`     | sopa's gaussian smoothing sigma. `0` disables it; `null` restores sopa's `1`.            |
+| cellpose_clip_limit            | `0`     | sopa's CLAHE clip limit. `0` disables CLAHE; `null` restores sopa's `0.2`.               |
+| cellpose_clahe_kernel_size     | `null`  | CLAHE kernel in pixels. `null` means `patch.shape // 8`. No effect while CLAHE is off.   |
+| cellpose_tile_norm_blocksize   | `0`     | Cellpose tile-local normalisation block. `0` is Cellpose's whole-patch default.          |
+| cellpose_normalize_global      | `false` | Normalise intensity globally across the whole image instead of per patch. See below.     |
+| cellpose_normalize_percentiles | `1,99`  | Low,high percentiles for the global bounds. `1,99` matches Cellpose's per-patch default. |
 
 To restore sopa's behaviour, set `--cellpose_clip_limit 0.2` and
 `--cellpose_gaussian_sigma 1`.
+
+##### Global normalisation (the residual tiling grid)
+
+Disabling sopa's CLAHE and gaussian removes the largest source of patch
+dependence, but not all of it. Cellpose's **own** normalisation — the percentile
+(1, 99) rescale it always applies — is still computed on each patch
+independently, because sopa hands Cellpose one patch at a time. An identical cell
+therefore lands on a different scale in a dense versus a sparse patch, and where
+those patches meet you can still see a faint grid, most visibly as a step in cell
+yield across a patch seam.
+
+Measured directly: placing one identical synthetic cell in patches of differing
+content, its post-normalisation peak intensity varied by **284%** across patches
+under Cellpose's per-patch percentile. Sharing one global scale dropped that to
+**1.8%**.
+
+`cellpose_normalize_global = true` removes it. The pipeline computes one
+`[low, high]` pair per channel from the **whole image** (at the
+`cellpose_normalize_percentiles` percentiles), then passes it to Cellpose as
+`--method-kwargs '{"normalize": {"lowhigh": [[lo, hi], ...]}}'`, so every patch is
+rescaled against the same bounds. Bounds are computed and ordered to match the
+channels Cellpose receives — membrane then nucleus for whole-cell, nucleus alone
+for nuclear-only.
+
+Two caveats:
+
+- It **assumes `cellpose_clip_limit = 0`** (the default). The bounds are computed
+  on raw intensities, which is what Cellpose sees only while CLAHE is off — CLAHE
+  rescales each patch to 0–1, so raw-intensity bounds would not correspond to the
+  array Cellpose is normalising.
+- It **supersedes `cellpose_tile_norm_blocksize`**: with global bounds set,
+  Cellpose uses `lowhigh` and ignores tile-local percentiles. Both configure the
+  same `normalize` dict, so only one is passed at a time
+  (`cellpose_normalize_global` wins).
+
+It is off by default so the stock Cellpose contract (per-patch percentile) is
+preserved unless you opt in.
 
 ##### Why CLAHE is off
 

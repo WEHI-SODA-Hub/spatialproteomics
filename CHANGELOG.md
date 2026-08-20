@@ -189,6 +189,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`cellpose_normalize_global`, which normalises intensity globally across the
+  whole image instead of per patch, removing the residual tiling grid.** Even
+  with sopa's CLAHE and gaussian disabled, Cellpose still rescales every patch to
+  that patch's own 1–99 percentile, so an identical cell lands on a different
+  scale in a dense versus a sparse patch and a faint grid persists at patch seams.
+  Measured on one identical synthetic cell across patches of differing content,
+  its post-normalisation peak varied by 284% under per-patch percentile and 1.8%
+  under a shared global scale. When enabled, the pipeline computes one
+  `[low, high]` pair per channel from the whole image (at the new
+  `cellpose_normalize_percentiles`, default `1,99`) and passes it to Cellpose as
+  `--method-kwargs '{"normalize": {"lowhigh": ...}}'`, ordered to match the
+  channels Cellpose receives. Off by default; assumes `cellpose_clip_limit = 0`
+  and supersedes `cellpose_tile_norm_blocksize`. The Cellpose normalize dict is
+  now single-sourced in the `SOPA_SEGMENTATIONCELLPOSE` module rather than
+  `conf/modules.config`, since the global bounds are computed per sample at run
+  time.
+
 - **`kronos_exclude_markers`, which withholds channels from KRONOS2 so they
   contribute nothing to the embedding.** A COMET panel's `Autofluorescence`
   channel is not a marker and is not in the 288-marker vocabulary, so the run

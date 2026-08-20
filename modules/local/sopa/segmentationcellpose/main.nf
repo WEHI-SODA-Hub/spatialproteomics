@@ -24,7 +24,31 @@ process SOPA_SEGMENTATIONCELLPOSE {
 
     script:
     def args = task.ext.args ?: ''
-    def membrane_channel_arg = (membrane_channel && membrane_channel != "[]") ? "--channels \"${membrane_channel}\"" : ""
+    def has_membrane = (membrane_channel && membrane_channel != "[]")
+    def membrane_channel_arg = has_membrane ? "--channels \"${membrane_channel}\"" : ""
+
+    // Cellpose's normalize dict is single-sourced here (rather than in
+    // modules.config) because global normalisation needs the per-sample bounds
+    // that only exist at run time. sopa forwards --method-kwargs straight into
+    // model.eval, and passing it twice would conflict, so exactly one
+    // method_kwargs.json is written below and always passed.
+    //
+    // Precedence: global normalisation > tile-local percentile > cellpose's
+    // stock whole-patch percentile ({} == no override).
+    def tile_norm = (params.containsKey('cellpose_tile_norm_blocksize') && params.cellpose_tile_norm_blocksize) ? params.cellpose_tile_norm_blocksize : 0
+    def global_norm = params.containsKey('cellpose_normalize_global') && params.cellpose_normalize_global
+    def percentiles = (params.containsKey('cellpose_normalize_percentiles') && params.cellpose_normalize_percentiles) ? params.cellpose_normalize_percentiles : '1,99'
+    // Channels in the SAME order sopa builds the image below (membrane then
+    // nucleus), so the per-channel bounds line up with the array cellpose sees.
+    def norm_channel_args = (has_membrane ? "--channel \"${membrane_channel}\" " : "") + "--channel \"${nuclear_channel}\""
+    def norm_setup = ''
+    if (global_norm) {
+        norm_setup = "compute_cellpose_norm.py ${zarr} ${norm_channel_args} --percentiles ${percentiles} --as-method-kwargs -o method_kwargs.json"
+    } else if (tile_norm) {
+        norm_setup = "printf '%s' '{\"normalize\": {\"tile_norm_blocksize\": ${tile_norm}, \"percentile\": [1.0, 99.0]}}' > method_kwargs.json"
+    } else {
+        norm_setup = "printf '%s' '{}' > method_kwargs.json"
+    }
     """
     export NUMBA_CACHE_DIR=\$PWD/.numba_cache
 
@@ -43,6 +67,9 @@ process SOPA_SEGMENTATIONCELLPOSE {
     done
     export CELLPOSE_LOCAL_MODELS_PATH=\$PWD/.cellpose_models
 
+    # Write exactly one cellpose normalize dict (see script block above).
+    ${norm_setup}
+
     sopa segmentation cellpose \\
         ${args} \\
         --patch-index ${index} \\
@@ -50,6 +77,7 @@ process SOPA_SEGMENTATIONCELLPOSE {
         --channels "${nuclear_channel}" \\
         --diameter ${params.cellpose_diameter} \\
         --min-area ${params.cellpose_min_area} \\
+        --method-kwargs "\$(cat method_kwargs.json)" \\
         ${zarr}
 
     cat <<-END_VERSIONS > versions.yml
