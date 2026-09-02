@@ -1,0 +1,79 @@
+{
+    "aviti_stitchwell - two adjacent tiles": {
+        "content": [
+            [
+                "versions.yml:md5,99f9cd2d7fe1fee6b6228480e89441f3"
+            ]
+        ],
+        "meta": {
+            "nf-test": "0.9.2",
+            "nextflow": "25.04.4"
+        },
+        "timestamp": "2026-09-01T11:18:03.476726749"
+    },
+    "aviti_stitchwell - stub": {
+        "content": [
+            {
+                "0": [
+                    [
+                        {
+                            "id": "test__WellA1"
+                        },
+                        "test__WellA1_cell_stitched.tif:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "1": [
+                    [
+                        {
+                            "id": "test__WellA1"
+                        },
+                        "test__WellA1_nuclear_stitched.tif:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "2": [
+                    [
+                        {
+                            "id": "test__WellA1"
+                        },
+                        "test__WellA1_image_stitched.tif:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "3": [
+                    "versions.yml:md5,1aa0368e7137bc62a5d6f19ed6eae9cd"
+                ],
+                "cell_mask": [
+                    [
+                        {
+                            "id": "test__WellA1"
+                        },
+                        "test__WellA1_cell_stitched.tif:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "image": [
+                    [
+                        {
+                            "id": "test__WellA1"
+                        },
+                        "test__WellA1_image_stitched.tif:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "nuclear_mask": [
+                    [
+                        {
+                            "id": "test__WellA1"
+                        },
+                        "test__WellA1_nuclear_stitched.tif:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "versions": [
+                    "versions.yml:md5,1aa0368e7137bc62a5d6f19ed6eae9cd"
+                ]
+            }
+        ],
+        "meta": {
+            "nf-test": "0.9.2",
+            "nextflow": "25.04.4"
+        },
+        "timestamp": "2026-09-01T11:20:57.176477685"
+    }
+}

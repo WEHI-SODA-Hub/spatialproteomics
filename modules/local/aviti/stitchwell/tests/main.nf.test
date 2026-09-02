@@ -1,0 +1,88 @@
+nextflow_process {
+
+    name "Test Process AVITISTITCHWELL"
+    script "../main.nf"
+    process "AVITISTITCHWELL"
+
+    tag "modules"
+    tag "modules_local"
+    tag "aviti"
+    tag "aviti_stitchwell"
+
+    test("aviti_stitchwell - two adjacent tiles") {
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'test__WellA1' ], // meta map
+                    [
+                        [ tile:'tile1', x_mm:0.0,   y_mm:0.0, cell_mask:'tile1_Cell.tif',    nuclear_mask:'tile1_Nuclear.tif', image_tif:'tile1_merged.tif' ],
+                        [ tile:'tile2', x_mm:0.002, y_mm:0.0, cell_mask:'tile2_Cell.tif',    nuclear_mask:'tile2_Nuclear.tif', image_tif:'tile2_merged.tif' ],
+                    ], // tile_rows
+                    [
+                        file('${projectDir}/tests/data/aviti/stitch/tile1_Cell.tif', checkIfExists: true),
+                        file('${projectDir}/tests/data/aviti/stitch/tile2_Cell.tif', checkIfExists: true),
+                    ], // cell_masks
+                    [
+                        file('${projectDir}/tests/data/aviti/stitch/tile1_Nuclear.tif', checkIfExists: true),
+                        file('${projectDir}/tests/data/aviti/stitch/tile2_Nuclear.tif', checkIfExists: true),
+                    ], // nuclear_masks
+                    [
+                        file('${projectDir}/tests/data/aviti/stitch/tile1_merged.tif', checkIfExists: true),
+                        file('${projectDir}/tests/data/aviti/stitch/tile2_merged.tif', checkIfExists: true),
+                    ], // images
+                ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out.versions).match() }
+            )
+        }
+
+    }
+
+    test("aviti_stitchwell - stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'test__WellA1' ], // meta map
+                    [
+                        [ tile:'tile1', x_mm:0.0,   y_mm:0.0, cell_mask:'tile1_Cell.tif',    nuclear_mask:'tile1_Nuclear.tif', image_tif:'tile1_merged.tif' ],
+                        [ tile:'tile2', x_mm:0.002, y_mm:0.0, cell_mask:'tile2_Cell.tif',    nuclear_mask:'tile2_Nuclear.tif', image_tif:'tile2_merged.tif' ],
+                    ], // tile_rows
+                    [
+                        file('${projectDir}/tests/data/aviti/stitch/tile1_Cell.tif', checkIfExists: true),
+                        file('${projectDir}/tests/data/aviti/stitch/tile2_Cell.tif', checkIfExists: true),
+                    ], // cell_masks
+                    [
+                        file('${projectDir}/tests/data/aviti/stitch/tile1_Nuclear.tif', checkIfExists: true),
+                        file('${projectDir}/tests/data/aviti/stitch/tile2_Nuclear.tif', checkIfExists: true),
+                    ], // nuclear_masks
+                    [
+                        file('${projectDir}/tests/data/aviti/stitch/tile1_merged.tif', checkIfExists: true),
+                        file('${projectDir}/tests/data/aviti/stitch/tile2_merged.tif', checkIfExists: true),
+                    ], // images
+                ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out).match() }
+            )
+        }
+
+    }
+
+}

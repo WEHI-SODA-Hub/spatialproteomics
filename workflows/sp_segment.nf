@@ -13,6 +13,7 @@ include { CELLSAM_SEGMENT_WBACKSUB  } from '../subworkflows/local/cellsam_segmen
 include { CELLSAM_SEGMENT           } from '../subworkflows/local/cellsam_segment'
 include { SOPA_SEGMENT              } from '../subworkflows/local/sopa_segment'
 include { SOPA_SEGMENT_WBACKSUB     } from '../subworkflows/local/sopa_segment_wbacksub'
+include { AVITI_SEGMENT             } from '../subworkflows/local/aviti_segment'
 include { CELLPOSEMODEL             } from '../modules/local/cellposemodel/main.nf'
 include { KRONOS2EMBEDDINGS         } from '../modules/local/kronos2embeddings/main.nf'
 include { softwareVersionsToYAML    } from '../subworkflows/nf-core/utils_nfcore_pipeline'
@@ -27,10 +28,11 @@ include { methodsDescriptionText    } from '../subworkflows/local/utils_nfcore_s
 workflow SP_SEGMENT {
 
     take:
-    ch_samplesheet // channel: samplesheet read in from --input
+    ch_samplesheet       // channel: samplesheet read in from --input
+    ch_aviti_samplesheet // channel: samplesheet read in from --aviti_input
     main:
 
-    ch_versions = Channel.empty()
+    ch_versions = channel.empty()
 
     //
     // Construct channel for background subtraction/segmentation workflow for MESMER
@@ -83,7 +85,7 @@ workflow SP_SEGMENT {
     // Construct channel for only CELLPOSE subworkflow
     //
     ch_samplesheet.filter {
-        it[3] == true // run_cellpose true for sample
+        sample -> sample[3] == true // run_cellpose true for sample
     }.map {
         sample,
         run_backsub,
@@ -100,8 +102,8 @@ workflow SP_SEGMENT {
             membrane_channels
         ]
     }.branch { it ->
-        with_backsub: it[1] == true// run_backsub true
-        no_backsub: it[1] == false // run_backsub false
+        with_backsub: it[1] == true // run_backsub true
+        no_backsub: it[1] == false  // run_backsub false
     }.set { ch_cellpose_samplesheet }
 
     //
@@ -125,9 +127,9 @@ workflow SP_SEGMENT {
     // so in that case an empty staged directory is enough.
     //
     if (params.cellpose_models_dir) {
-        ch_cellpose_models = Channel.value(file(params.cellpose_models_dir, checkIfExists: true))
+        ch_cellpose_models = channel.value(file(params.cellpose_models_dir, checkIfExists: true))
     } else if (file(params.cellpose_pretrained_model).exists()) {
-        ch_cellpose_models = Channel.value(file(params.cellpose_pretrained_model).parent)
+        ch_cellpose_models = channel.value(file(params.cellpose_pretrained_model).parent)
     } else {
         CELLPOSEMODEL(
             ch_cellpose_samplesheet.with_backsub
@@ -195,6 +197,32 @@ workflow SP_SEGMENT {
     )
 
     //
+    // Run the AVITI24/Teton/Teton Atlas segmentation subworkflow, if any AVITI
+    // runs were supplied via --aviti_input. This is a fully separate path
+    // from everything above: it discovers wells/tiles from a run directory
+    // rather than taking a pre-segmented sample TIFF, and only its final
+    // stitched per-well outputs rejoin the existing CELLMEASUREMENT/KRONOS
+    // contract.
+    //
+    // The custom nuclear model is staged once here (a `path()` input, not a
+    // download) for the same reason ch_cellpose_models is hoisted above: it
+    // is read by every tile task in the run, and staging inside the
+    // subworkflow itself would still be shared correctly, but keeping every
+    // "stage a shared model once" decision at this level makes the
+    // parallelism/model-sharing shape of the whole workflow easier to read
+    // from one place.
+    //
+    ch_aviti_nuclear_model = params.aviti_nuclear_model_path
+        ? channel.value(file(params.aviti_nuclear_model_path, checkIfExists: true))
+        : channel.empty()
+
+    AVITI_SEGMENT(
+        ch_aviti_samplesheet,
+        ch_aviti_nuclear_model
+    )
+    ch_versions = ch_versions.mix(AVITI_SEGMENT.out.versions)
+
+    //
     // Optional KRONOS embedding extraction
     //
     // Invoked ONCE here rather than inside each segmentation subworkflow.
@@ -211,6 +239,7 @@ workflow SP_SEGMENT {
             .mix(SOPA_SEGMENT_WBACKSUB.out.kronos_input)
             .mix(CELLSAM_SEGMENT.out.kronos_input)
             .mix(CELLSAM_SEGMENT_WBACKSUB.out.kronos_input)
+            .mix(AVITI_SEGMENT.out.kronos_input)
 
         ch_kronos_annotations = MESMER_SEGMENT.out.annotations
             .mix(MESMER_SEGMENT_WBACKSUB.out.annotations)
@@ -218,6 +247,7 @@ workflow SP_SEGMENT {
             .mix(SOPA_SEGMENT_WBACKSUB.out.annotations)
             .mix(CELLSAM_SEGMENT.out.annotations)
             .mix(CELLSAM_SEGMENT_WBACKSUB.out.annotations)
+            .mix(AVITI_SEGMENT.out.annotations)
 
         // The samplesheet's per-sample nuclear channel is the model's DAPI hint
         // (preferred_dapi), which is KRONOS2's only marker-alias mechanism.
@@ -231,6 +261,12 @@ workflow SP_SEGMENT {
             nuclear_channel,
             _membrane_channels -> [ meta, nuclear_channel ]
         }
+        // AVITI's nuclear channel is always named "Nucleus" -- fixed by the
+        // instrument's own cell-paint channel naming, unlike the free-form
+        // per-sample mapping the COMET/MIBI samplesheet supplies.
+        .mix(
+            AVITI_SEGMENT.out.kronos_input.map { meta, _tiff, _whole_cell_mask -> [ meta, 'Nucleus' ] }
+        )
 
         // Everything is joined on meta before the call: Nextflow consumes
         // separate channels positionally, so mixing six upstream sources that

@@ -6,7 +6,7 @@ Description : Takes an OME-TIFF (including OPAL OME/QPTIFF) containing N
               containing a nuclear channel and membrane channel that is componsed
               of one or more channels from the input tiff, usign either the product
               or max of the intensities.
-Copyright   : (c) WEHI SODA Hub, 2025
+Copyright   : (c) WEHI SODA Hub, 2026
 License     : MIT
 Maintainer  : Marek Cmero (@mcmero)
 Portability : POSIX

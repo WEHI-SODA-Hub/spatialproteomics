@@ -3,7 +3,7 @@
 Module      : parquet_to_tiff
 Description : Converts a Cellpose Parquet file containing segmentation
               geometries into a label-image TIFF file.
-Copyright   : (c) WEHI SODA Hub, 2025
+Copyright   : (c) WEHI SODA Hub, 2026
 License     : MIT
 Maintainer  : Marek Cmero (@mcmero)
 Portability : POSIX

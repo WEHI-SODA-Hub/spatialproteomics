@@ -1,0 +1,86 @@
+nextflow_process {
+
+    name "Test Process AVITIMERGETILECHANNELS"
+    script "../main.nf"
+    process "AVITIMERGETILECHANNELS"
+
+    tag "modules"
+    tag "modules_local"
+    tag "aviti"
+    tag "aviti_mergetilechannels"
+
+    test("aviti_mergetilechannels - 3-channel tile") {
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'test_3ch' ], // meta map
+                    file('${projectDir}/tests/data/aviti/Projection/WellA1/CP01_L1R01C01S1_Nucleus.tif', checkIfExists: true),
+                    file('${projectDir}/tests/data/aviti/Projection/WellA1/CP01_L1R01C01S1_Cell-Membrane.tif', checkIfExists: true),
+                    file('${projectDir}/tests/data/aviti/Projection/WellA1/CP01_L1R01C01S1_Actin.tif', checkIfExists: true)
+                ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out.versions).match() }
+            )
+        }
+
+    }
+
+    test("aviti_mergetilechannels - 2-channel tile (no actin)") {
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'test_2ch' ], // meta map
+                    file('${projectDir}/tests/data/aviti/Projection/WellA1/CP01_L1R01C01S1_Nucleus.tif', checkIfExists: true),
+                    file('${projectDir}/tests/data/aviti/Projection/WellA1/CP01_L1R01C01S1_Cell-Membrane.tif', checkIfExists: true),
+                    file('NO_FILE')
+                ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out.versions).match() }
+            )
+        }
+
+    }
+
+    test("aviti_mergetilechannels - stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'test_stub' ], // meta map
+                    file('${projectDir}/tests/data/aviti/Projection/WellA1/CP01_L1R01C01S1_Nucleus.tif', checkIfExists: true),
+                    file('${projectDir}/tests/data/aviti/Projection/WellA1/CP01_L1R01C01S1_Cell-Membrane.tif', checkIfExists: true),
+                    file('NO_FILE')
+                ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out).match() }
+            )
+        }
+
+    }
+
+}

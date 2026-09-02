@@ -29,7 +29,8 @@ include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_nfcore_sp_s
 workflow WEHISODAHUB_SP_SEGMENT {
 
     take:
-    samplesheet // channel: samplesheet read in from --input
+    samplesheet       // channel: samplesheet read in from --input
+    aviti_samplesheet // channel: samplesheet read in from --aviti_input
 
     main:
 
@@ -37,7 +38,8 @@ workflow WEHISODAHUB_SP_SEGMENT {
     // WORKFLOW: Run pipeline
     //
     SP_SEGMENT (
-        samplesheet
+        samplesheet,
+        aviti_samplesheet
     )
 }
 /*
@@ -58,14 +60,16 @@ workflow {
         params.monochrome_logs,
         args,
         params.outdir,
-        params.input
+        params.input,
+        params.aviti_input
     )
 
     //
     // WORKFLOW: Run main workflow
     //
     WEHISODAHUB_SP_SEGMENT (
-        PIPELINE_INITIALISATION.out.samplesheet
+        PIPELINE_INITIALISATION.out.samplesheet,
+        PIPELINE_INITIALISATION.out.aviti_samplesheet
     )
     //
     // SUBWORKFLOW: Run completion tasks

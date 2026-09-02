@@ -1,0 +1,82 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/subworkflows/yaml-schema.json
+name: "aviti_segment"
+description: |
+  Segments AVITI24 cytoprofiling (Teton/Teton Atlas) runs: discovers wells and
+  tiles from an AVITI run directory, segments whole cells with Cellpose v4 SAM
+  and nuclei with a Cellpose 3.x custom model in separate tile-level
+  processes, publishes per-tile masks in the AVITI Cytocanvas viewer layout
+  (Well<well>/<tile>_Cell.tif, Well<well>/<tile>_Nuclear.tif), then stitches
+  per-tile masks/images into per-well outputs so the existing
+  CELLMEASUREMENT/SEGMENTATIONREPORT/KRONOS2EMBEDDINGS modules can run
+  unmodified.
+keywords:
+  - AVITI
+  - Teton
+  - cytoprofiling
+  - cellpose
+  - segment anything
+  - nuclear
+  - whole-cell
+  - stitching
+  - measurement
+components:
+  - aviti/discovertiles
+  - aviti/mergetilechannels
+  - aviti/wholecellsegment
+  - aviti/nuclearsegment
+  - aviti/stitchwell
+  - cellmeasurement
+  - segmentationreport
+input:
+  - ch_aviti_samplesheet:
+      type: channel
+      description: |
+        Channel containing AVITI sample metadata and the AVITI run directory
+        Structure: [ val(meta), path(run_dir) ]
+        meta.id is the sample name; meta.wells (optional, colon-separated) restricts discovery to specific wells
+  - ch_nuclear_model:
+      type: channel
+      description: |
+        Value channel with the staged Cellpose 3.x custom nuclear model file
+        (20250212_cellpose_nuc_8diam), shared across all tiles/wells/samples
+        Structure: path(model_file)
+output:
+  - nuclear_segmentation_mask:
+      type: file
+      description: |
+        Channel containing stitched per-well nuclear segmentation mask TIFF files
+        Structure: [ val(meta), path(tif) ]
+      pattern: "*_nuclear_stitched.tif"
+  - wholecell_segmentation_mask:
+      type: file
+      description: |
+        Channel containing stitched per-well whole-cell segmentation mask TIFF files
+        Structure: [ val(meta), path(tif) ]
+      pattern: "*_cell_stitched.tif"
+  - annotations:
+      type: file
+      description: |
+        Channel containing parquet files with cell measurements and annotations
+        Structure: [ val(meta), path(parquet) ]
+      pattern: "*.parquet"
+  - kronos_input:
+      type: file
+      description: |
+        Channel containing the stitched per-well image and whole-cell mask, for KRONOS2EMBEDDINGS
+        Structure: [ val(meta), path(image_tif), path(cell_mask) ]
+  - report:
+      type: file
+      description: |
+        Optional segmentation report HTML files
+        Structure: [ val(meta), path(html) ]
+      pattern: "*.html"
+  - versions:
+      type: file
+      description: |
+        File containing software versions
+        Structure: [ path(versions.yml) ]
+      pattern: "versions.yml"
+authors:
+  - "@mcmero"
+maintainers:
+  - "@mcmero"

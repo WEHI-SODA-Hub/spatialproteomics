@@ -38,9 +38,11 @@ lint:
     - docs/README.md
     - .prettierignore
     - .prettierrc.yml
+    - .gitignore
   schema_params: false
   multiqc_config: false
   nextflow_config: false
+  pipeline_name_convention: false
 nf_core_version: 3.3.2
 org_path: null
 repository_type: pipeline

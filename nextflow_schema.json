@@ -10,7 +10,7 @@
             "type": "object",
             "fa_icon": "fas fa-terminal",
             "description": "Define where the pipeline should find input data and save output data.",
-            "required": ["input", "outdir"],
+            "required": ["outdir"],
             "properties": {
                 "input": {
                     "type": "string",
@@ -326,6 +326,43 @@
                     "description": "Discard cells smaller than this many square pixels. Higher keeps fewer cells; 0 disables the filter. Matches cellpose_min_area.",
                     "help_text": "The same size floor `--cellpose_min_area` applies on the Cellpose path, so a run is not filtered differently just because of which segmenter produced it. Both are in **pixels², not microns²**, and both keep cells whose area is greater than or equal to the threshold.\n\nThe two measure that area slightly differently and are not exactly interchangeable: CellSAM counts the label's pixels, while sopa measures the vectorised polygon after smoothing. Across round and ragged cells the polygon comes out at 0.93-1.00x the pixel count (median 0.99), so 200 here cuts at an equivalent ~202 px on the Cellpose side.\n\nCellSAM applies it once, after the whole-slide tiles have been merged; Cellpose applies it per patch during segmentation. Set 0 to keep every mask, which is what this defaulted to before -- CellSAM ran with no size floor at all while Cellpose had one.",
                     "fa_icon": "fas fa-compress-arrows-alt"
+                }
+            }
+        },
+        "aviti_options": {
+            "title": "AVITI24 segmentation options",
+            "type": "object",
+            "fa_icon": "fas fa-th-large",
+            "description": "Parameters used by the AVITI24/Teton/Teton Atlas cytoprofiling segmentation path (params.aviti_input), fully separate from the COMET/MIBI params.input samplesheet.",
+            "properties": {
+                "aviti_input": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "schema": "assets/schema_input_aviti.json",
+                    "mimetype": "text/csv",
+                    "pattern": "^\\S+\\.(csv|y(a)?ml)$",
+                    "description": "Path to comma-separated file listing AVITI runs to segment (columns: sample, run_dir[, wells]). Separate from --input.",
+                    "fa_icon": "fas fa-file-csv"
+                },
+                "aviti_cellpaint_batch": {
+                    "type": "string",
+                    "default": "CP01",
+                    "description": "Imaging batch prefix holding the segmentation-relevant channels (Nucleus/Cell-Membrane/Actin), e.g. 'CP01'.",
+                    "fa_icon": "fas fa-layer-group"
+                },
+                "aviti_channel_mode": {
+                    "type": "string",
+                    "default": "auto",
+                    "enum": ["auto", "2ch", "3ch"],
+                    "description": "Force 2-channel (nucleus + membrane) or 3-channel (+ actin) cell-paint mode, or auto-detect per run from the presence of the Actin file.",
+                    "fa_icon": "fas fa-sliders-h"
+                },
+                "aviti_nuclear_model_path": {
+                    "type": "string",
+                    "format": "path",
+                    "description": "Path to the custom Cellpose 3.x nuclear model (e.g. 20250212_cellpose_nuc_8diam). Required when --aviti_input is set.",
+                    "fa_icon": "fas fa-file-medical"
                 }
             }
         },
@@ -768,6 +805,9 @@
         },
         {
             "$ref": "#/$defs/cellsam_options"
+        },
+        {
+            "$ref": "#/$defs/aviti_options"
         },
         {
             "$ref": "#/$defs/kronos_options"

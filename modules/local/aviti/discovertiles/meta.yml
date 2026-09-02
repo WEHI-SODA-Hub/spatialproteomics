@@ -1,0 +1,54 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/meta-schema.json
+name: AVITIDISCOVERTILES
+description: |
+  Discovers AVITI24 cytoprofiling (Teton/Teton Atlas) wells and tiles from a
+  run directory, using RunParameters.json for well/tile stage coordinates and
+  the Projection/ directory for per-tile nucleus/membrane/actin TIFF paths.
+  Emits a per-sample manifest CSV that downstream tile-fan-out and stitching
+  steps consume.
+keywords:
+  - AVITI
+  - Teton
+  - cytoprofiling
+  - tile discovery
+  - well discovery
+tools:
+  - aviti_discover_tiles:
+      description: Custom WEHI SODA Hub script to discover AVITI wells/tiles
+      homepage: https://github.com/WEHI-SODA-Hub/sp_segment
+      documentation: https://github.com/WEHI-SODA-Hub/sp_segment
+      licence: ["MIT"]
+
+input:
+  - meta:
+      type: map
+      description: |
+        Groovy Map containing sample information, including the colon-separated
+        `wells` list to restrict discovery to (optional)
+        e.g. [ id:'test', wells:'A1:A2' ]
+  - run_dir:
+      type: directory
+      description: Path to the AVITI run directory containing RunParameters.json and Projection/
+
+output:
+  - meta:
+      type: map
+      description: |
+        Groovy Map containing sample information
+        e.g. [ id:'test' ]
+  - manifest:
+      type: file
+      description: |
+        Per-sample CSV manifest with one row per tile, columns
+        well,tile,x_mm,y_mm,nucleus_tif,membrane_tif,actin_tif,channel_mode
+      pattern: "*.manifest.csv"
+  - versions:
+      type: file
+      description: File containing software versions
+      pattern: "versions.yml"
+
+authors:
+  - "@mcmero"
+maintainers:
+  - "@mcmero"

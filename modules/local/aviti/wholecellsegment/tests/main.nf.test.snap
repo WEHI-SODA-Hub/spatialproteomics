@@ -1,0 +1,72 @@
+{
+    "aviti_wholecellsegment - stub, 2-channel (no actin)": {
+        "content": [
+            {
+                "0": [
+                    [
+                        {
+                            "id": "test__WellA1__L1R01C02S1",
+                            "tile": "L1R01C02S1"
+                        },
+                        "L1R01C02S1_Cell.tif:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "1": [
+                    "versions.yml:md5,71e4b28c874f3354f8e5a32cca2ca33b"
+                ],
+                "cell_mask": [
+                    [
+                        {
+                            "id": "test__WellA1__L1R01C02S1",
+                            "tile": "L1R01C02S1"
+                        },
+                        "L1R01C02S1_Cell.tif:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "versions": [
+                    "versions.yml:md5,71e4b28c874f3354f8e5a32cca2ca33b"
+                ]
+            }
+        ],
+        "meta": {
+            "nf-test": "0.9.2",
+            "nextflow": "25.04.4"
+        },
+        "timestamp": "2026-09-01T11:22:29.113786081"
+    },
+    "aviti_wholecellsegment - stub, 3-channel": {
+        "content": [
+            {
+                "0": [
+                    [
+                        {
+                            "id": "test__WellA1__L1R01C01S1",
+                            "tile": "L1R01C01S1"
+                        },
+                        "L1R01C01S1_Cell.tif:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "1": [
+                    "versions.yml:md5,71e4b28c874f3354f8e5a32cca2ca33b"
+                ],
+                "cell_mask": [
+                    [
+                        {
+                            "id": "test__WellA1__L1R01C01S1",
+                            "tile": "L1R01C01S1"
+                        },
+                        "L1R01C01S1_Cell.tif:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "versions": [
+                    "versions.yml:md5,71e4b28c874f3354f8e5a32cca2ca33b"
+                ]
+            }
+        ],
+        "meta": {
+            "nf-test": "0.9.2",
+            "nextflow": "25.04.4"
+        },
+        "timestamp": "2026-09-01T11:12:08.275494253"
+    }
+}

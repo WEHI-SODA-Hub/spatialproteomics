@@ -1,0 +1,61 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/meta-schema.json
+name: AVITIMERGETILECHANNELS
+description: |
+  Merges one AVITI tile's nucleus, membrane, and (optionally) actin TIFFs
+  into a single multi-channel OME-TIFF, for use both as the whole-cell
+  segmentation input stack and as the per-tile intensity image later fed into
+  per-well stitching.
+keywords:
+  - AVITI
+  - Teton
+  - cytoprofiling
+  - channel merge
+  - OME-TIFF
+tools:
+  - aviti_merge_tile_channels:
+      description: Custom WEHI SODA Hub script to merge AVITI tile channels
+      homepage: https://github.com/WEHI-SODA-Hub/sp_segment
+      documentation: https://github.com/WEHI-SODA-Hub/sp_segment
+      licence: ["MIT"]
+
+input:
+  - meta:
+      type: map
+      description: |
+        Groovy Map containing sample/well/tile information
+        e.g. [ id:'test__WellA1__L1R01C01S1', tile:'L1R01C01S1' ]
+  - nucleus_tif:
+      type: file
+      description: Nucleus channel TIFF for this tile
+      pattern: "*.tif"
+  - membrane_tif:
+      type: file
+      description: Membrane/cell-paint channel TIFF for this tile
+      pattern: "*.tif"
+  - actin_tif:
+      type: file
+      description: |
+        Actin channel TIFF for this tile (3-channel mode), or a literal
+        "NO_FILE" placeholder in 2-channel cell paint mode
+      pattern: "*.tif"
+
+output:
+  - meta:
+      type: map
+      description: |
+        Groovy Map containing sample/well/tile information
+        e.g. [ id:'test__WellA1__L1R01C01S1', tile:'L1R01C01S1' ]
+  - image:
+      type: file
+      description: Merged multi-channel OME-TIFF for the tile
+      pattern: "*_image.ome.tif"
+  - versions:
+      type: file
+      description: File containing software versions
+      pattern: "versions.yml"
+
+authors:
+  - "@mcmero"
+maintainers:
+  - "@mcmero"

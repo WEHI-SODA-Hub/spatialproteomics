@@ -1,0 +1,68 @@
+nextflow_process {
+
+    name "Test Process AVITIWHOLECELLSEGMENT"
+    script "../main.nf"
+    process "AVITIWHOLECELLSEGMENT"
+
+    tag "modules"
+    tag "modules_local"
+    tag "aviti"
+    tag "aviti_wholecellsegment"
+
+    // Real (non-stub) execution requires a GPU + the Cellpose v4 SAM model
+    // download, neither of which is available in this test environment, so
+    // only the stub path is exercised here. The underlying Python logic is
+    // covered independently by tests/python/test_aviti_wholecell_segment.py.
+    test("aviti_wholecellsegment - stub, 3-channel") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'test__WellA1__L1R01C01S1', tile:'L1R01C01S1' ], // meta map
+                    file('${projectDir}/tests/data/aviti/Projection/WellA1/CP01_L1R01C01S1_Nucleus.tif', checkIfExists: true),
+                    file('${projectDir}/tests/data/aviti/Projection/WellA1/CP01_L1R01C01S1_Cell-Membrane.tif', checkIfExists: true),
+                    file('${projectDir}/tests/data/aviti/Projection/WellA1/CP01_L1R01C01S1_Actin.tif', checkIfExists: true)
+                ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out).match() }
+            )
+        }
+
+    }
+
+    test("aviti_wholecellsegment - stub, 2-channel (no actin)") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'test__WellA1__L1R01C02S1', tile:'L1R01C02S1' ], // meta map
+                    file('${projectDir}/tests/data/aviti/Projection/WellA1/CP01_L1R01C02S1_Nucleus.tif', checkIfExists: true),
+                    file('${projectDir}/tests/data/aviti/Projection/WellA1/CP01_L1R01C02S1_Cell-Membrane.tif', checkIfExists: true),
+                    file('NO_FILE')
+                ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out).match() }
+            )
+        }
+
+    }
+
+}

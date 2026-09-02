@@ -1,0 +1,30 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://raw.githubusercontent.com/WEHI-SODA-Hub/sp_segment/master/assets/schema_input_aviti.json",
+    "title": "WEHI-SODA-Hub/sp_segment pipeline - params.aviti_input schema",
+    "description": "Schema for the file provided with params.aviti_input. This is a fully separate samplesheet/schema from the COMET/MIBI params.input schema: an AVITI row represents one run directory, not one pre-segmented TIFF, and its downstream routing (well/tile discovery, dual Cellpose segmentation, per-well stitching) shares no code path with the existing Mesmer/SOPA-Cellpose/CellSAM subworkflows.",
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "sample": {
+                "type": "string",
+                "pattern": "^\\S+$",
+                "errorMessage": "Sample name must be provided and cannot contain spaces",
+                "meta": ["id"]
+            },
+            "run_dir": {
+                "type": "string",
+                "format": "directory-path",
+                "exists": true,
+                "errorMessage": "run_dir must be an existing directory containing RunParameters.json and a Projection/ subdirectory"
+            },
+            "wells": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9]+(:[A-Za-z0-9]+)*$",
+                "errorMessage": "wells must be a colon-separated list of WellLocation values (e.g. 'A1:A2'), or left empty to process every well in the run"
+            }
+        },
+        "required": ["sample", "run_dir"]
+    }
+}

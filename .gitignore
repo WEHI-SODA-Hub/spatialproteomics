@@ -9,6 +9,7 @@ testing*
 null/
 .nf-test*
 *.egg-info
+.venv
 
 # KRONOS2 model assets and anything derived from them.
 # MahmoodLab/KRONOS2 is CC-BY-NC-ND-4.0 (NoDerivatives), so the marker

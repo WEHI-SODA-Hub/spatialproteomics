@@ -586,6 +586,106 @@ Mesmer's `mesmer_min_nuclei_area` is deliberately **not** aligned with these: it
 filters nuclei rather than whole cells, and is applied inside the Mesmer
 container rather than by this pipeline.
 
+### AVITI24 cytoprofiling segmentation
+
+AVITI whole-cell segmentation now reuses the global Cellpose parameter group
+(`cellpose_pretrained_model`, `cellpose_diameter`, `cellpose_flow_threshold`,
+`cellpose_cellprob_threshold`, `cellpose_min_area`). The AVITI-specific
+`aviti_wholecell_*` tuning keys have been removed.
+
+For convenience, AVITI defaults are also collected in
+`conf/aviti_defaults.config`. Pass it with `-c conf/aviti_defaults.config` if
+you want a single place to override the AVITI-friendly defaults, including the
+global `pixel_size_microns` and Cellpose parameters, without editing the main
+`nextflow.config`.
+
+AVITI nuclear tuning parameters have been removed for now; nuclear
+segmentation uses the staged model (`aviti_nuclear_model_path`, still
+required) and sensible script defaults unless overridden.
+
+AVITI24 (Teton/Teton Atlas) cytoprofiling runs are segmented through a
+completely separate path from the COMET/MIBI `--input` samplesheet above,
+using its own samplesheet and parameter group. Enable it with `--aviti_input`;
+`--input` and `--aviti_input` may be used together or independently, but at
+least one must be set.
+
+An AVITI samplesheet has one row per AVITI run:
+
+```csv
+sample,run_dir,wells
+run1,/path/to/aviti_run_dir,A1:A2
+```
+
+- `sample`: a unique name for this run.
+- `run_dir`: the AVITI run directory, containing `RunParameters.json` and a
+  `Projection/` directory with per-well/per-tile TIFFs.
+- `wells` (optional): a colon-separated list of wells to restrict processing
+  to (matching the `membrane_channels` colon-separated convention elsewhere in
+  this pipeline). If omitted, every well in `RunParameters.json` is processed.
+
+Unlike the COMET/MIBI path, background subtraction is not run for AVITI
+samples, and there is no `run_mesmer`/`run_cellpose`/`run_cellsam` selector:
+AVITI samples always run both whole-cell (Cellpose v4 segment-anything) and
+nuclear (Cellpose 3.x custom model) segmentation, since that is the pair the
+AVITI Cytocanvas viewer expects.
+
+#### Parallelisation model
+
+Each samplesheet row is one AVITI run, but processing fans out to one task per
+tile: every `(well, tile)` combination discovered from `RunParameters.json`
+runs whole-cell and nuclear segmentation independently and in parallel, on the
+full tile image (AVITI tiles are already HPC-friendly in size, so unlike the
+COMET/MIBI Cellpose path, tiles are not further sub-patched). Per-tile results
+are only brought back together at the per-well stitching step.
+
+#### 2-channel and 3-channel cell-paint modes
+
+AVITI exports either 2-channel (nucleus + membrane) or 3-channel (+ actin)
+cell-paint tiles. `aviti_channel_mode` defaults to `auto`, detecting the mode
+per tile from whether an `Actin` file is present; set it to `2ch` or `3ch` to
+force one mode and fail loudly if a tile does not match.
+
+#### Nuclear model requirement
+
+`aviti_nuclear_model_path` (path to the custom Cellpose 3.x
+`20250212_cellpose_nuc_8diam` model) is **required** whenever `--aviti_input`
+is set — the pipeline will error out early if it is missing.
+
+#### Dual Cellpose environments
+
+Whole-cell segmentation uses Cellpose v4 (segment-anything/`cpsam_v2`);
+nuclear segmentation uses Cellpose 3.x, pinned separately for compatibility
+with the custom nuclear model. These run in two separate
+containers/environments and never share a task.
+
+#### AVITI parameters
+
+| Parameter Name           | Description                                                                                                                                                        |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `aviti_input`            | Path to the AVITI samplesheet (columns: `sample`, `run_dir`[, `wells`]).                                                                                           |
+| `aviti_cellpaint_batch`  | Imaging batch prefix holding the segmentation channels, e.g. `CP01` (default).                                                                                     |
+| `aviti_channel_mode`     | `auto` (default), `2ch`, or `3ch`.                                                                                                                                 |
+| `aviti_nuclear_model_path` | Path to the custom Cellpose 3.x nuclear model. **Required** when `--aviti_input` is set.                                                                           |
+
+AVITI whole-cell segmentation uses the global Cellpose parameters listed
+earlier in this page (`cellpose_pretrained_model`, `cellpose_diameter`,
+`cellpose_flow_threshold`, `cellpose_cellprob_threshold`, `cellpose_min_area`).
+The AVITI defaults overlay also sets the global `pixel_size_microns` used by
+stitching, so one config file can carry the AVITI run defaults end to end.
+
+AVITI nuclear segmentation currently uses the staged model plus the script's
+own defaults (`diameter=8.0`, `flow_threshold=0.4`,
+`cellprob_threshold=0.0`, `min_area=0`); there are no separate AVITI nuclear
+tuning params in the schema.
+
+#### Output layout
+
+Per-tile masks are published in the AVITI Cytocanvas viewer's expected layout
+(`Well<well>/<tile>_Cell.tif`, `Well<well>/<tile>_Nuclear.tif`), and per-well
+stitched masks/image are published separately so the existing
+`CELLMEASUREMENT`/`SEGMENTATIONREPORT`/`KRONOS2EMBEDDINGS` steps can run on
+them unmodified. See [output docs](output.md) for the full layout.
+
 ### KRONOS2 embeddings
 
 KRONOS2 is an optional step that runs after cell measurement and writes a

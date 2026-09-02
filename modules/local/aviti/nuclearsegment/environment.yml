@@ -1,0 +1,27 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/environment-schema.json
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python =3.10
+  - numpy =1.26.4
+  - pandas =2.2.3
+  - scikit-image =0.24.0
+  - Pillow =10.4.0
+  - typer
+  - pip:
+      # Pinned to the exact Cellpose release the AVITI custom nuclear model
+      # (20250212_cellpose_nuc_8diam) was trained/exported under. This is a
+      # different major Cellpose version from the whole-cell (v4 SAM) path
+      # and the two cannot be installed in one environment, hence the
+      # dedicated module/container.
+      - cellpose ==3.0.7
+      # torch pin mirrors the rest of this pipeline's GPU stack
+      # (sopa/segmentationcellpose, cellsamsegment) for consistency; Cellpose
+      # 3.x has no strict upper bound on torch so this is compatible, but has
+      # not been independently benchmarked against the model's original
+      # training environment. Revisit if nuclear segmentation quality looks
+      # off relative to Elembio's own results.
+      - "--extra-index-url https://download.pytorch.org/whl/cu128"
+      - torch ==2.10.0+cu128

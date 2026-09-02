@@ -1,0 +1,74 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/meta-schema.json
+name: AVITISTITCHWELL
+description: |
+  Stitches all per-tile whole-cell masks, nuclear masks, and merged intensity
+  images for one AVITI well into single per-well TIFFs, using each tile's
+  stage coordinates (XMillimeters/YMillimeters) to place it on a shared
+  canvas. Produces stitched outputs compatible with the existing
+  CELLMEASUREMENT/SEGMENTATIONREPORT/KRONOS2EMBEDDINGS sample-level contract.
+keywords:
+  - AVITI
+  - Teton
+  - cytoprofiling
+  - stitching
+  - well-level aggregation
+tools:
+  - aviti_stitch:
+      description: Custom WEHI SODA Hub script to stitch AVITI per-tile masks/images into per-well TIFFs
+      homepage: https://github.com/WEHI-SODA-Hub/sp_segment
+      documentation: https://github.com/WEHI-SODA-Hub/sp_segment
+      licence: ["MIT"]
+
+input:
+  - meta:
+      type: map
+      description: |
+        Groovy Map containing sample/well information
+        e.g. [ id:'test__WellA1' ]
+  - tile_rows:
+      type: list
+      description: |
+        List of maps, one per tile in the well, each with keys tile, x_mm,
+        y_mm, cell_mask, nuclear_mask, image_tif (the latter three being the
+        basenames of the staged files passed in cell_masks/nuclear_masks/images)
+  - cell_masks:
+      type: file
+      description: Per-tile whole-cell segmentation masks for this well
+      pattern: "*_Cell.tif"
+  - nuclear_masks:
+      type: file
+      description: Per-tile nuclear segmentation masks for this well
+      pattern: "*_Nuclear.tif"
+  - images:
+      type: file
+      description: Per-tile merged intensity images for this well
+      pattern: "*_image.ome.tif"
+
+output:
+  - meta:
+      type: map
+      description: |
+        Groovy Map containing sample/well information
+        e.g. [ id:'test__WellA1' ]
+  - cell_mask:
+      type: file
+      description: Stitched whole-cell segmentation mask for the well
+      pattern: "*_cell_stitched.tif"
+  - nuclear_mask:
+      type: file
+      description: Stitched nuclear segmentation mask for the well
+      pattern: "*_nuclear_stitched.tif"
+  - image:
+      type: file
+      description: Stitched multi-channel intensity image for the well
+      pattern: "*_image_stitched.tif"
+  - versions:
+      type: file
+      description: File containing software versions
+      pattern: "versions.yml"
+
+authors:
+  - "@mcmero"
+maintainers:
+  - "@mcmero"

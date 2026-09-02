@@ -1,0 +1,13 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/environment-schema.json
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python =3.12
+  - pip
+  - pip:
+      # Same pin as sopa/segmentationcellpose: 4.2.1.1 is the first release
+      # carrying the cpsam_v2 SAM checkpoint this module defaults to.
+      - sopa[cellpose] ==2.2.6
+      - cellpose ==4.2.1.1

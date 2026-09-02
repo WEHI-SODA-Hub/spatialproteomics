@@ -170,7 +170,7 @@ nextflow run WEHI-SODA-Hub/sp_segment \
 ```
 
 > [!WARNING]
-> Please provide pipeline parameters via the CLI or Nextflow `-params-file` option. Custom config files including those provided by the `-c` Nextflow option can be used to provide any configuration _**except for parameters**_; see [docs](https://nf-co.re/docs/usage/getting_started/configuration#custom-configuration-files).
+> Please provide user-supplied pipeline parameters via the CLI or Nextflow `-params-file` option. Custom config files including those provided by the `-c` Nextflow option can be used to provide any configuration _**except for parameters**_; see [docs](https://nf-co.re/docs/usage/getting_started/configuration#custom-configuration-files). The bundled `conf/aviti_defaults.config` is a pipeline-maintained defaults overlay and is the intended exception for AVITI convenience defaults.
 
 ### Mesmer segmentation
 
@@ -224,6 +224,19 @@ parameters.
 
 If you want to skip measurements (this may take some time for large images), you
 can use set the parameter `enable_measurements` to `false`.
+
+### AVITI24 cytoprofiling segmentation
+
+AVITI24/Teton runs use a separate input samplesheet via `--aviti_input`. To
+keep the configuration surface consistent, the AVITI defaults live in
+`conf/aviti_defaults.config`; pass it with `-c conf/aviti_defaults.config` to
+override the global `pixel_size_microns` and Cellpose defaults with AVITI-
+friendly values.
+
+The AVITI path reuses the global Cellpose parameters for whole-cell
+segmentation and always requires `--aviti_nuclear_model_path` for the staged
+Cellpose 3.x nuclear model. See [docs/usage.md](docs/usage.md#aviti24-cytoprofiling-segmentation)
+for the AVITI samplesheet format, parameter details, and output layout.
 
 ### KRONOS2 embeddings
 

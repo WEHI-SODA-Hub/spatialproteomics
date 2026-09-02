@@ -5,7 +5,7 @@ Description : Extracts markers from COMET OME-TIFF and writes comma-delimited
               output containing markers, exposure times and background channels
               compatible with input expected by mcmicro's
               background_subtraction tool.
-Copyright   : (c) WEHI SODA Hub, 2025
+Copyright   : (c) WEHI SODA Hub, 2026
 License     : MIT
 Maintainer  : Marek Cmero (@mcmero)
 Portability : POSIX

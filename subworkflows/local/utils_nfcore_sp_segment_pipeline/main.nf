@@ -32,10 +32,11 @@ workflow PIPELINE_INITIALISATION {
     nextflow_cli_args  //   array: List of positional nextflow CLI args
     outdir             //  string: The output directory where the results will be saved
     _input             //  string: Path to input samplesheet
+    _aviti_input       //  string: Path to AVITI samplesheet (params.aviti_input)
 
     main:
 
-    ch_versions = Channel.empty()
+    ch_versions = channel.empty()
 
     //
     // Print version and exit if required and dump pipeline parameters to JSON file
@@ -175,18 +176,62 @@ workflow PIPELINE_INITIALISATION {
     }
 
     //
+    // Exactly one entry point is required: --input for COMET/MIBI samples,
+    // --aviti_input for AVITI runs (they are fully separate schemas/paths, so
+    // neither can validate the other's rows). Both may be set for a mixed
+    // run.
+    //
+    if (!params.input && !params.aviti_input) {
+        error("Either --input (COMET/MIBI samplesheet) or --aviti_input (AVITI samplesheet) must be provided.")
+    }
+
+    //
+    // AVITI segmentation requires the custom Cellpose 3.x nuclear model: there
+    // is no built-in model to fall back to, unlike cellpose_pretrained_model
+    // on the COMET/MIBI path.
+    //
+    if (params.aviti_input && !params.aviti_nuclear_model_path) {
+        error("--aviti_nuclear_model_path is required when --aviti_input is set (path to the custom Cellpose 3.x nuclear model, e.g. 20250212_cellpose_nuc_8diam).")
+    }
+    if (params.aviti_nuclear_model_path && !file(params.aviti_nuclear_model_path).exists()) {
+        error("aviti_nuclear_model_path does not exist: ${params.aviti_nuclear_model_path}")
+    }
+
+    //
     // Create channel from input file provided through params.input
     //
-    Channel
-        .fromList(samplesheetToList(params.input, "${projectDir}/assets/schema_input.json"))
-        .map { samplesheet ->
-            validateInputSamplesheet(samplesheet)
-        }
-        .set { ch_samplesheet }
+    ch_samplesheet = channel.empty()
+    if (params.input) {
+        channel
+            .fromList(samplesheetToList(params.input, "${projectDir}/assets/schema_input.json"))
+            .map { samplesheet ->
+                validateInputSamplesheet(samplesheet)
+            }
+            .set { ch_samplesheet }
+    }
+
+    //
+    // Create channel from the separate AVITI samplesheet, if provided.
+    // Rows are [ meta, run_dir, wells ] -- run_dir is staged as a path so
+    // Nextflow's own file-existence handling applies to it like any other
+    // input, and wells (empty string when unset) folds into meta below so
+    // AVITIDISCOVERTILES can read it off a single tuple.
+    //
+    ch_aviti_samplesheet = channel.empty()
+    if (params.aviti_input) {
+        channel
+            .fromList(samplesheetToList(params.aviti_input, "${projectDir}/assets/schema_input_aviti.json"))
+            .map { sample, run_dir, wells ->
+                def meta = [ id: sample.id, wells: wells ?: '' ]
+                [ meta, file(run_dir) ]
+            }
+            .set { ch_aviti_samplesheet }
+    }
 
     emit:
-    samplesheet = ch_samplesheet
-    versions    = ch_versions
+    samplesheet       = ch_samplesheet
+    aviti_samplesheet = ch_aviti_samplesheet
+    versions          = ch_versions
 }
 
 /*

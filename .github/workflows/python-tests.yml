@@ -1,0 +1,48 @@
+name: Python unit tests
+# Unit tests for the bin/ scripts. Deliberately dependency-light: these cover
+# the pure logic (channel naming, exclusion, the marker report, the label
+# dtype), so they need no torch, no GPU and no gated model weights, and
+# run in seconds. The geo stack is here only because bin/parquet_to_tiff.py
+# imports it at module level; all of it is plain wheels.
+#
+# Dependencies are pinned via uv (pyproject.toml + uv.lock), not a bare pip
+# install: `uv sync --dev` reproduces the exact resolved set from the lock
+# file rather than re-resolving on every run.
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+    paths:
+      - "bin/**.py"
+      - "tests/python/**.py"
+      - "pyproject.toml"
+      - "uv.lock"
+  pull_request:
+    paths:
+      - "bin/**.py"
+      - "tests/python/**.py"
+      - "pyproject.toml"
+      - "uv.lock"
+
+jobs:
+  pytest:
+    name: pytest
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out pipeline code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Run Python unit tests
+        run: uv run pytest tests/python/ -v
