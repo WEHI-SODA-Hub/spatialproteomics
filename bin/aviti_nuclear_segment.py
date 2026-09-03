@@ -24,9 +24,11 @@ import typer
 
 app = typer.Typer(add_completion=False)
 
-# Label masks are long runs of a repeated ID, so deflate shrinks them ~90x.
+# Matches Elembio's own onboard segmentation output tag-for-tag (confirmed by
+# comparing tifffile tags against a real onboard-segmented Cell.tif):
+# ImageJ-format ImageDescription/hyperstack metadata with AdobeDeflate
+# compression, not tifffile's default "shaped" JSON metadata.
 MASK_COMPRESSION = "zlib"
-MASK_COMPRESSION_ARGS = {"level": 1}
 
 
 def log(msg: str) -> None:
@@ -43,6 +45,18 @@ def remove_small_cells(mask: np.ndarray, min_area: int) -> np.ndarray:
     out = mask.copy()
     out[np.isin(out, small)] = 0
     return out
+
+
+def binarize(mask: np.ndarray) -> np.ndarray:
+    '''
+    Collapse an instance-labeled mask to Elembio's own Nuclear.tif
+    convention: a uint8 mask where 0 means no nucleus and 1 means a nucleus
+    is present, per their notebook's documented Nuclear.tif spec (unlike
+    Cell.tif, which is a uint16 instance-labeled mask). Nuclear.tif is never
+    instance-labeled, so there is no label-count-vs-dtype overflow concern
+    here the way there is for the whole-cell mask.
+    '''
+    return (mask > 0).astype(np.uint8)
 
 
 @app.command()
@@ -91,14 +105,20 @@ def main(
         cellprob_threshold=cellprob_threshold,
     )
 
-    # Need to save as uint8, which is what Elembio's cells2stats expects for nuclear masks.
-    masks = remove_small_cells(masks.astype(np.uint8), min_area)
-
-    tifffile.imwrite(
-        output, masks,
-        compression=MASK_COMPRESSION, compressionargs=MASK_COMPRESSION_ARGS,
-    )
+    masks = remove_small_cells(masks, min_area)
     n_nuclei = len(np.unique(masks)) - 1
+
+    # Per Elembio's own notebook, Nuclear.tif is a uint8 *binary* mask (0 =
+    # no nucleus, 1 = nucleus present), unlike Cell.tif which is uint16
+    # instance-labeled -- so collapse instances to presence here rather than
+    # keeping (and potentially overflowing) per-nucleus label IDs.
+    masks = binarize(masks)
+
+    # imagej=True matches Elembio's own onboard segmentation TIFFs (ImageJ-
+    # format ImageDescription/hyperstack metadata); see the module-level
+    # MASK_COMPRESSION comment for why this matters more than compression
+    # itself.
+    tifffile.imwrite(output, masks, imagej=True, compression=MASK_COMPRESSION)
     log(f"Nuclear segmentation: {n_nuclei} nucleus/nuclei written to {output}")
 
 

@@ -30,9 +30,11 @@ import typer
 
 app = typer.Typer(add_completion=False)
 
-# Label masks are long runs of a repeated ID, so deflate shrinks them ~90x.
+# Matches Elembio's own onboard segmentation output tag-for-tag (confirmed by
+# comparing tifffile tags against a real onboard-segmented Cell.tif):
+# ImageJ-format ImageDescription/hyperstack metadata with AdobeDeflate
+# compression, not tifffile's default "shaped" JSON metadata.
 MASK_COMPRESSION = "zlib"
-MASK_COMPRESSION_ARGS = {"level": 1}
 
 
 def log(msg: str) -> None:
@@ -80,7 +82,6 @@ def remove_small_cells(mask: np.ndarray, min_area: int) -> np.ndarray:
     out[np.isin(out, small)] = 0
     return out
 
-
 @app.command()
 def main(
     nucleus_tif: Annotated[Path, typer.Option(exists=True, help="Nucleus channel tile TIFF.")],
@@ -124,10 +125,11 @@ def main(
 
     masks = remove_small_cells(masks.astype(np.uint16), min_area)
 
-    tifffile.imwrite(
-        output, masks,
-        compression=MASK_COMPRESSION, compressionargs=MASK_COMPRESSION_ARGS,
-    )
+    # imagej=True matches Elembio's own onboard segmentation TIFFs (ImageJ-
+    # format ImageDescription/hyperstack metadata); see the module-level
+    # MASK_COMPRESSION comment for why this matters more than compression
+    # itself.
+    tifffile.imwrite(output, masks, imagej=True, compression=MASK_COMPRESSION)
     n_cells = len(np.unique(masks)) - 1
     log(f"Whole-cell segmentation: {n_cells} cell(s) written to {output}")
 

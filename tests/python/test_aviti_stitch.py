@@ -177,6 +177,25 @@ def test_relabeling_keeps_ids_unique_across_many_tiles(tmp_path):
     assert len(labels) == len(set(labels.tolist()))
 
 
+def test_binary_mode_does_not_offset_nuclear_presence_values(tmp_path):
+    # Nuclear.tif is Elembio's 0/1 presence mask (see
+    # aviti_nuclear_segment.py), not instance-labeled -- stitching it must
+    # not add a running-label offset the way cell masks do, or every
+    # second-and-later tile's nuclei would stop being "1".
+    tile_a = np.array([[1, 0]], dtype=np.uint8)
+    tile_b = np.array([[1, 1]], dtype=np.uint8)
+    tifffile.imwrite(tmp_path / "a.tif", tile_a)
+    tifffile.imwrite(tmp_path / "b.tif", tile_b)
+
+    rows = [{"nuclear_mask": str(tmp_path / "a.tif")}, {"nuclear_mask": str(tmp_path / "b.tif")}]
+    offsets = [(0, 0), (2, 0)]
+
+    canvas = stitch_masks(rows, offsets, "nuclear_mask", canvas_h=1, canvas_w=4, binary=True)
+
+    np.testing.assert_array_equal(canvas, np.array([[1, 0, 1, 1]], dtype=np.uint8))
+    assert canvas.dtype == np.uint8
+
+
 # ----------------------------------------------------------------------------
 # image stitching
 # ----------------------------------------------------------------------------

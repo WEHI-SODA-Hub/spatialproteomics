@@ -30,16 +30,18 @@ Description : Stitches per-tile whole-cell masks, nuclear masks, and merged
               Cytocanvas layout for the same well, and is not otherwise
               documented by Elembio.
 
+              Label IDs are made unique across tiles by adding a running
+              offset per tile for the whole-cell mask, so a stitched well
+              mask never silently merges two different tiles' cell 1 into
+              one label. The nuclear mask is Elembio's binary Nuclear.tif
+              convention (0/1 presence, not instance-labeled), so it is
+              composited as-is with no offsetting.
+
               Where tiles overlap, whichever tile is placed first
               (deterministic tile-name order) wins the disputed pixels
               outright, for both masks and the intensity image -- there is
               no seam blending and no attempt to reconcile a cell split
               across two tiles' claimed regions.
-
-              Label IDs are made unique across tiles by adding a running
-              offset per mask type (cell, nuclear) before compositing, so a
-              stitched well mask never silently merges two different tiles'
-              cell 1 into one label.
 Copyright   : (c) WEHI SODA Hub, 2026
 License     : MIT
 Maintainer  : Marek Cmero (@mcmero)
@@ -129,26 +131,39 @@ def get_channel_names(tiff_path: Path, n_channels: int) -> List[str]:
     return [f"Channel_{i}" for i in range(n_channels)]
 
 
-def stitch_masks(rows, offsets, path_key, canvas_h, canvas_w):
-    canvas = np.zeros((canvas_h, canvas_w), dtype=LABEL_DTYPE)
+def stitch_masks(rows, offsets, path_key, canvas_h, canvas_w, binary: bool = False):
+    '''
+    Composite one mask type across all tiles in a well.
+
+    ``binary=True`` is for Elembio's Nuclear.tif convention (a 0/1 presence
+    mask, not instance-labeled -- see aviti_nuclear_segment.py): pixels are
+    copied through as-is with no running-label offset, since there are no
+    per-tile instance IDs to keep unique. Cell masks (``binary=False``) are
+    instance-labeled, so a running offset is added per tile to keep every
+    tile's "cell 1" etc. distinct in the stitched well.
+    '''
+    dtype = np.uint8 if binary else LABEL_DTYPE
+    canvas = np.zeros((canvas_h, canvas_w), dtype=dtype)
     occupied = np.zeros((canvas_h, canvas_w), dtype=bool)
     running_max = 0
 
     for row, (x0, y0) in zip(rows, offsets):
-        tile_mask = tifffile.imread(row[path_key]).astype(LABEL_DTYPE)
+        tile_mask = tifffile.imread(row[path_key]).astype(dtype)
         h, w = tile_mask.shape
         region_occupied = occupied[y0:y0 + h, x0:x0 + w]
         new_pixels = ~region_occupied
 
-        offset_mask = tile_mask.copy()
-        offset_mask[offset_mask > 0] += running_max
+        if binary:
+            offset_mask = tile_mask
+        else:
+            offset_mask = tile_mask.copy()
+            offset_mask[offset_mask > 0] += running_max
+            running_max = int(max(running_max, offset_mask.max()))
 
         region_canvas = canvas[y0:y0 + h, x0:x0 + w]
         region_canvas[new_pixels] = offset_mask[new_pixels]
         canvas[y0:y0 + h, x0:x0 + w] = region_canvas
         occupied[y0:y0 + h, x0:x0 + w] = region_occupied | (tile_mask > 0)
-
-        running_max = int(max(running_max, offset_mask.max()))
 
     return canvas
 
@@ -234,7 +249,7 @@ def main(
         compression=MASK_COMPRESSION, compressionargs=MASK_COMPRESSION_ARGS,
     )
 
-    nuclear_canvas = stitch_masks(rows, offsets, "nuclear_mask", canvas_h, canvas_w)
+    nuclear_canvas = stitch_masks(rows, offsets, "nuclear_mask", canvas_h, canvas_w, binary=True)
     tifffile.imwrite(
         output_nuclear, nuclear_canvas,
         compression=MASK_COMPRESSION, compressionargs=MASK_COMPRESSION_ARGS,
@@ -249,7 +264,7 @@ def main(
 
     log(
         f"Stitched cell mask ({int(cell_canvas.max())} max label), "
-        f"nuclear mask ({int(nuclear_canvas.max())} max label), and "
+        f"nuclear mask ({int(nuclear_canvas.sum())} nucleus px), and "
         f"{len(channel_names)}-channel image written."
     )
 
