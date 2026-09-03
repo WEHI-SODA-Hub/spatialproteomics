@@ -44,11 +44,11 @@ The pipeline is built using [Nextflow](https://www.nextflow.io/) and processes d
 
 AVITI produces tile-level viewer outputs plus stitched per-well outputs:
 
-- `aviti/sample/WellA1/<tile>_Cell.tif` -- per-tile whole-cell mask published in the Cytocanvas layout.
-- `aviti/sample/WellA1/<tile>_Nuclear.tif` -- per-tile nuclear mask published in the Cytocanvas layout.
-- `aviti_stitched/sample/WellA1/sample__WellA1_cell_stitched.tif` -- stitched whole-cell mask for one well.
-- `aviti_stitched/sample/WellA1/sample__WellA1_nuclear_stitched.tif` -- stitched nuclear mask for one well.
-- `aviti_stitched/sample/WellA1/sample__WellA1_image_stitched.tif` -- stitched multi-channel image for downstream cellmeasurement/KRONOS.
+- `avitisegmentation/sample/CellSegmentation/WellA1/<tile>_Cell.tif` -- per-tile whole-cell mask published in the Cytocanvas layout.
+- `avitisegmentation/sample/CellSegmentation/WellA1/<tile>_Nuclear.tif` -- per-tile nuclear mask published in the Cytocanvas layout.
+- `avitistitched/sample/WellA1/sample__WellA1_cell_stitched.tif` -- stitched whole-cell mask for one well.
+- `avitistitched/sample/WellA1/sample__WellA1_nuclear_stitched.tif` -- stitched nuclear mask for one well.
+- `avitistitched/sample/WellA1/sample__WellA1_image_stitched.tif` -- stitched multi-channel image for downstream cellmeasurement/KRONOS.
 
 The tile names preserve the source AVITI tile basename, and the stitched
 outputs are the ones passed into the existing `CELLMEASUREMENT`,
