@@ -363,6 +363,12 @@
                     "format": "path",
                     "description": "Path to the custom Cellpose 3.x nuclear model (e.g. 20250212_cellpose_nuc_8diam). Required when --aviti_input is set.",
                     "fa_icon": "fas fa-file-medical"
+                },
+                "aviti_tile_gap_microns": {
+                    "type": "number",
+                    "default": 32.0,
+                    "description": "Visual gap in microns inserted between adjacent tiles when stitching a well, for viewer clarity only -- not a measurement of the true stage gap between tiles.",
+                    "fa_icon": "fas fa-arrows-alt-h"
                 }
             }
         },

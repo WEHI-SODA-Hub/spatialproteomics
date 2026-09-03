@@ -122,7 +122,7 @@ def main(
         cellprob_threshold=cellprob_threshold,
     )
 
-    masks = remove_small_cells(masks.astype(np.uint32), min_area)
+    masks = remove_small_cells(masks.astype(np.uint16), min_area)
 
     tifffile.imwrite(
         output, masks,

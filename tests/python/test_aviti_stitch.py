@@ -10,9 +10,9 @@ import pytest
 import tifffile
 
 from aviti_stitch import (
-    compute_offsets,
+    compute_grid_offsets,
     get_channel_names,
-    mm_to_px,
+    microns_to_px,
     read_tile_rows,
     stitch_image,
     stitch_masks,
@@ -24,22 +24,56 @@ from aviti_stitch import (
 # ----------------------------------------------------------------------------
 
 
-def test_mm_to_px_uses_the_given_pixel_size():
-    # 1 mm = 1000 um; at 0.25 um/px that's 4000 px.
-    assert mm_to_px(1.0, pixel_size_microns=0.25) == 4000
+def test_microns_to_px_uses_the_given_pixel_size():
+    # 32 um at 0.25 um/px is 128 px.
+    assert microns_to_px(32.0, pixel_size_microns=0.25) == 128
 
 
-def test_mm_to_px_rounds_to_nearest_pixel():
-    assert mm_to_px(0.00013, pixel_size_microns=0.25) == round(0.00013 * 1000 / 0.25)
+def test_microns_to_px_rounds_to_nearest_pixel():
+    assert microns_to_px(0.13, pixel_size_microns=0.25) == round(0.13 / 0.25)
 
 
-def test_compute_offsets_are_zero_based_from_the_minimum_tile():
+def test_compute_grid_offsets_ranks_by_reverse_stage_x_for_rows_and_y_for_columns():
+    # A 2x2 well: x_mm distinguishes rows (descending), y_mm distinguishes
+    # columns (ascending) -- see the aviti_stitch module docstring for why
+    # this rotation matches AVITI's own Cytocanvas layout.
+    rows = [
+        {"x_mm": "0.0", "y_mm": "0.0"},  # smallest x, smallest y -> row 1 (last), col 0
+        {"x_mm": "0.0", "y_mm": "1.0"},  # smallest x, largest y  -> row 1 (last), col 1
+        {"x_mm": "1.0", "y_mm": "0.0"},  # largest x, smallest y  -> row 0 (first), col 0
+        {"x_mm": "1.0", "y_mm": "1.0"},  # largest x, largest y   -> row 0 (first), col 1
+    ]
+    offsets, n_rows, n_cols = compute_grid_offsets(rows, tile_h=10, tile_w=10, gap_px=0)
+    assert (n_rows, n_cols) == (2, 2)
+    assert offsets == [(0, 10), (10, 10), (0, 0), (10, 0)]
+
+
+def test_compute_grid_offsets_spaces_tiles_by_tile_size_plus_gap():
     rows = [
         {"x_mm": "0.0", "y_mm": "0.0"},
-        {"x_mm": "0.001", "y_mm": "0.0"},  # 4 px to the right at 0.25 um/px
+        {"x_mm": "0.0", "y_mm": "1.0"},
     ]
-    offsets = compute_offsets(rows, pixel_size_microns=0.25)
-    assert offsets == [(0, 0), (4, 0)]
+    offsets, n_rows, n_cols = compute_grid_offsets(rows, tile_h=10, tile_w=10, gap_px=2)
+    assert (n_rows, n_cols) == (1, 2)
+    # Smaller y_mm ranks first (column 0); larger y_mm lands in column 1,
+    # offset by tile_w + gap_px.
+    assert offsets == [(0, 0), (12, 0)]
+
+
+def test_compute_grid_offsets_reports_grid_dimensions_for_a_well_missing_tiles():
+    # 3 distinct x values x 2 distinct y values would be a full 3x2=6-tile
+    # grid, but only 5 rows are present here (one tile missing) -- callers
+    # use n_rows * n_cols != len(rows) to detect and warn about this.
+    rows = [
+        {"x_mm": "0.0", "y_mm": "0.0"},
+        {"x_mm": "0.0", "y_mm": "1.0"},
+        {"x_mm": "1.0", "y_mm": "0.0"},
+        {"x_mm": "1.0", "y_mm": "1.0"},
+        {"x_mm": "2.0", "y_mm": "0.0"},
+    ]
+    offsets, n_rows, n_cols = compute_grid_offsets(rows, tile_h=10, tile_w=10, gap_px=0)
+    assert (n_rows, n_cols) == (3, 2)
+    assert n_rows * n_cols != len(rows)
 
 
 # ----------------------------------------------------------------------------

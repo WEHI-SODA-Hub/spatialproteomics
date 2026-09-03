@@ -91,7 +91,8 @@ def main(
         cellprob_threshold=cellprob_threshold,
     )
 
-    masks = remove_small_cells(masks.astype(np.uint32), min_area)
+    # Need to save as uint8, which is what Elembio's cells2stats expects for nuclear masks.
+    masks = remove_small_cells(masks.astype(np.uint8), min_area)
 
     tifffile.imwrite(
         output, masks,

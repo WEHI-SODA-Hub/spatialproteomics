@@ -3,19 +3,38 @@
 Module      : aviti_stitch
 Description : Stitches per-tile whole-cell masks, nuclear masks, and merged
               intensity images for one AVITI well into single per-well
-              TIFFs, using the tile stage coordinates (XMillimeters,
-              YMillimeters) discovered from RunParameters.json.
+              TIFFs.
 
-              Tiles are placed on a shared canvas at their nominal stage
-              position converted to pixels via --pixel-size-microns. Where
-              tiles overlap, whichever tile is placed first (deterministic
-              tile-name order) wins the disputed pixels outright, for both
-              masks and the intensity image -- there is no seam blending and
-              no attempt to reconcile a cell split across two tiles' claimed
-              regions. This matches AVITI's own tiling, which is a
-              near-contiguous grid rather than the heavily overlapping
-              patches this pipeline uses elsewhere for whole-slide COMET
-              images.
+              Tiles are placed on a *grid*, not at a literal pixel conversion
+              of their stage coordinates (XMillimeters/YMillimeters). AVITI's
+              stage frame is not aligned with its own image row/column frame:
+              treating stage millimetres as image pixels directly produces
+              both wildly oversized, non-uniform gaps between tiles (stage
+              spacing does not match the exported field-of-view pixel size)
+              and a well that is rotated 90 degrees relative to how AVITI's
+              own Cytocanvas viewer lays it out.
+
+              Each tile's stage X/Y is instead used only to *rank* it among
+              the other tiles in its well, and those ranks are mapped onto
+              a Cytocanvas-orientated pixel grid with a small fixed visual
+              gap (--tile-gap-microns) between adjacent tiles:
+
+                  output_row    = reverse_rank(x_mm)       descending
+                  output_column = rank(y_mm)               ascending
+
+              i.e. tiles with a larger stage X land in earlier (higher, closer
+              to the top of the image) output rows, and tiles with a smaller
+              stage Y land in earlier (further left) output columns. This
+              90-degree rotation was determined empirically by comparing this
+              pipeline's naive stage-coordinate placement against AVITI's own
+              Cytocanvas layout for the same well, and is not otherwise
+              documented by Elembio.
+
+              Where tiles overlap, whichever tile is placed first
+              (deterministic tile-name order) wins the disputed pixels
+              outright, for both masks and the intensity image -- there is
+              no seam blending and no attempt to reconcile a cell split
+              across two tiles' claimed regions.
 
               Label IDs are made unique across tiles by adding a running
               offset per mask type (cell, nuclear) before compositing, so a
@@ -39,6 +58,7 @@ app = typer.Typer(add_completion=False)
 
 MASK_COMPRESSION = "zlib"
 MASK_COMPRESSION_ARGS = {"level": 1}
+# As we need to stitch several images together, use larger uint to avoid overflow
 LABEL_DTYPE = np.uint32
 
 
@@ -55,15 +75,41 @@ def read_tile_rows(manifest: Path) -> List[dict]:
     return sorted(rows, key=lambda r: r["tile"])
 
 
-def mm_to_px(value_mm: float, pixel_size_microns: float) -> int:
-    return round(float(value_mm) * 1000.0 / pixel_size_microns)
+def microns_to_px(value_microns: float, pixel_size_microns: float) -> int:
+    return round(float(value_microns) / pixel_size_microns)
 
 
-def compute_offsets(rows: List[dict], pixel_size_microns: float):
-    xs = [mm_to_px(r["x_mm"], pixel_size_microns) for r in rows]
-    ys = [mm_to_px(r["y_mm"], pixel_size_microns) for r in rows]
-    min_x, min_y = min(xs), min(ys)
-    return [(x - min_x, y - min_y) for x, y in zip(xs, ys)]
+def compute_grid_offsets(rows: List[dict], tile_h: int, tile_w: int, gap_px: int):
+    '''
+    Rank each tile's stage X/Y among its well's other tiles and map those
+    ranks onto a Cytocanvas-orientated pixel grid, spaced by the tile size
+    plus a fixed visual gap (rather than by stage distance).
+
+    See the module docstring for why the axes are rotated/reversed rather
+    than mapped straight through: output_row = reverse_rank(x_mm) descending,
+    output_column = rank(y_mm) ascending.
+
+    Returns (offsets, n_rows, n_cols), where offsets are (x0, y0) pixel
+    positions in the same order as ``rows``, and n_rows/n_cols are the
+    resulting grid dimensions (for logging/sanity-checking a well that is
+    missing tiles).
+    '''
+    xs = [float(r["x_mm"]) for r in rows]
+    ys = [float(r["y_mm"]) for r in rows]
+
+    x_values = sorted(set(xs))
+    y_values = sorted(set(ys))
+    x_rank = {x: i for i, x in enumerate(x_values)}
+    y_rank = {y: i for i, y in enumerate(y_values)}
+    n_rows, n_cols = len(x_values), len(y_values)
+
+    offsets = []
+    for x, y in zip(xs, ys):
+        out_row = (n_rows - 1) - x_rank[x]
+        out_col = y_rank[y]
+        offsets.append((out_col * (tile_w + gap_px), out_row * (tile_h + gap_px)))
+
+    return offsets, n_rows, n_cols
 
 
 def get_channel_names(tiff_path: Path, n_channels: int) -> List[str]:
@@ -148,21 +194,39 @@ def main(
     output_nuclear: Annotated[Path, typer.Option(help="Path to write the stitched nuclear mask.")],
     output_image: Annotated[Path, typer.Option(help="Path to write the stitched intensity image.")],
     pixel_size_microns: Annotated[float, typer.Option(
-        help="AVITI pixel size in microns/pixel, used to convert stage "
-             "XMillimeters/YMillimeters into pixel offsets."
+        help="AVITI pixel size in microns/pixel, used only to convert "
+             "--tile-gap-microns into a pixel gap. Tile placement is grid-"
+             "based (see module docstring), not a literal stage-coordinate "
+             "pixel conversion."
     )] = 0.25,
+    tile_gap_microns: Annotated[float, typer.Option(
+        help="Visual gap in microns to insert between adjacent tiles in the "
+             "stitched output. This is purely for viewer clarity, not a "
+             "measurement of the true physical stage gap between tiles."
+    )] = 32.0,
 ):
     '''
     Stitch one well's per-tile masks and intensity image into per-well TIFFs.
     '''
     rows = read_tile_rows(manifest)
-    offsets = compute_offsets(rows, pixel_size_microns)
 
     tile_shape = tifffile.imread(rows[0]["cell_mask"]).shape
     tile_h, tile_w = tile_shape
+
+    gap_px = microns_to_px(tile_gap_microns, pixel_size_microns)
+    offsets, n_rows, n_cols = compute_grid_offsets(rows, tile_h, tile_w, gap_px)
+    if n_rows * n_cols != len(rows):
+        log(
+            f"WARNING: {len(rows)} tile(s) span a {n_rows}x{n_cols} grid "
+            f"({n_rows * n_cols} cells) -- this well may be missing tile(s)."
+        )
+
     canvas_w = max(x for x, _ in offsets) + tile_w
     canvas_h = max(y for _, y in offsets) + tile_h
-    log(f"Stitching {len(rows)} tile(s) into a {canvas_w}x{canvas_h}px canvas")
+    log(
+        f"Stitching {len(rows)} tile(s) into a {n_rows}x{n_cols} grid "
+        f"({canvas_w}x{canvas_h}px canvas, {gap_px}px/{tile_gap_microns}um gap)"
+    )
 
     cell_canvas = stitch_masks(rows, offsets, "cell_mask", canvas_h, canvas_w)
     tifffile.imwrite(
